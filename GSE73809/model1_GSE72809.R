@@ -5,35 +5,26 @@ library(dplyr)
 library(ROCR)
 library(dplyr)
 library(ggplot2)
-# library(tidyr)
-# library(rsample)
-# library(caret)
-# library(h2o)
-# library(tidyverse)  # data manipulation and visualization
-# library(modelr)     # provides easy pipeline modeling functions
-# library(broom)
+
 
 ## GET DATA FROM GEO
 # gset <- getGEO('GSE72809')
 # head(gset)
 # saveRDS(gset, file = 'gset_GSE72809')
 
+
 ## LOAD DATA FROM rds object
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 getwd()
 gset <-readRDS(file = "gset_GSE72809")
 head(gset)
-# exprs(gset_t[[1]])
 n <- ncol(gset[[1]])
-
 
 gset.df <- exprs(gset[[1]])
 gset.df[1:5,1:5]
 
 colnames(phenoData(gset[[1]]))
 phenoData(gset[[1]])$'category:ch1'
-class(phenoData(gset[[1]])$'category:ch1')
-
 
 
 ## ADD DEF BACT AND DEF VIRAL TO LISTS
@@ -51,14 +42,14 @@ for (i in 1:n){
 vrl.index <- vrl.index[!is.na(vrl.index)]
 
 
-
 ## SUBSET THE GSET TO GET BACT VIRAL DF
 index.binary <- c(bct.index, vrl.index)
-gset.binary <- gset_df[,index.binary]
+gset.binary <- gset.df[,index.binary]
 gset.binary.t <- as.data.frame(t(gset.binary))
 
 # dim(gset_binary)
 dim(gset.binary.t)
+
 
 ## CONSTRUCTS GROUND TRUTH LIST
 truth <- character(0)
@@ -71,153 +62,110 @@ for (i in 1:length(index.binary)){
   }
 }
 
+# creates a two level factor from the ground truth vector
 label <- factor(truth, levels = c(1,2), labels = c('bacterial', 'viral'))
-label
-
 attributes(label)
 
-gset.binary.t$label <- label
-gset.binary.t[1:5, 47320:47324]
-gset.binary.t[1:5, c(1,2,47323, 47324)]
-dim(gset.binary.t)
+
+
+
+
+# scale df and add labels
+gset.s <- as.data.frame(apply(gset.binary.t, 2, scale))
+
+gset.s <- a[,2:6] <- apply(gset.binary.t[,2:ncol(gset.binary.t)], 2, scale)
+
+dim(gset.s)
+gset.s$label <- label
+
+a <- gset.binary.t[1:5,1:5]
+a <- cbind(GSM = rownames(a), a)
+apply(a[,2:5], 2, scale)
+
+
+as.data.frame(apply(iris[, 1:4], 2, summary))
+
+gset.s[1:5, 47320:47324] # head
+gset.s[139:144, 47320:47324] # tail
+
+
+
+
 
 
 ## DEFINE TRAINING AND TEST SETS
-x <- gset.binary.t[, c(1,2,47323, 47324)]
+custom.rows <- c(1,2,47323, 47324)
+custom.rows <- c(47300:47324)
+x <- gset.s[, custom.rows]
 dim(x)
-# x$label <- y
 y <- gset.binary.t[,ncol(gset.binary.t)]
 
-# n <- nrow(x)
-# index <- seq(1:n)
-# train = sample(1:n, round(n*0.8))
-# test = index[-train]
-# 
-# # intersect(train, test)
-# # integer(0)
-# 
+# training test split
+set.seed(3)
+n <- nrow(x)
+index <- seq(1:n)
+train = sample(1:n, round(n*0.8))
+test = index[-train]
+intersect(train, test)
+
 x_train <- x[train,]
 dim(x_train)
-x_test <- x[test,][-ncol(x)]
+x_test <- x[test,][-ncol(x)] # strip the labels
 dim(x_test)
-# ytest = y[test]
-
+ytest = y[test]
 
 # Basic scatter plot
 # x_test <- x[test,]
-p <- ggplot(x_train, aes(x=ILMN_1343291, y=ILMN_3311190))
-# p <- ggplot(x_train, aes(x=ILMN_1343291, y=ILMN_1343295))
-p + geom_point(aes(colour = factor(label)), size = 2)
-
+# p <- ggplot(x_train, aes(x=ILMN_1343291, y=ILMN_3311190))
+# p <- ggplot(x_train, aes(x=ILMN_3311190, y=ILMN_1343295))
+# p + geom_point(aes(colour = factor(label)), size = 2)
 
 # logistic
 logistic.mod1 <- glm(label ~., family = "binomial", data = x_train)
 summary(logistic.mod1)
-# logistic.mod1
 
 log.pred <- predict(logistic.mod1, x_test, type = 'response')
-cat.pred <- ifelse(log.pred < 0.5, 'bact', 'viral')
-cat.pred
-
-# x_test['GSM1872559',]
-# 
-# x_test['GSM1872497',]
-# 
-# x_test['GSM1872495',]
-
-
-
-
-x_train[1,]
-logistic.mod1$coefficients
-log.pred[1]
-
-(0.5562*4.9273 + 5.898*-1.12124)+4.5931
-a <- 0.556119*4.927301
-b <- -1.121235 * 5.897797
-c <- 4.593186
-
-# classification
-list(
-  table(ytest, cat.pred) # %>% prop.table() %>% round(3)
-  # table(y.cat.test, r.class) %>% prop.table() %>% round(3)
-)
-
-
-numeric.truth <- ifelse(truth == '1', 0, 1)
-dev.off(dev.list()["RStudioGD"])
 
 prediction(log.pred, ytest) %>%
   performance(measure = "tpr", x.measure = "fpr") %>%
   plot()
 
-
-
-## HAND MADE PREDICTIONS
-logistic.mod1$coefficients
-x_test[1,]
-
-logistic.mod1$coefficients[-1] * x_test[1,]
-sum(logistic.mod1$coefficients[-1] * x_test[1,])
-
-
-length(x_test[1,][-length(x_test)])
-length(logistic.mod1$coefficients[-1])
-
-x_test[1,][-length(x_test)] * logistic.mod1$coefficients[-1]
-sum(x_test[1,][-length(x_test)] * logistic.mod1$coefficients[-1]) + logistic.mod1$coefficients[1]
-
-
 # model 1 AUC
-prediction(cat.pred, ytest) %>%
+prediction(log.pred, ytest) %>%
   performance(measure = "auc") %>%
   .@y.values
 
+# extracts gene expression data from confident model predictions
+x[names(which.min(log.pred)),] # looks bacterial
+log.pred[which.min(log.pred)] # 5% prob of being viral
+
+x[names(which.max(log.pred)),] # looks viral
+log.pred[which.max(log.pred)] # 98% prob of being viral
+
+# manual probability prediction double check
+regression <- sum(logistic.mod1$coefficients[-1] * x[names(which.min(log.pred)),][-ncol(x)]) + logistic.mod1$coefficients[1]
+regression <- sum(logistic.mod1$coefficients[-1] * x[names(which.max(log.pred)),][-ncol(x)]) + logistic.mod1$coefficients[1]
+1/(1+exp(1)^-(regression))
 
 
+# find optimal prediction cutoff to maximise f1 score
+cutoff <- seq(0.2, 0.9, 0.01)
+f1.list <- c()
+for (i in 1:length(cutoff)){
+  # print(cutoff[i])
+  cat.pred <- ifelse(log.pred < cutoff[i], 'bacterial', 'viral')
+  table(ytest, cat.pred)
+  tpr <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[3]) # sensitivity / recall
+  tnr <- table(ytest, cat.pred)[4] / sum(table(ytest, cat.pred)[4] + table(ytest, cat.pred)[2]) # specificity
+  ppp <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[2]) # precision
+  f1 <- 2 * (ppp * tpr) / (ppp + tpr)
+  f1.list[i] = f1
+}
+plot(cutoff, f1.list)
+cutoff <- cutoff[which.max(f1.list)]
+# cutoff <- 0.6
+cat.pred <- ifelse(log.pred < cutoff, 'bacterial', 'viral')
+table(ytest, cat.pred)
 
+# dev.off(dev.list()["RStudioGD"])
 
-
-
-
-## TRAIN TEST SPLIT
-set.seed(123)
-index <- sample(1:nrow(gset_binary_t), round(nrow(gset_binary_t) * 0.7))
-index
-train_1 <- gset_binary_t[index, ]
-test_1  <- gset_binary_t[-index, ]
-
-dim(train_1)
-dim(test_1)
-
-
-bac_prop <- summary(gset_binary_t$label)[[1]]/nrow(gset_binary_t)
-train_bac_prop <- summary(train_1$label)[[1]]/dim(train_1)[1]
-test_bac_prop <- summary(test_1$label)[[1]]/dim(test_1)[1]
-
-print(paste('bacterial proportion:', bac_prop))
-print(paste('bacterial train proportion:', train_bac_prop))
-print(paste('bacterial test proportion:', test_bac_prop))
-
-
-
-
-
-
-## NORMALIZATION
-# identify only the predictor variables
-features <- setdiff(names(train_1), 'truth')
-
-# pre-process estimation based on training features
-pre_process <- preProcess(
-  x      = train_1[, features],
-  method = c("center", "scale")
-)
-
-# apply to both training & test
-train_x <- predict(pre_process, train_1[, features])
-test_x  <- predict(pre_process, test_1[, features])
-
-train_x[1:5, 47320:47323]
-test_x[1:5, 1:5]
-# remove(train_x, test_x)
