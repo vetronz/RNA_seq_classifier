@@ -67,23 +67,14 @@ label <- factor(truth, levels = c(1,2), labels = c('bacterial', 'viral'))
 attributes(label)
 
 
-
-
-
-# scale df and add labels
-gset.s <- as.data.frame(apply(gset.binary.t, 2, scale))
-
-gset.s <- a[,2:6] <- apply(gset.binary.t[,2:ncol(gset.binary.t)], 2, scale)
+# scale
+gset.s <- as.data.frame(scale(gset.binary.t))
+apply(gset.s, 2, mean)
+apply(gset.s, 2, sd)
 
 dim(gset.s)
 gset.s$label <- label
-
-a <- gset.binary.t[1:5,1:5]
-a <- cbind(GSM = rownames(a), a)
-apply(a[,2:5], 2, scale)
-
-
-as.data.frame(apply(iris[, 1:4], 2, summary))
+dim(gset.s)
 
 gset.s[1:5, 47320:47324] # head
 gset.s[139:144, 47320:47324] # tail
@@ -95,10 +86,10 @@ gset.s[139:144, 47320:47324] # tail
 
 ## DEFINE TRAINING AND TEST SETS
 custom.rows <- c(1,2,47323, 47324)
-custom.rows <- c(47300:47324)
+# custom.rows <- c(47300:47324)
 x <- gset.s[, custom.rows]
 dim(x)
-y <- gset.binary.t[,ncol(gset.binary.t)]
+y <- gset.s[,ncol(gset.s)]
 
 # training test split
 set.seed(3)
@@ -162,10 +153,31 @@ for (i in 1:length(cutoff)){
   f1.list[i] = f1
 }
 plot(cutoff, f1.list)
-cutoff <- cutoff[which.max(f1.list)]
+opt.cutoff <- cutoff[which.max(f1.list)]
+f1.list[which.max(f1.list)]
 # cutoff <- 0.6
-cat.pred <- ifelse(log.pred < cutoff, 'bacterial', 'viral')
+cat.pred <- ifelse(log.pred < opt.cutoff, 'bacterial', 'viral')
+
 table(ytest, cat.pred)
 
+
+
+###  REGULARIZED APPROACHES
+
+dim(gset.s)
+gset.s[1:5,(ncol(gset.s)-4):ncol(gset.s)]
+x <- model.matrix(label~., gset.s)[,-ncol(gset.s)]
+y <- gset.s$label
+
+
+
+
+
+
+
+
 # dev.off(dev.list()["RStudioGD"])
+
+
+
 
