@@ -169,8 +169,7 @@ gset.s[1:5,(ncol(gset.s)-4):ncol(gset.s)]
 x <- model.matrix(label~., gset.s)[,-ncol(gset.s)]
 y <- gset.s$label
 
-
-
+saveRDS(x, file = 'x_GSE72809')
 
 
 
