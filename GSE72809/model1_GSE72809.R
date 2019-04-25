@@ -15,6 +15,7 @@ library(ggplot2)
 
 ## LOAD DATA FROM rds object
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
+# setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
 getwd()
 gset <-readRDS(file = "gset_GSE72809")
 head(gset)
@@ -69,8 +70,8 @@ attributes(label)
 
 # scale
 gset.s <- as.data.frame(scale(gset.binary.t))
-apply(gset.s, 2, mean)
-apply(gset.s, 2, sd)
+# apply(gset.s, 2, mean) # checks the means which should be around 0
+# apply(gset.s, 2, sd) # checks the sd which should be around 1
 
 dim(gset.s)
 gset.s$label <- label
@@ -78,10 +79,6 @@ dim(gset.s)
 
 gset.s[1:5, 47320:47324] # head
 gset.s[139:144, 47320:47324] # tail
-
-
-
-
 
 
 ## DEFINE TRAINING AND TEST SETS
@@ -164,14 +161,40 @@ table(ytest, cat.pred)
 
 ###  REGULARIZED APPROACHES
 
-dim(gset.s)
+# need data matrix and y ground truth vector
+x <- data.matrix(gset.s[,-ncol(gset.s)])
+y
+
+
 gset.s[1:5,(ncol(gset.s)-4):ncol(gset.s)]
-x <- model.matrix(label~., gset.s)[,-ncol(gset.s)]
-y <- gset.s$label
 
-saveRDS(x, file = 'x_GSE72809')
+gset.mat <- data.matrix(gset.s[-ncol(gset.s)])
+dim(gset.mat)
+
+lambda <- 10^seq(10, -2, length = 100)
+ridge.mod <- glmnet(x[train,], y[train], family = 'binomial', standardize = FALSE)
 
 
+plot(ridge.mod, xvar = "lambda")
+
+
+ridge.mod$lambda %>% head()
+
+# coefficients for the largest and smallest lambda parameters
+coef(ridge.mod)[c('ILMN_3311175','ILMN_3311180'),1:2]
+
+dim(coef(ridge.mod))
+
+coef(ridge.mod)[c(1,2,3),1:5]
+coef(ridge.mod)[c('ILMN_1343291','ILMN_1343295'),1:5]
+
+# highest and lowest coefficients for lambda values of 1 and 100
+coef(ridge.mod)[1,1]
+coef(ridge.mod)[1,100]
+
+# [c("Gr_Liv_Area", "TotRms_AbvGrd"), 100]
+##   Gr_Liv_Area TotRms_AbvGrd 
+##  0.0001004011  0.0096383231
 
 
 

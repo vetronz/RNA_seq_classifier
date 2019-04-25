@@ -7,10 +7,12 @@ swiss
 dim(swiss)
 
 x <- model.matrix(Fertility~., swiss)[,-1]
+my_x <- 
 y <- swiss$Fertility
 y.cat <- y > 80
 
 lambda <- 10^seq(10, -2, length = 100)
+
 
 #create test and training sets
 set.seed(489)
@@ -24,7 +26,7 @@ swisslm <- lm(Fertility~., data = swiss)
 coef(swisslm)
 
 #ridge
-ridge.mod <- glmnet(x, y, alpha = 0, lambda = lambda)
+ridge.mod <- glmnet(x.mat, y, alpha = 0, lambda = lambda)
 predict(ridge.mod, s = 0, type = 'coefficients')
 
 swisslm <- lm(Fertility~., data = swiss, subset = train)
