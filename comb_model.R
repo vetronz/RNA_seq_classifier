@@ -1,19 +1,21 @@
 library(Biobase)
 library(GEOquery)
 library(dplyr)
-getwd()
-setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
-setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
-getwd()
+#getwd()
+#setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
+#setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
+#getwd()
 
-gset.m <-readRDS(file = "gset_GSE72809")
-gset.i <-readRDS(file = "gset_GSE42026")
+gset.m <- getGEO('GSE72809')
+gset.i <- getGEO('GSE42026')
+
+# gset.m <-readRDS(file = "gset_GSE72809")
+# gset.i <-readRDS(file = "gset_GSE42026")
 
 gset.m.df <- exprs(gset.m[[1]])
 gset.i.df <- exprs(gset.i[[1]])
 n1 <- dim(gset.m.df)[2]
 n2 <- dim(gset.i.df)[2]
-
 
 gset.m.df[1:5,1]
 gset.i.df[1:5,1]
@@ -25,18 +27,21 @@ class(gset.m[[1]])
 gset.m[[1]]
 
 class(gset.m[[1]])
-remove(gset.m, gset.i)
+#remove(gset.m, gset.i)
 
 length(rownames(gset.m.df))
 length(rownames(gset.i.df))
 
-length(colnames(gset.m.t.df))
-length(colnames(gset.i.t.df))
+#length(colnames(gset.m.t.df))
+#length(colnames(gset.i.t.df))
 
 # transpose
 gset.m.t.df <- as.data.frame(t(gset.m.df))
 gset.i.t.df <- as.data.frame(t(gset.i.df))
-remove(gset.m.df, gset.i.df)
+
+#remove(gset.m.df, gset.i.df)
+print('got to the transpose')
+
 common <-intersect(colnames(gset.m.t.df), colnames(gset.i.t.df))
 length(common) # 39426
 common[1]
@@ -50,7 +55,7 @@ gset.i.c <- gset.i.t.df[,common]
 # standardize
 gset.m.s <- as.data.frame(scale(gset.m.c))
 gset.i.s <- as.data.frame(scale(gset.i.c))
-remove(gset.m.c, gset.i.c, gset.m.t.df, gset.i.t.df)
+#remove(gset.m.c, gset.i.c, gset.m.t.df, gset.i.t.df)
 
 dim(gset.m.s)
 dim(gset.i.s)
@@ -71,7 +76,7 @@ gset.i.s[,(ncol(gset.i.s)-5):ncol(gset.i.s)]
 # merge dataframes
 gset.c <- rbind(gset.m.s, gset.i.s)
 dim(gset.c)
-remove(gset.i.df, gset.m.df, gset.i.s, gset.m.s)
+#remove(gset.i.df, gset.m.df, gset.i.s, gset.m.s)
 
 gset.c[1,1:5] # first row of the combined # GSM1872417
 gset.m.s[1,1:5] # GSM1872417
@@ -90,7 +95,7 @@ sample
 g
 GSMList(gset_f_GSE72809)[['GSM1872417']]
 
-remove(gset_f_GSE72809)
+#remove(gset_f_GSE72809)
 
 # save / load
 getwd()
@@ -113,8 +118,8 @@ gset.i[[1]]$'infecting pathogen:ch1'[c(1,19,52,71)] # "gram positive bacterial i
 
 gset.c$label[c(1,52,53,292,293)] # check transition points between bct and other
 
-remove(gset_f_GSE42026, gset_f_GSE72809)
-remove(gset.i, gset.m)
+#remove(gset_f_GSE42026, gset_f_GSE72809)
+#remove(gset.i, gset.m)
 
 
 # PCA
@@ -122,7 +127,10 @@ remove(gset.i, gset.m)
 apply(gset.c[,1:10], 2, var)
 apply(gset.c[,1:10], 2, mean)
 
+print('computing the cov')
+
 gset.cov <- cov(gset.c)
+saveRDS(gset.cov, file = 'gset.cov')
 
 # to do
 # pca plots to check no systemic skewing
