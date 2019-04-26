@@ -1,16 +1,17 @@
 library(Biobase)
 library(GEOquery)
 library(dplyr)
-#getwd()
-#setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
+library(ggfortify)
+getwd()
+setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 #setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
 #getwd()
 
-gset.m <- getGEO('GSE72809')
-gset.i <- getGEO('GSE42026')
+# gset.m <- getGEO('GSE72809')
+# gset.i <- getGEO('GSE42026')
 
-# gset.m <-readRDS(file = "gset_GSE72809")
-# gset.i <-readRDS(file = "gset_GSE42026")
+gset.m <-readRDS(file = "gset_GSE72809")
+gset.i <-readRDS(file = "gset_GSE42026")
 
 gset.m.df <- exprs(gset.m[[1]])
 gset.i.df <- exprs(gset.i[[1]])
@@ -44,6 +45,9 @@ dim(gset.i.t.df[,common])
 gset.m.c <- gset.m.t.df[,common]
 gset.i.c <- gset.i.t.df[,common]
 
+gset.m.c[1:5,1:5]
+gset.i.c[1:5,1:5]
+
 # standardize
 gset.m.s <- as.data.frame(scale(gset.m.c))
 gset.i.s <- as.data.frame(scale(gset.i.c))
@@ -56,18 +60,22 @@ dim(gset.i.s)
 y1 <- phenoData(gset.m[[1]])$'category:ch1'
 y2 <- gset.i[[1]]$'infecting pathogen:ch1'
 
-y1.t <- ifelse(y1 == 'Definite Bacterial', 1, 0)
-y2.t <- ifelse(y2 == 'gram positive bacterial infection', 1, 0)
+y1 <- ifelse(y1 == 'Definite Bacterial', 1, 0)
+y2 <- ifelse(y2 == 'gram positive bacterial infection', 1, 0)
 
-gset.m.s$label <- y1.t
-gset.i.s$label <- y2.t
+gset.m.s$label <- y1
+gset.i.s$label <- y2
 
-gset.m.s[1:5,(ncol(gset.m.s)-4):ncol(gset.m.s)]
-gset.i.s[1:5,(ncol(gset.i.s)-4):ncol(gset.i.s)]
+# gset.m.s$exp <- 1
+# gset.i.s$exp <- 2
+
+gset.m.s[1:5,(ncol(gset.m.s)-2):ncol(gset.m.s)]
+gset.i.s[1:5,(ncol(gset.i.s)-2):ncol(gset.i.s)]
 
 # merge dataframes
 gset.c <- rbind(gset.m.s, gset.i.s)
 dim(gset.c)
+gset.c[1:5,(ncol(gset.c)-2):ncol(gset.c)]
 #remove(gset.i.df, gset.m.df, gset.i.s, gset.m.s)
 
 gset.c[1,1:4] # first row of the combined # GSM1872417
@@ -108,10 +116,29 @@ getwd()
 apply(gset.c[,1:10], 2, var)
 apply(gset.c[,1:10], 2, mean)
 
-print('computing the cov')
+gset.pca <- prcomp(gset.c, scale. = FALSE)
 
-gset.cov <- cov(gset.c)
-saveRDS(gset.cov, file = 'gset.cov')
+dim(gset.pca$rotation)
+gset.pca$rotation[1:5,1:4]
+gset.pca$x[1:5,1:4]
+
+summary(gset.pca)
+
+plot(gset.pca, type = 'l')
+# biplot(gset.pca)
+# autoplot(gset.pca)
+autoplot(gset.pca, data = gset.c, colour = 'exp')
+# autoplot(gset.pca, data = gset.c, label = TRUE, shape = FALSE, loading = TRUE, colour = 'label')
+
+
+
+
+biplot(pca_result, scale = 0)
+# pca_result <- prcomp(USArrests, scale = TRUE)
+
+# gset.cov <- cov(gset.c)
+# saveRDS(gset.cov, file = 'gset.cov')
+
 
 # to do
 # pca plots to check no systemic skewing
