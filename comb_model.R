@@ -1,5 +1,6 @@
 library(Biobase)
 library(GEOquery)
+library(dplyr)
 getwd()
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -12,7 +13,7 @@ gset.m.df <- exprs(gset.m[[1]])
 gset.i.df <- exprs(gset.i[[1]])
 n1 <- dim(gset.m.df)[2]
 n2 <- dim(gset.i.df)[2]
-remove(gset.m, gset.i)
+
 
 gset.m.df[1:5,1]
 gset.i.df[1:5,1]
@@ -24,7 +25,7 @@ class(gset.m[[1]])
 gset.m[[1]]
 
 class(gset.m[[1]])
-# GSMList(gset.m[[1]])
+remove(gset.m, gset.i)
 
 length(rownames(gset.m.df))
 length(rownames(gset.i.df))
@@ -78,18 +79,52 @@ gset.m.s[1,1:5] # GSM1872417
 gset.c[(n1+1),1:5] # GSM1030788
 gset.i.s[1,1:5] # GSM1030788
 
+# verify correct label assignment
+gset.c <-readRDS(file = 'gset_GSE72809_GSE42026')
+gset_f_GSE72809 <- readRDS(file = 'gset_f_GSE72809')
+# GSMList(gse)[[1]]
+
+dim(gset.c)
+sample <- rownames(gset.c)[c(1,50,100)]
+sample
+g
+GSMList(gset_f_GSE72809)[['GSM1872417']]
+
+remove(gset_f_GSE72809)
+
 # save / load
 getwd()
 saveRDS(gset.c, file = 'gset_GSE72809_GSE42026')
-# getwd()
-# setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
+getwd()
+setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 # setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
 gset.c <-readRDS(file = 'gset_GSE72809_GSE42026')
 
 
+# verify labels
+gset_f_GSE72809 <-readRDS(file = 'gset_f_GSE72809')
+gset_f_GSE42026 <-readRDS(file = 'gset_f_GSE42026')
+
+GSMList(gset_f_GSE72809)[c(1,53,145)] # def baf, def vrl, prob vrl
+GSMList(gset_f_GSE42026)[c(1,19,52,71)] # def bac, control, influenzae, rsv
+
+gset.m[[1]]$'category:ch1'[c(1,53,145)] # "Definite Bacterial" "Definite Viral"     "Probable Bacterial"
+gset.i[[1]]$'infecting pathogen:ch1'[c(1,19,52,71)] # "gram positive bacterial infection" "none" "Influenza A H1N1/09" "RSV" 
+
+gset.c$label[c(1,52,53,292,293)] # check transition points between bct and other
+
+remove(gset_f_GSE42026, gset_f_GSE72809)
+remove(gset.i, gset.m)
+
+
+# PCA
+# check var 1 and mean 0
+apply(gset.c[,1:10], 2, var)
+apply(gset.c[,1:10], 2, mean)
+
+gset.cov <- cov(gset.c)
 
 # to do
-# verify correct assignment of bac non bac using the gset_f_xyz files which contain pheno data and allow GSMList func
 # pca plots to check no systemic skewing
 # partition gset.c into bac and other set for differential gene expression analysis
 # DGE
