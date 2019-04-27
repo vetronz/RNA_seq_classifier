@@ -81,7 +81,8 @@ dim(e.set.c)
 e.set.c[1:10,(ncol(e.set.c)-5):ncol(e.set.c)]
 e.set.c[(nrow(e.set.c)-10):nrow(e.set.c),(ncol(e.set.c)-5):ncol(e.set.c)]
 
-
+e.set.r <- e.set.c[,-((ncol(e.set.c)-1):ncol(e.set.c))]
+dim(e.set.r)
 
 # View(status)
 e.set.c$label == 'bacterial'
@@ -96,10 +97,6 @@ summary(gset.pca)
 plot(gset.pca, type = 'l')
 autoplot(gset.pca, data = e.set.c, colour = 'label')
 autoplot(gset.pca, data = e.set.c, colour = 'exp')
-
-
-
-
 
 
 
@@ -144,40 +141,62 @@ hist(fold, col = "gray")
 pvalue = NULL # Empty list for the p-values
 tstat = NULL # Empty list of the t test statistics
 
-i <- 1
-x = as.numeric(bct.r[,i])
-y = as.numeric(vrl.r[,i])
-n1 <- length(x)
-n2 <- length(y)
-n.df <- min(n1, n2)
+for(i in 1 : ncol(bct.r)) { # For each gene : 
+  x = bct.r[,i] 
+  y = vrl[,i]
+  t = t.test(x, y)
+  pvalue[i] = t$p.value
+  tstat[i] = t$statistic
+}
 
-# point estimate is the difference between the average of the two vectors
-pe <- mean(x)-mean(y)
-se <- sqrt((var(x)/n1 + var(y)/n2))
-t_stat <- pe/se
+# Histogram of p-values (-log10)
+hist(-log10(pvalue), col = "gray")
 
-# df minimum of n1 or n2 -1. However as there is diff variance in expression between samples
-# r will use welch correction when performing t-test
-df <- n-1 
-df <- 125
+# Volcano: put the biological significance (fold-change)
+# and statistical significance (p-value) in one plot
+plot(fold, -log10(pvalue), main = "Volcano #1")
 
-p_val <- (1-pt(t_stat, df))*2
-
-# 95 % conf interval
-test_stat <- qt(0.025, df)
-me <- test_stat * se
-ci <- c((pe + me), (pe - me))
-
-cat(paste('Homebrew T-Test',
-          '\nt_stat:', round(t_stat,3),
-          '\ndf:', df,
-          '\np_val:', round(p_val,10),
-          '\n95% CI:', round(ci[1],3), round(ci[2],3)
-))
-
-t.test(x, y)
+fold_cutoff = 1.5
+pvalue_cutoff = 0.0001
+abline(v = fold_cutoff, col = "blue", lwd = 2)
+abline(v = -fold_cutoff, col = "red", lwd = 2)
+abline(h = -log10(pvalue_cutoff), col = "green", lwd = 2)
 
 
+# Fold-change filter for "biological" significance
+filter_by_fold = abs(fold) >= fold_cutoff
+dim(e.set.r[filter_by_fold, ])
+
+dim(e.set.r[filter_by_fold,])
+
+# P-value filter for "statistical" significance
+filter_by_pvalue = pvalue <= pvalue_cutoff
+dim(e.set.r[filter_by_pvalue, ])
+
+# Combined filter (both biological and statistical)
+filter_combined = filter_by_fold & filter_by_pvalue
+
+filtered = e.set.r[filter_combined,]
+dim(filtered)
+
+filtered[1:5,1:5]
+
+
+
+# Let's generate the volcano plot again,
+# highlighting the significantly differential expressed genes
+plot(fold, -log10(pvalue), main = "GSE5583 - Volcano #2")
+points (fold[filter_combined], -log10(pvalue[filter_combined]),
+        pch = 16, col = "red")
+
+# Highlighting up-regulated in red and down-regulated in blue
+plot(fold, -log10(pvalue), main = "GSE5583 - Volcano #3")
+points (fold[filter_combined & fold < 0],
+        -log10(pvalue[filter_combined & fold < 0]),
+        pch = 16, col = "red")
+points (fold[filter_combined & fold > 0],
+        -log10(pvalue[filter_combined & fold > 0]),
+        pch = 16, col = "blue")
 
 
 
