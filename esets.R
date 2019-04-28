@@ -1,7 +1,9 @@
-# library(Biobase)
-# library(GEOquery)
 library(dplyr)
 library(ggfortify)
+library(glmnet)
+library(ROCR)
+library(dplyr)
+library(ggplot2)
 
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 #setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -47,7 +49,6 @@ e.set.i.s <- scale(e.set.i.t)
 label.i <- rownames(e.set.i.t)
 label.s.i <- status.iris$My_code
 common <- match(label.i, label.s.i)
-# common
 
 e.set.l <- as.character(status$most_general)
 e.set.i.l <- as.character(status.iris$most_general[common]) # pass common index to extract common iris labels
@@ -84,42 +85,98 @@ e.set.c[(nrow(e.set.c)-10):nrow(e.set.c),(ncol(e.set.c)-5):ncol(e.set.c)]
 e.set.r <- e.set.c[,-((ncol(e.set.c)-1):ncol(e.set.c))]
 dim(e.set.r)
 
-# View(status)
+
 e.set.c$label == 'bacterial'
 e.set.c$label == 'viral'
+bac.bin <- ifelse(e.set.c$label == 'bacterial', 1, 0)
 
-e.set.c$label <- ifelse(e.set.c$label == 'bacterial', 1, 0)
+mod.label <- ifelse(e.set.c$label == 'bacterial', 'bacterial', ifelse(e.set.c$label == 'viral', 'viral', 'other'))
+
+remove(e.set, e.set.df, e.set.s, e.set.i.s, e.set.i, e.set.t)
+# ls()
 
 
-# PCA
-gset.pca <- prcomp(e.set.c, scale = FALSE)
+## PCA
+e.set.pca <- prcomp(e.set.r, scale = FALSE)
+# e.set.pca <- gset.pca
 summary(gset.pca)
-plot(gset.pca, type = 'l')
-autoplot(gset.pca, data = e.set.c, colour = 'label')
-autoplot(gset.pca, data = e.set.c, colour = 'exp')
+plot(e.set.pca, type = 'l')
+
+# autoplot(gset.pca, data = e.set.c, colour = 'exp')
+
+pair1 <- e.set.pca$x[,1:2]
+pair2 <- e.set.pca$x[,3:4]
+pair3 <- e.set.pca$x[,5:6]
+ggplot(pair1, aes(PC1, PC2, color=e.set.c$exp)) + geom_point() +
+  xlab("First Principal Component") + 
+  ylab("Second Principal Component") + 
+  ggtitle("First Two Principal Components of Combined Mega Iris Data")
+ggplot(pair2, aes(PC3, PC4, color=e.set.c$exp)) + geom_point()
+ggplot(pair3, aes(PC5, PC6, color=e.set.c$exp)) + geom_point()
+
+ggplot(pair1, aes(PC1, PC2, color=mod.label)) + geom_point()
+ggplot(pair2, aes(PC3, PC4, color=mod.label)) + geom_point()
+ggplot(pair3, aes(PC5, PC6, color=mod.label)) + geom_point()
 
 
+## OUTLIERS
+a<-pair2[,2]>200
+which(a)
+# OD_38_KEN KDno_1_UCSD 
+# 41         434
+
+b<-pair3[,2]>180
+which(b)
+# OD_38_KEN HC_53_SMH 
+# 41       489
+
+outlier <- c(41, 434, 489)
+e.set.clean <- e.set.r[-outlier,]
+mod.label.clean <- mod.label[-outlier]
+exp.label.clean <- e.set.c$exp[-outlier]
+dim(e.set.clean)
+
+e.set.c['OD_38_KEN',1:10]
+e.set.clean['OD_38_KEN',1:10]
+
+
+## PCA 2
+e.set.pca <- prcomp(e.set.clean, scale = FALSE)
+# e.set.pca <- gset.pca
+summary(e.set.pca)
+plot(e.set.pca, type = 'l')
+# autoplot(gset.pca, data = e.set.c, colour = 'label')
+# autoplot(gset.pca, data = e.set.c, colour = 'exp')
+
+pair1 <- e.set.pca$x[,1:2]
+pair2 <- e.set.pca$x[,3:4]
+pair3 <- e.set.pca$x[,5:6]
+ggplot(pair1, aes(PC1, PC2, color=exp.label.clean)) + geom_point() +
+  xlab("First Principal Component") + 
+  ylab("Second Principal Component") + 
+  ggtitle("First Two Principal Components of Combined Mega Iris Data")
+ggplot(pair2, aes(PC3, PC4, color=exp.label.clean)) + geom_point()
+ggplot(pair3, aes(PC5, PC6, color=exp.label.clean)) + geom_point()
+
+ggplot(pair1, aes(PC1, PC2, color=mod.label.clean)) + geom_point()
+ggplot(pair2, aes(PC3, PC4, color=mod.label.clean)) + geom_point()
+ggplot(pair3, aes(PC5, PC6, color=mod.label.clean)) + geom_point()
+
+
+ve <- e.set.pca$sdev^2
+pve <- ve / sum(ve)
+round(pve, 5)
+
+remove(e.set.c, e.set.r, e.set.i.df)
 
 ## DGE
-bct <- e.set.c[e.set.c$label == 'bacterial',]
-vrl <- e.set.c[e.set.c$label == 'viral',]
+bct <- e.set.clean[mod.label.clean == 'bacterial',]
+vrl <- e.set.clean[mod.label.clean == 'viral',]
+dim(bct)
+dim(vrl)
 
-# strip the labels for raw data
-bct.r <- bct[-((ncol(bct)-1):ncol(bct))]
-vrl.r <- vrl[-((ncol(vrl)-1):ncol(vrl))]
-dim(bct.r)
-dim(vrl.r)
-
-# 
-# dim(bct)
-# bct[1:10,(ncol(bct)-5):ncol(bct)]
-# bct[(nrow(bct)-10):nrow(bct),(ncol(bct)-5):ncol(bct)]
-# 
-# vrl[1:10,(ncol(vrl)-5):ncol(vrl)]
-# vrl[(nrow(vrl)-10):nrow(vrl),(ncol(vrl)-5):ncol(vrl)]
-
-bct.mean <- apply(bct.r, 2, mean)
-vrl.mean <- apply(vrl.r, 2, mean)
+bct.mean <- apply(bct, 2, mean)
+vrl.mean <- apply(vrl, 2, mean)
 
 head(bct.mean)
 head(vrl.mean)
@@ -130,6 +187,7 @@ limit = max(bct.mean, vrl.mean)
 # Scatter plot
 plot(vrl.mean ~ bct.mean, xlab = "bct", ylab = "vrl",
      main = "Bct vs Vrl - Scatter", xlim = c(0, limit), ylim = c(0, limit))
+cor(bct.mean, vrl.mean)
 
 # Compute fold-change (biological significance)
 fold = bct.mean - vrl.mean
@@ -141,8 +199,8 @@ hist(fold, col = "gray")
 pvalue = NULL # Empty list for the p-values
 tstat = NULL # Empty list of the t test statistics
 
-for(i in 1 : ncol(bct.r)) { # For each gene : 
-  x = bct.r[,i] 
+for(i in 1 : ncol(bct)) { # For each gene : 
+  x = bct[,i] 
   y = vrl[,i]
   t = t.test(x, y)
   pvalue[i] = t$p.value
@@ -157,7 +215,7 @@ hist(-log10(pvalue), col = "gray")
 plot(fold, -log10(pvalue), main = "Volcano #1")
 
 fold_cutoff = 1.5
-pvalue_cutoff = 0.0001
+pvalue_cutoff = 0.000000000000001
 abline(v = fold_cutoff, col = "blue", lwd = 2)
 abline(v = -fold_cutoff, col = "red", lwd = 2)
 abline(h = -log10(pvalue_cutoff), col = "green", lwd = 2)
@@ -165,40 +223,96 @@ abline(h = -log10(pvalue_cutoff), col = "green", lwd = 2)
 
 # Fold-change filter for "biological" significance
 filter_by_fold = abs(fold) >= fold_cutoff
-dim(e.set.r[filter_by_fold, ])
-
-dim(e.set.r[filter_by_fold,])
+dim(e.set.clean[filter_by_fold,])
+dim(e.set.clean[filter_by_fold,])
 
 # P-value filter for "statistical" significance
 filter_by_pvalue = pvalue <= pvalue_cutoff
-dim(e.set.r[filter_by_pvalue, ])
+dim(e.set.clean[filter_by_pvalue,])
 
 # Combined filter (both biological and statistical)
 filter_combined = filter_by_fold & filter_by_pvalue
 
-filtered = e.set.r[filter_combined,]
+filtered = e.set.clean[filter_combined,]
 dim(filtered)
 
-filtered[1:5,1:5]
+e.set.clean[,filter_combined][1:5,1:5]
 
 
+## TEST TRAIN DIFFERENTIAL EXPRESSED TRANSCRIPTS VIRAL BACTERIAL
+bac.vrl.index <- mod.label.clean == 'bacterial' | mod.label.clean == 'viral'
+x <- e.set.clean[bac.vrl.index,filter_combined]
 
-# Let's generate the volcano plot again,
-# highlighting the significantly differential expressed genes
-plot(fold, -log10(pvalue), main = "GSE5583 - Volcano #2")
-points (fold[filter_combined], -log10(pvalue[filter_combined]),
-        pch = 16, col = "red")
+y <- mod.label.clean[bac.vrl.index]
+dim(x)
+length(y)
 
-# Highlighting up-regulated in red and down-regulated in blue
-plot(fold, -log10(pvalue), main = "GSE5583 - Volcano #3")
-points (fold[filter_combined & fold < 0],
-        -log10(pvalue[filter_combined & fold < 0]),
-        pch = 16, col = "red")
-points (fold[filter_combined & fold > 0],
-        -log10(pvalue[filter_combined & fold > 0]),
-        pch = 16, col = "blue")
+x[1:5,1:5]
+y[1:5]
+
+set.seed(3)
+n <- nrow(x)
+index <- seq(1:n)
+train = sample(1:n, round(n*0.8))
+test = index[-train]
+intersect(train, test)
+
+x_train <- x[train,]
+x_train$label <- ifelse(y[train] == 'viral',1,0)
+x_test <- x[test,]
+dim(x_train)
+dim(x_test)
+ytest = y[test]
 
 
+# logistic
+logistic.mod1 <- glm(label ~., family = "binomial", data = x_train)
+summary(logistic.mod1)
+
+log.pred <- predict(logistic.mod1, x_test, type = 'response')
+
+prediction(log.pred, ytest) %>%
+  performance(measure = "tpr", x.measure = "fpr") %>%
+  plot()
+
+# model 1 AUC
+prediction(log.pred, ytest) %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+# extracts gene expression data from confident model predictions
+x[names(which.min(log.pred)),] # looks bacterial
+log.pred[which.min(log.pred)] # 5% prob of being viral
+
+x[names(which.max(log.pred)),] # looks viral
+log.pred[which.max(log.pred)] # 98% prob of being viral
+
+# manual probability prediction double check
+regression <- sum(logistic.mod1$coefficients[-1] * x[names(which.min(log.pred)),]) + logistic.mod1$coefficients[1]
+regression <- sum(logistic.mod1$coefficients[-1] * x[names(which.max(log.pred)),][-ncol(x)]) + logistic.mod1$coefficients[1]
+1/(1+exp(1)^-(regression))
+
+
+# find optimal prediction cutoff to maximise f1 score
+cutoff <- seq(0.01, 0.99, 0.01)
+f1.list <- c()
+for (i in 1:length(cutoff)){
+  # print(cutoff[i])
+  cat.pred <- ifelse(log.pred < cutoff[i], 'bacterial', 'viral')
+  table(ytest, cat.pred)
+  tpr <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[3]) # sensitivity / recall
+  tnr <- table(ytest, cat.pred)[4] / sum(table(ytest, cat.pred)[4] + table(ytest, cat.pred)[2]) # specificity
+  ppp <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[2]) # precision
+  f1 <- 2 * (ppp * tpr) / (ppp + tpr)
+  f1.list[i] = f1
+}
+plot(cutoff, f1.list)
+opt.cutoff <- cutoff[which.max(f1.list)]
+f1.list[which.max(f1.list)]
+# cutoff <- 0.6
+cat.pred <- ifelse(log.pred < opt.cutoff, 'bacterial', 'viral')
+
+table(ytest, cat.pred)
 
 # saveRDS(, file = 'gset_GSE72809')
 #asdf
