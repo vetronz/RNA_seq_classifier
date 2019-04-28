@@ -4,6 +4,9 @@ library(glmnet)
 library(ROCR)
 library(dplyr)
 library(ggplot2)
+library(neuralnet)
+
+# library(GGally)
 
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 #setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -258,11 +261,64 @@ test = index[-train]
 intersect(train, test)
 
 x_train <- x[train,]
-x_train$label <- ifelse(y[train] == 'viral',1,0)
+x_train$label <- ifelse(y[train] == 'viral', TRUE, FALSE)
 x_test <- x[test,]
 dim(x_train)
 dim(x_test)
 ytest = y[test]
+
+## NEURAL NET
+set.seed(123)
+
+nn.1 <- neuralnet(f, data = x_train, hidden=c(10), err.fct = 'ce', likelihood = TRUE)
+
+net.names <- names(x_train)[-(length(x_train))]
+f <- as.formula(paste("label ~", paste(net.names[!net.names %in% "label"], collapse = " + ")))
+f
+nn <- neuralnet(label ~ 3130600, hidden=c(10), data = x_train)
+
+nn <- neuralnet(f,data=x_train, hidden=c(10),linear.output=T)
+
+nn <- neuralnet(
+  label ~ .,
+  data=x_train, hidden=2, err.fct='ce',
+  linear.output=FALSE)
+
+
+
+x <- cbind(seq(-10, 40, 1), seq(51, 100, 1))
+y <- x[,1]*x[,2]
+y <- ifelse(y > 3000, TRUE, FALSE)
+colnames(x) <- c('x1', 'x2')
+names(y) <- 'y'
+dt <- data.frame(x, y)
+dt
+model <- neuralnet(label~., x_train, hidden=10, threshold=0.01, likelihood = TRUE)
+
+model <- neuralnet(label ~ "3130600", x_train, hidden=10, threshold=0.01, likelihood = TRUE)
+colnames(x_train)
+
+
+
+
+model <- neuralnet(label ~ "3130600", x_train, hidden=10, threshold=0.01, likelihood = TRUE)
+feats <- names(x_train)[-(ncol(x_train))]
+f <- paste(feats,collapse=' + ')
+f <- paste('label ~',f)
+f <- as.formula(f)
+f
+library(neuralnet)
+nn <- neuralnet(f,x_train,hidden=c(10,10,10),linear.output=FALSE)
+
+
+
+
+
+
+
+
+
+
 
 
 # logistic
