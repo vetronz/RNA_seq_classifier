@@ -54,7 +54,8 @@ label.s.i <- status.iris$My_code
 common <- match(label.i, label.s.i)
 
 e.set.l <- as.character(status$most_general)
-e.set.i.l <- as.character(status.iris$most_general[common]) # pass common index to extract common iris labels
+# pass common index to extract common iris labels
+e.set.i.l <- as.character(status.iris$most_general[common])
 
 e.set.df <- as.data.frame(e.set.s)
 e.set.i.df <- as.data.frame(e.set.i.s)
@@ -93,7 +94,8 @@ e.set.c$label == 'bacterial'
 e.set.c$label == 'viral'
 bac.bin <- ifelse(e.set.c$label == 'bacterial', 1, 0)
 
-mod.label <- ifelse(e.set.c$label == 'bacterial', 'bacterial', ifelse(e.set.c$label == 'viral', 'viral', 'other'))
+mod.label <- ifelse(e.set.c$label == 'bacterial', 'bacterial',
+                    ifelse(e.set.c$label == 'viral', 'viral', 'other'))
 
 remove(e.set, e.set.df, e.set.s, e.set.i.s, e.set.i, e.set.t)
 # ls()
@@ -111,8 +113,8 @@ pair1 <- e.set.pca$x[,1:2]
 pair2 <- e.set.pca$x[,3:4]
 pair3 <- e.set.pca$x[,5:6]
 ggplot(pair1, aes(PC1, PC2, color=e.set.c$exp)) + geom_point() +
-  xlab("First Principal Component") + 
-  ylab("Second Principal Component") + 
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
   ggtitle("First Two Principal Components of Combined Mega Iris Data")
 ggplot(pair2, aes(PC3, PC4, color=e.set.c$exp)) + geom_point()
 ggplot(pair3, aes(PC5, PC6, color=e.set.c$exp)) + geom_point()
@@ -125,12 +127,12 @@ ggplot(pair3, aes(PC5, PC6, color=mod.label)) + geom_point()
 ## OUTLIERS
 a<-pair2[,2]>200
 which(a)
-# OD_38_KEN KDno_1_UCSD 
+# OD_38_KEN KDno_1_UCSD
 # 41         434
 
 b<-pair3[,2]>180
 which(b)
-# OD_38_KEN HC_53_SMH 
+# OD_38_KEN HC_53_SMH
 # 41       489
 
 outlier <- c(41, 434, 489)
@@ -245,13 +247,7 @@ e.set.clean[,filter_combined][1:5,1:5]
 ## TEST TRAIN DIFFERENTIAL EXPRESSED TRANSCRIPTS VIRAL BACTERIAL
 bac.vrl.index <- mod.label.clean == 'bacterial' | mod.label.clean == 'viral'
 x <- e.set.clean[bac.vrl.index,filter_combined]
-
 y <- mod.label.clean[bac.vrl.index]
-dim(x)
-length(y)
-
-x[1:5,1:5]
-y[1:5]
 
 set.seed(3)
 n <- nrow(x)
@@ -261,67 +257,119 @@ test = index[-train]
 intersect(train, test)
 
 x_train <- x[train,]
-x_train$label <- ifelse(y[train] == 'viral', TRUE, FALSE)
 x_test <- x[test,]
-dim(x_train)
-dim(x_test)
-ytest = y[test]
+
+y_train <- ifelse(y[train] == 'bacterial', TRUE, FALSE)
+ytest = ifelse(y[test] == 'bacterial', TRUE, FALSE)
+
+
 
 ## NEURAL NET
+x.l <- list()
+for(i in 1 : ncol(x_train)) { # For each gene : 
+  x.l[[i]] <- x_train[,i]
+}
+length(x.l)
+
+a<-do.call(cbind, x.l) # apply cbind to each item in x.l list
+a
+b<-a[,1:5]
+b
+nn1 <- neuralnet(y1~., b,
+                 hidden=5,
+                 threshold=0.01,
+                 err.fct = 'ce',
+                 linear.output = FALSE,
+                 likelihood = TRUE)
+
+plot(nn1)
+# dev.off()
+nn1_train_error <- nn1$result.matrix[1,1]
+paste("CE Error: ", round(nn1_train_error, 3)) 
+nn1_aic <- nn1$result.matrix[4,1]
+paste("AIC: ", round(nn1_aic,3))
+nn1_bic <- nn1$result.matrix[5,1]
+paste("BIC: ", round(nn1_bic, 3))
+
+
+nn1.pred <- compute(nn1, x_test[,1:5])
+a<-nn1.pred$net.result
+
+nn1.pred.c <- ifelse(a > 0.5, 'bacterial', 'viral' )
+nn1.pred.c
+y[test]
+
+table(y[test], nn1.pred.c)
+
+b<-ifelse(y[test] == 'bacterial',1,0)
+b
+
+detach(package:neuralnet,unload = T)
+prediction(nn1.pred$net.result, b) %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+
+
+
+
+
+# model 1 AUC
+prediction(c, b) %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+
+# 2-Hidden Layers, Layer-1 2-neurons, Layer-2, 1-neuron
 set.seed(123)
+nn1 <- neuralnet(y_train ~., b, 
+                 linear.output = FALSE, 
+                 err.fct = 'ce', 
+                 likelihood = TRUE,
+                 hidden = c(2,1))
 
-nn.1 <- neuralnet(f, data = x_train, hidden=c(10), err.fct = 'ce', likelihood = TRUE)
+# 2-Hidden Layers, Layer-1 2-neurons, Layer-2, 2-neurons
+set.seed(123)
+nn2 <- nn1 <- neuralnet(y_train ~., b, 
+                        linear.output = FALSE, 
+                        err.fct = 'ce', 
+                        likelihood = TRUE, 
+                        hidden = c(2,2))
 
-net.names <- names(x_train)[-(length(x_train))]
-f <- as.formula(paste("label ~", paste(net.names[!net.names %in% "label"], collapse = " + ")))
-f
-nn <- neuralnet(label ~ 3130600, hidden=c(10), data = x_train)
-
-nn <- neuralnet(f,data=x_train, hidden=c(10),linear.output=T)
-
-nn <- neuralnet(
-  label ~ .,
-  data=x_train, hidden=2, err.fct='ce',
-  linear.output=FALSE)
-
-
-
-x <- cbind(seq(-10, 40, 1), seq(51, 100, 1))
-y <- x[,1]*x[,2]
-y <- ifelse(y > 3000, TRUE, FALSE)
-colnames(x) <- c('x1', 'x2')
-names(y) <- 'y'
-dt <- data.frame(x, y)
-dt
-model <- neuralnet(label~., x_train, hidden=10, threshold=0.01, likelihood = TRUE)
-
-model <- neuralnet(label ~ "3130600", x_train, hidden=10, threshold=0.01, likelihood = TRUE)
-colnames(x_train)
+# 2-Hidden Layers, Layer-1 1-neuron, Layer-2, 2-neuron
+set.seed(123)
+nn3 <- nn1 <- neuralnet(y_train ~., b, 
+                        linear.output = FALSE, 
+                        err.fct = 'ce', 
+                        likelihood = TRUE, 
+                        hidden = c(1,2))
 
 
+# Bar plot of results
+nn_comp <- tibble('Network' = rep(c("NN1", "NN2", "NN3"), each = 3), 
+                       'Metric' = rep(c('AIC', 'BIC', 'ce Error'), length.out = 9),
+                       'Value' = c(nn1$result.matrix[4,1], nn1$result.matrix[5,1], 
+                                   nn1$result.matrix[1,1], 
+                                   nn2$result.matrix[4,1], nn2$result.matrix[5,1], 
+                                   nn2$result.matrix[1,1], nn3$result.matrix[4,1], 
+                                   nn3$result.matrix[5,1], nn3$result.matrix[1,1]))
 
 
-model <- neuralnet(label ~ "3130600", x_train, hidden=10, threshold=0.01, likelihood = TRUE)
-feats <- names(x_train)[-(ncol(x_train))]
-f <- paste(feats,collapse=' + ')
-f <- paste('label ~',f)
-f <- as.formula(f)
-f
-library(neuralnet)
-nn <- neuralnet(f,x_train,hidden=c(10,10,10),linear.output=FALSE)
+nn_comp %>%
+  ggplot(aes(Network, Value, fill = Metric)) +
+  geom_col(position = 'dodge')  +
+  ggtitle("AIC, BIC, and Cross-Entropy Error of the Classification ANNs")
+# AIC measures information lost by model therefore lower better
+
+length(b)
+length(x_test[,1])
 
 
+nn1$model.list
 
+pr.nn <- compute(nn,test_[,1:13])
 
-
-
-
-
-
-
-
-
-# logistic
+## LOGISTIC
 logistic.mod1 <- glm(label ~., family = "binomial", data = x_train)
 summary(logistic.mod1)
 
@@ -344,8 +392,12 @@ x[names(which.max(log.pred)),] # looks viral
 log.pred[which.max(log.pred)] # 98% prob of being viral
 
 # manual probability prediction double check
-regression <- sum(logistic.mod1$coefficients[-1] * x[names(which.min(log.pred)),]) + logistic.mod1$coefficients[1]
-regression <- sum(logistic.mod1$coefficients[-1] * x[names(which.max(log.pred)),][-ncol(x)]) + logistic.mod1$coefficients[1]
+regression <- sum(
+  logistic.mod1$coefficients[-1] * x[names(which.min(log.pred)),]) +
+  logistic.mod1$coefficients[1]
+regression <- sum(
+  logistic.mod1$coefficients[-1] * x[names(which.max(log.pred)),][-ncol(x)]) +
+  logistic.mod1$coefficients[1]
 1/(1+exp(1)^-(regression))
 
 
@@ -356,9 +408,12 @@ for (i in 1:length(cutoff)){
   # print(cutoff[i])
   cat.pred <- ifelse(log.pred < cutoff[i], 'bacterial', 'viral')
   table(ytest, cat.pred)
-  tpr <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[3]) # sensitivity / recall
-  tnr <- table(ytest, cat.pred)[4] / sum(table(ytest, cat.pred)[4] + table(ytest, cat.pred)[2]) # specificity
-  ppp <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[2]) # precision
+  # sensitivity / recall
+  tpr <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[3])
+  # specificity
+  tnr <- table(ytest, cat.pred)[4] / sum(table(ytest, cat.pred)[4] + table(ytest, cat.pred)[2])
+  # precision
+  ppp <- table(ytest, cat.pred)[1] / sum(table(ytest, cat.pred)[1] + table(ytest, cat.pred)[2])
   f1 <- 2 * (ppp * tpr) / (ppp + tpr)
   f1.list[i] = f1
 }
