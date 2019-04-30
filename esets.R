@@ -4,17 +4,16 @@ library(glmnet)
 library(ROCR)
 library(dplyr)
 library(ggplot2)
+library(boot)
 library(neuralnet)
-
+# library(knitr)
 # library(GGally)
 
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 #setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
-#getwd()
 
 rm(list=setdiff(ls(), "x"))
 load('esets.RData')
-
 
 dim(e.set) # megaExp data
 dim(status) # megaExp labels
@@ -29,24 +28,14 @@ dim(status.iris) # iris labels
 # transpose
 e.set.t <- t(e.set)
 e.set.i.t <- t(e.set.i)
-
-dim(e.set.t)
-dim(e.set.i.t)
-
-# rm(targets, targets.iris, e.set, e.set.i)
-# e.set.t[1:5,(ncol(e.set.t)-2):ncol(e.set.t)]
+# dim(e.set.t)
+# dim(e.set.i.t)
 
 # scale
 e.set.s <- scale(e.set.t)
 e.set.i.s <- scale(e.set.i.t)
-
-# e.set.i.s <- as.data.frame(scale(e.set.i.t))
-# e.set.s <- as.data.frame(scale(e.set.t))
-# e.set.i.s <- as.data.frame(scale(e.set.i.t))
-
-# apply(e.set.s, 2, var)
-# apply(e.set.s, 2, mean)
-
+# e.set.s <- e.set.t
+# e.set.i.s <- e.set.i.t
 
 # labels
 label.i <- rownames(e.set.i.t)
@@ -54,21 +43,19 @@ label.s.i <- status.iris$My_code
 common <- match(label.i, label.s.i)
 
 e.set.l <- as.character(status$most_general)
-# pass common index to extract common iris labels
-e.set.i.l <- as.character(status.iris$most_general[common])
+e.set.i.l <- as.character(status.iris$most_general[common]) # pass common index
 
 e.set.df <- as.data.frame(e.set.s)
 e.set.i.df <- as.data.frame(e.set.i.s)
 
 e.set.df$label <- e.set.l
-e.set.df$exp <- 0
+e.set.df$exp <- 'MegaExperiment'
 
 e.set.i.df$label <- e.set.i.l
-e.set.i.df$exp <- 1
+e.set.i.df$exp <- 'IRIS'
 
 e.set.df[1:5, (ncol(e.set.df)-4):ncol(e.set.df)]
 e.set.i.df[1:5, (ncol(e.set.i.df)-4):ncol(e.set.i.df)]
-
 
 # combine datasets
 common.genes <-intersect(colnames(e.set.df), colnames(e.set.i.df))
@@ -83,45 +70,44 @@ e.set.i.df[1:10,(ncol(e.set.i.df)-4):ncol(e.set.i.df)]
 e.set.c <- rbind(e.set.df[,common.genes], e.set.i.df[,common.genes])
 
 dim(e.set.c)
-e.set.c[1:10,(ncol(e.set.c)-5):ncol(e.set.c)]
-e.set.c[(nrow(e.set.c)-10):nrow(e.set.c),(ncol(e.set.c)-5):ncol(e.set.c)]
+# e.set.c[1:10,(ncol(e.set.c)-5):ncol(e.set.c)]
+# e.set.c[(nrow(e.set.c)-10):nrow(e.set.c),(ncol(e.set.c)-5):ncol(e.set.c)]
 
 e.set.r <- e.set.c[,-((ncol(e.set.c)-1):ncol(e.set.c))]
 dim(e.set.r)
 
 
-e.set.c$label == 'bacterial'
-e.set.c$label == 'viral'
-bac.bin <- ifelse(e.set.c$label == 'bacterial', 1, 0)
-
 mod.label <- ifelse(e.set.c$label == 'bacterial', 'bacterial',
                     ifelse(e.set.c$label == 'viral', 'viral', 'other'))
 
-remove(e.set, e.set.df, e.set.s, e.set.i.s, e.set.i, e.set.t)
-# ls()
-
+remove(e.set, e.set.df, e.set.s, e.set.i.s, e.set.i, e.set.t, common.genes, common)
+ls()
 
 ## PCA
 e.set.pca <- prcomp(e.set.r, scale = FALSE)
 # e.set.pca <- gset.pca
 summary(gset.pca)
 plot(e.set.pca, type = 'l')
-
 # autoplot(gset.pca, data = e.set.c, colour = 'exp')
+experiment <- e.set.c$exp
+organism <- mod.label
 
 pair1 <- e.set.pca$x[,1:2]
 pair2 <- e.set.pca$x[,3:4]
 pair3 <- e.set.pca$x[,5:6]
-ggplot(pair1, aes(PC1, PC2, color=e.set.c$exp)) + geom_point() +
+ggplot(pair1, aes(PC1, PC2, color=experiment)) + geom_point() +
   xlab("First Principal Component") +
   ylab("Second Principal Component") +
   ggtitle("First Two Principal Components of Combined Mega Iris Data")
-ggplot(pair2, aes(PC3, PC4, color=e.set.c$exp)) + geom_point()
-ggplot(pair3, aes(PC5, PC6, color=e.set.c$exp)) + geom_point()
+ggplot(pair2, aes(PC3, PC4, color=experiment)) + geom_point()
+ggplot(pair3, aes(PC5, PC6, color=experiment)) + geom_point()
 
-ggplot(pair1, aes(PC1, PC2, color=mod.label)) + geom_point()
-ggplot(pair2, aes(PC3, PC4, color=mod.label)) + geom_point()
-ggplot(pair3, aes(PC5, PC6, color=mod.label)) + geom_point()
+ggplot(pair1, aes(PC1, PC2, color=organism)) + geom_point() +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("First Two Principal Components of Combined Mega Iris Data")
+ggplot(pair2, aes(PC3, PC4, color=organism)) + geom_point()
+ggplot(pair3, aes(PC5, PC6, color=organism)) + geom_point()
 
 
 ## OUTLIERS
@@ -147,32 +133,47 @@ e.set.clean['OD_38_KEN',1:10]
 
 ## PCA 2
 e.set.pca <- prcomp(e.set.clean, scale = FALSE)
-# e.set.pca <- gset.pca
-summary(e.set.pca)
+# summary(e.set.pca)
 plot(e.set.pca, type = 'l')
-# autoplot(gset.pca, data = e.set.c, colour = 'label')
-# autoplot(gset.pca, data = e.set.c, colour = 'exp')
+experiment <- exp.label.clean
+# organism <- mod.label
 
 pair1 <- e.set.pca$x[,1:2]
 pair2 <- e.set.pca$x[,3:4]
 pair3 <- e.set.pca$x[,5:6]
-ggplot(pair1, aes(PC1, PC2, color=exp.label.clean)) + geom_point() +
+ggplot(pair1, aes(PC1, PC2, color=experiment)) + geom_point() +
   xlab("First Principal Component") + 
   ylab("Second Principal Component") + 
   ggtitle("First Two Principal Components of Combined Mega Iris Data")
-ggplot(pair2, aes(PC3, PC4, color=exp.label.clean)) + geom_point()
-ggplot(pair3, aes(PC5, PC6, color=exp.label.clean)) + geom_point()
+ggplot(pair2, aes(PC3, PC4, color=experiment)) + geom_point() +
+  xlab("Third Principal Component") +
+  ylab("Fourth Principal Component") +
+  ggtitle("Third and Fourth Principal Components of Combined Mega Iris Data")
+ggplot(pair3, aes(PC5, PC6, color=experiment)) + geom_point() +
+  xlab("Fifth Principal Component") +
+  ylab("Sixth Principal Component") +
+  ggtitle("Fifth and Sixth Principal Components of Combined Mega Iris Data")
 
-ggplot(pair1, aes(PC1, PC2, color=mod.label.clean)) + geom_point()
-ggplot(pair2, aes(PC3, PC4, color=mod.label.clean)) + geom_point()
-ggplot(pair3, aes(PC5, PC6, color=mod.label.clean)) + geom_point()
+
+ggplot(pair1, aes(PC1, PC2, color=mod.label.clean)) + geom_point() +
+  xlab("First Principal Component") + 
+  ylab("Second Principal Component") + 
+  ggtitle("First Two Principal Components of Combined Mega Iris Data")
+ggplot(pair2, aes(PC3, PC4, color=mod.label.clean)) + geom_point() +
+  xlab("Third Principal Component") +
+  ylab("Fourth Principal Component") +
+  ggtitle("Third and Fourth Principal Components of Combined Mega Iris Data")
+ggplot(pair3, aes(PC5, PC6, color=mod.label.clean)) + geom_point() +
+  xlab("Fifth Principal Component") +
+  ylab("Sixth Principal Component") +
+  ggtitle("Fifth and Sixth Principal Components of Combined Mega Iris Data")
 
 
 ve <- e.set.pca$sdev^2
 pve <- ve / sum(ve)
-round(pve, 5)
+round(pve, 5)[1:10]
 
-remove(e.set.c, e.set.r, e.set.i.df)
+remove(e.set.c, e.set.r, e.set.i.df, e.set.i.t, e.set.pca, pair1, pair2, pair3)
 
 ## DGE
 bct <- e.set.clean[mod.label.clean == 'bacterial',]
@@ -229,7 +230,6 @@ abline(h = -log10(pvalue_cutoff), col = "green", lwd = 2)
 # Fold-change filter for "biological" significance
 filter_by_fold = abs(fold) >= fold_cutoff
 dim(e.set.clean[filter_by_fold,])
-dim(e.set.clean[filter_by_fold,])
 
 # P-value filter for "statistical" significance
 filter_by_pvalue = pvalue <= pvalue_cutoff
@@ -246,13 +246,13 @@ e.set.clean[,filter_combined][1:5,1:5]
 
 ## TEST TRAIN DIFFERENTIAL EXPRESSED TRANSCRIPTS VIRAL BACTERIAL
 bac.vrl.index <- mod.label.clean == 'bacterial' | mod.label.clean == 'viral'
-x <- e.set.clean[bac.vrl.index,filter_combined]
+x <- e.set.clean[bac.vrl.index, filter_combined]
 y <- mod.label.clean[bac.vrl.index]
 
 set.seed(3)
 n <- nrow(x)
 index <- seq(1:n)
-train = sample(1:n, round(n*0.8))
+train = sample(1:n, round(n*0.7))
 test = index[-train]
 intersect(train, test)
 
@@ -260,29 +260,28 @@ x_train <- x[train,]
 x_test <- x[test,]
 
 y_train <- ifelse(y[train] == 'bacterial', TRUE, FALSE)
-ytest = ifelse(y[test] == 'bacterial', TRUE, FALSE)
-
+y_test = ifelse(y[test] == 'bacterial', TRUE, FALSE)
 
 
 ## NEURAL NET
+library(neuralnet)
 x.l <- list()
 for(i in 1 : ncol(x_train)) { # For each gene : 
   x.l[[i]] <- x_train[,i]
 }
 length(x.l)
 
-a<-do.call(cbind, x.l) # apply cbind to each item in x.l list
-a
-b<-a[,1:5]
-b
-nn1 <- neuralnet(y1~., b,
+nn_train <-do.call(cbind, x.l) # apply cbind to each item in x.l list
+nn_train <- nn_train[,1:5]
+
+nn1 <- neuralnet(y_train~., nn_train,
                  hidden=5,
                  threshold=0.01,
                  err.fct = 'ce',
                  linear.output = FALSE,
                  likelihood = TRUE)
 
-plot(nn1)
+# plot(nn1)
 # dev.off()
 nn1_train_error <- nn1$result.matrix[1,1]
 paste("CE Error: ", round(nn1_train_error, 3)) 
@@ -293,29 +292,22 @@ paste("BIC: ", round(nn1_bic, 3))
 
 
 nn1.pred <- compute(nn1, x_test[,1:5])
-a<-nn1.pred$net.result
+nn1.r <-nn1.pred$net.result
 
-nn1.pred.c <- ifelse(a > 0.5, 'bacterial', 'viral' )
+nn1.pred.c <- ifelse(nn1.r > 0.5, 'bacterial', 'viral' )
 nn1.pred.c
 y[test]
 
 table(y[test], nn1.pred.c)
-
-b<-ifelse(y[test] == 'bacterial',1,0)
-b
-
-detach(package:neuralnet,unload = T)
-prediction(nn1.pred$net.result, b) %>%
-  performance(measure = "auc") %>%
-  .@y.values
-
-
-
-
-
+res <-ifelse(y[test] == 'bacterial',1,0)
 
 # model 1 AUC
-prediction(c, b) %>%
+detach(package:neuralnet,unload = T)
+prediction(nn1.pred$net.result, res) %>%
+  performance(measure = "tpr", x.measure = "fpr") %>%
+  plot()
+
+prediction(nn1.pred$net.result, res) %>%
   performance(measure = "auc") %>%
   .@y.values
 
