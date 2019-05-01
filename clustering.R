@@ -19,26 +19,17 @@ rm(e.set.i, status.iris, targets, targets.iris)
 # transpose
 e.set.t <- t(e.set)
 # e.set.t[1:4,1:4]
-# dim(e.set.t)
-length(status$most_general)
+
 label <- as.character(status$most_general)
-class(label)
-unique(label)
-
-idx <- (label == 'bacterial' | label =='viral' |
-          label == 'greyb' | label =='greyv' | label == 'greyu')
-
-e.set <- e.set.t[idx,]
-label.i <- label[idx]
-rm(e.set.t)
-# dim(e.set)
-# length(label.i)
 
 ### DGE
 bct <- e.set.t[label == 'bacterial',]
 vrl <- e.set.t[label == 'viral',]
 dim(bct)
 dim(vrl)
+
+e.set <- rbind(bct, vrl)
+dim(e.set)
 
 bct.mean <- apply(bct, 2, mean)
 vrl.mean <- apply(vrl, 2, mean)
@@ -94,25 +85,26 @@ dim(e.set[,filter_by_fold])
 # P-value filter for "statistical" significance
 filter_by_pvalue = pvalue <= pvalue_cutoff
 dim(e.set[,filter_by_pvalue])
-
-e.set[,filter_by_pvalue]
+# e.set[,filter_by_pvalue]
 
 # Combined filter (both biological and statistical)
 filter_combined = filter_by_fold & filter_by_pvalue
-sum(filter_combined)
-
 filtered = e.set[,filter_combined]
 dim(filtered)
 
-e.set[,filter_combined][1:10,1:5]
-# e.set <- e.set[,filter_combined]
-e.set <- as.data.frame(e.set[,filter_combined])
-dim(e.set)
-class(e.set)
-e.set[1:5,1:4]
 
 
-### CLUSTERING
+############################## CLUSTERING ##############################
+
+unique(label)
+
+idx <- (label == 'bacterial' | label =='viral' |
+          label == 'greyb' | label =='greyv' | label == 'greyu')
+
+e.set <- data.frame(e.set.t[idx, filter_combined])
+label.i <- label[idx]
+status.i <- status[idx,]
+
 # e.set <- scale(e.set) # worse performance with scaling
 fviz_nbclust(e.set, kmeans, method = "wss")
 fviz_nbclust(e.set, kmeans, method = "silhouette")
@@ -130,10 +122,7 @@ dim(e.set)
 k2 <- kmeans(e.set, centers = 2, nstart = 25)
 str(k2)
 attributes(k2)
-dim(e.set)
-e.set[1:4,1:5]
-k2$cluster[1]
-length(k2$cluster)
+dim(status)
 
 
 k2$cluster <- as.factor(k2$cluster)
@@ -147,8 +136,6 @@ ggplot(e.set, aes(sig.1, sig.2, color = k2$cluster, shape=label.i)) +
   ylab(paste('transcript',colnames(e.set))[2]) +
   ggtitle("Pairwise Scatter Plot of Most Significantly
           Differentially Expressed Transcripts")
-
-table(k2$cluster, label.i)
 
 e.set.pca <- prcomp(e.set, scale = TRUE)
 summary(e.set.pca)
@@ -165,10 +152,26 @@ ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=label.i), 
   ylab("Second Principal Component") +
   ggtitle("Cluster Assignment of First Two Principal Components")
 
-ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=label.i), size=2) +
-  xlab("Third Principal Component") +
-  ylab("Fourth Principal Component") +
-  ggtitle("Cluster Assignment of Third and Fourth Principal Components")
+# ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=label.i), size=2) +
+#   xlab("Third Principal Component") +
+#   ylab("Fourth Principal Component") +
+#   ggtitle("Cluster Assignment of Third and Fourth Principal Components")
+
+table(k2$cluster, label.i)
+
+attributes(status)$names
+clus1 <- status.i[k2$cluster == 1,c('my_category_2', 'most_general', 'more_general',
+                                    'Age..months.', 'Sex', 'ethnicity', 'WBC', 'array.contemporary.CRP')]
+clus2 <- status.i[k2$cluster == 2,c('my_category_2', 'most_general', 'more_general',
+                                    'Age..months.', 'Sex', 'ethnicity', 'WBC', 'array.contemporary.CRP')]
+dim(clus1)
+dim(clus2)
+summary(clus1)
+summary(clus2)
+
+# ix the bcts sneaking into vrl cluster
+clus1[clus1$most_general == 'bacterial',]
+# https://flowingdata.com/2012/05/15/how-to-visualize-and-compare-distributions/
 
 
 ## K3
