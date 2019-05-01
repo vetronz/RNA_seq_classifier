@@ -25,24 +25,18 @@ label <- as.character(status$most_general)
 class(label)
 unique(label)
 
-# idx <- (label == 'bacterial' | label =='viral')
-
 idx <- (label == 'bacterial' | label =='viral' |
-          label == 'greyb' | label =='greyv')
-
-# idx <- (label == 'bacterial' | label =='viral' |
-#           label == 'greyb' | label =='greyv' |
-#           label == 'OD' | label == 'HC')
+          label == 'greyb' | label =='greyv' | label == 'greyu')
 
 e.set <- e.set.t[idx,]
-label <- label[idx]
-# rm(e.set.t)
-dim(e.set)
-length(label)
+label.i <- label[idx]
+rm(e.set.t)
+# dim(e.set)
+# length(label.i)
 
 ### DGE
-bct <- e.set[label == 'bacterial',]
-vrl <- e.set[label == 'viral',]
+bct <- e.set.t[label == 'bacterial',]
+vrl <- e.set.t[label == 'viral',]
 dim(bct)
 dim(vrl)
 
@@ -86,7 +80,7 @@ hist(-log10(pvalue), col = "gray")
 plot(fold, -log10(pvalue), main = "Volcano #1")
 
 fold_cutoff = 1.5
-pvalue_cutoff = 1e-11
+pvalue_cutoff = 1e-14
 
 abline(v = fold_cutoff, col = "blue", lwd = 2)
 abline(v = -fold_cutoff, col = "red", lwd = 2)
@@ -101,6 +95,8 @@ dim(e.set[,filter_by_fold])
 filter_by_pvalue = pvalue <= pvalue_cutoff
 dim(e.set[,filter_by_pvalue])
 
+e.set[,filter_by_pvalue]
+
 # Combined filter (both biological and statistical)
 filter_combined = filter_by_fold & filter_by_pvalue
 sum(filter_combined)
@@ -109,98 +105,140 @@ filtered = e.set[,filter_combined]
 dim(filtered)
 
 e.set[,filter_combined][1:10,1:5]
-# e.set.f <- e.set[,filter_combined]
-e.set.f <- as.data.frame(e.set[,filter_combined])
-dim(e.set.f)
-class(e.set.f)
+# e.set <- e.set[,filter_combined]
+e.set <- as.data.frame(e.set[,filter_combined])
+dim(e.set)
+class(e.set)
+e.set[1:5,1:4]
 
 
 ### CLUSTERING
-fviz_nbclust(e.set.f, kmeans, method = "wss")
-fviz_nbclust(e.set.f, kmeans, method = "silhouette")
+# e.set <- scale(e.set) # worse performance with scaling
+fviz_nbclust(e.set, kmeans, method = "wss")
+fviz_nbclust(e.set, kmeans, method = "silhouette")
+
+gap_stat <- clusGap(e.set, FUN = kmeans, nstart = 25,
+                    K.max = 20, B = 50)
+fviz_gap_stat(gap_stat)
+
+# distance <- get_dist(e.set)
+# fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 
 ## K2
-k2 <- kmeans(e.set.f, centers = 2, nstart = 25)
+dim(e.set)
+
+k2 <- kmeans(e.set, centers = 2, nstart = 25)
 str(k2)
+attributes(k2)
+dim(e.set)
+e.set[1:4,1:5]
+k2$cluster[1]
+length(k2$cluster)
+
 
 k2$cluster <- as.factor(k2$cluster)
 
-sig.1 <- as.numeric(e.set.f[,colnames(e.set.f)[1]])
-sig.2 <- as.numeric(e.set.f[,colnames(e.set.f)[2]])
+sig.1 <- as.numeric(e.set[,colnames(e.set)[1]])
+sig.2 <- as.numeric(e.set[,colnames(e.set)[2]])
 
-ggplot(e.set.f, aes(sig.1, sig.2, color = k2$cluster, shape=label)) +
+ggplot(e.set, aes(sig.1, sig.2, color = k2$cluster, shape=label.i)) +
   geom_point(size=2) +
-  xlab(paste('transcript',colnames(e.set.f))[1]) +
-  ylab(paste('transcript',colnames(e.set.f))[2]) +
+  xlab(paste('transcript',colnames(e.set))[1]) +
+  ylab(paste('transcript',colnames(e.set))[2]) +
   ggtitle("Pairwise Scatter Plot of Most Significantly
           Differentially Expressed Transcripts")
 
-table(k2$cluster, label)
+table(k2$cluster, label.i)
 
-e.set.pca <- prcomp(e.set.f, scale = TRUE)
+e.set.pca <- prcomp(e.set, scale = TRUE)
 summary(e.set.pca)
 plot(e.set.pca, type = 'l')
 
-pair1 <- e.set.pca$x[,1:2]
-pair2 <- e.set.pca$x[,3:4]
+pair1 <- as.data.frame(e.set.pca$x[,1:2])
+pair2 <- as.data.frame(e.set.pca$x[,3:4])
 
-fviz_cluster(k2, geom = c("point"),  data = e.set.f, axes = c(1,2)) +
+fviz_cluster(k2, geom = c("point"),  data = e.set, axes = c(1,2)) +
   ggtitle("PCA Cluster Assignment k = 2")
 
-ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=label)) +
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=label.i), size=2) +
   xlab("First Principal Component") +
   ylab("Second Principal Component") +
   ggtitle("Cluster Assignment of First Two Principal Components")
 
-ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=label)) +
+ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=label.i), size=2) +
   xlab("Third Principal Component") +
   ylab("Fourth Principal Component") +
   ggtitle("Cluster Assignment of Third and Fourth Principal Components")
 
 
 ## K3
-k3 <- kmeans(e.set.f, centers = 3, nstart = 25)
+k3 <- kmeans(e.set, centers = 3, nstart = 25)
 str(k3)
 k3$cluster <- as.factor(k3$cluster)
 
-ggplot(as.data.frame(e.set.f), aes(sig.1, sig.2, color = k3$cluster, shape=label)) +
+ggplot(as.data.frame(e.set), aes(sig.1, sig.2, color = k3$cluster, shape=label.i)) +
   geom_point(size=2) +
-  xlab(paste('transcript',colnames(e.set.f))[1]) +
-  ylab(paste('transcript',colnames(e.set.f))[2]) +
+  xlab(paste('transcript',colnames(e.set))[1]) +
+  ylab(paste('transcript',colnames(e.set))[2]) +
   ggtitle(
     "Pairwise Scatter Plot of Most Significantly
     Differentially Expressed Transcripts")
 
-table(k3$cluster, label)
+table(k3$cluster, label.i)
 
-fviz_cluster(k3, geom = c("point"),  data = e.set.f, axes = c(1,2)) +
+fviz_cluster(k3, geom = c("point"),  data = e.set, axes = c(1,2)) +
   ggtitle("PCA Cluster Assignment k = 3")
 
-ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k3$cluster, shape=label)) +
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k3$cluster, shape=label.i), size=2) +
   xlab("First Principal Component") +
   ylab("Second Principal Component") +
   ggtitle("Cluster Assignment of First Two Principal Components")
 
 
 ## K4
-k4 <- kmeans(e.set.f, centers = 4, nstart = 25)
+k4 <- kmeans(e.set, centers = 4, nstart = 25)
 str(k4)
 k4$cluster <- as.factor(k4$cluster)
 
-ggplot(as.data.frame(e.set.f), aes(sig.1, sig.2, color = k4$cluster, shape=label)) +
+ggplot(as.data.frame(e.set), aes(sig.1, sig.2, color = k4$cluster, shape=label.i), size=2) +
   geom_point(size=2) +
-  xlab(paste('transcript',colnames(e.set.f))[1]) +
-  ylab(paste('transcript',colnames(e.set.f))[2]) +
+  xlab(paste('transcript',colnames(e.set))[1]) +
+  ylab(paste('transcript',colnames(e.set))[2]) +
   ggtitle(
     "Pairwise Scatter Plot of Most Significantly
     Differentially Expressed Transcripts")
 
-table(k4$cluster, label)
+table(k4$cluster, label.i)
 
-fviz_cluster(k4, geom = c("point"),  data = e.set.f, axes = c(1,2)) +
-  ggtitle("PCA Cluster Assignment K = 4")
+# fviz_cluster(k4, geom = c("point"),  data = e.set, axes = c(1,2)) +
+  # ggtitle("PCA Cluster Assignment K = 4")
 
-ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k4$cluster, shape=label)) +
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k4$cluster, shape=label.i),size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+
+
+## K10
+k10 <- kmeans(e.set, centers = 10, nstart = 25)
+# str(k10)
+k10$cluster <- as.factor(k10$cluster)
+
+ggplot(as.data.frame(e.set), aes(sig.1, sig.2, color = k10$cluster, shape=label.i), size=2) +
+  geom_point(size=2) +
+  xlab(paste('transcript',colnames(e.set))[1]) +
+  ylab(paste('transcript',colnames(e.set))[2]) +
+  ggtitle(
+    "Pairwise Scatter Plot of Most Significantly
+    Differentially Expressed Transcripts")
+
+table(k10$cluster, label.i)
+
+fviz_cluster(k10, geom = c("point"),  data = e.set, axes = c(1,2)) +
+  ggtitle("PCA Cluster Assignment K = 10")
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k10$cluster, shape=label.i),size=2) +
   xlab("First Principal Component") +
   ylab("Second Principal Component") +
   ggtitle("Cluster Assignment of First Two Principal Components")
@@ -209,22 +247,31 @@ ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k4$cluster, shape=label)) +
 
 
 
-gap_stat <- clusGap(e.set.f, FUN = kmeans, nstart = 25,
-                    K.max = 10, B = 50)
-fviz_gap_stat(gap_stat)
 
 ############################################################
-# can fuzzy clustering do a better job?
-# hierarchecal clustering same picture?
+## to do
+# need to add in phenotypic breakdown to each of the clusters to see how
+# the clusters are partitioning them
+
+# please include all genes in an analysis.
+# will need to use limma to adjust for confounders age, sex 
+
+
+
+
+
+
+
+
 
 
 #############################################################
 # hierarchical
 
-dim(e.set.f)
-e.set.f[1:5,1:5]
+dim(e.set)
+e.set[1:5,1:5]
 
-e.set.s <- scale(e.set.f)
+e.set.s <- scale(e.set)
 apply(e.set.s, 2, mean)
 apply(e.set.s, 2, var)
 
@@ -233,7 +280,6 @@ e.set.s[1:5,1:4]
 cor(e.set.s)
 cor(e.set.s, method = 'pearson')
 
-
 dist(1-cor(e.set.s, method="pearson"))
 
 hr <- hclust(as.dist(1-cor(e.set.s, method="pearson")), method = 'complete')
@@ -241,7 +287,7 @@ hc <- hclust(as.dist(1-cor(e.set.s, method="spearman")), method = 'complete')
 
 
 library(gplots)
-heatmap.2(as.matrix(e.set.f),
+heatmap.2(as.matrix(e.set),
           Rowv=as.dendrogram(hr), 
           Colv=as.dendrogram(hc),
           col=redgreen(100),
@@ -267,13 +313,33 @@ plot(TreeR,
      ylab = "Height")
 
 
+hclusth1.5 = cutree(hr, h=1.5) #cut tree at height of 1.5
+hclusth1.0 = cutree(hr, h=1.0) #cut tree at height of 1.0
+hclusth0.5 = cutree(hr, h=0.5) #cut tree at height of 0.5
+
+library(dendextend)
+#plot the tree
+plot(TreeR,
+     leaflab = "none",
+     main = "Gene Clustering",
+     ylab = "Height")
+
+#add the three cluster vectors
+the_bars <- cbind(hclusth0.5, hclusth1.0, hclusth1.5)
+#this makes the bar
+colored_bars(the_bars, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("h=0.5","h=1.0","h=1.5"),cex.rowLabels=0.7)
+#this will add lines showing the cut heights
+abline(h=1.5, lty = 2, col="grey")
+abline(h=1.0, lty = 2, col="grey")
+abline(h=0.5, lty = 2, col="grey")
 
 
-
-
-
-
-
+hclustk4 = cutree(hr, k=4)
+plot(TreeR,
+     leaflab = "none",
+     main = "Gene Clustering",
+     ylab = "Height")
+colored_bars(hclustk4, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=4"),cex.rowLabels=0.7)
 
 
 
@@ -284,7 +350,7 @@ plot(TreeR,
 
 # # function to compute total within-cluster sum of square 
 # wss <- function(k) {
-#   kmeans(e.set.f, k, nstart = 10 )$tot.withinss
+#   kmeans(e.set, k, nstart = 10 )$tot.withinss
 # }
 # 
 # # Compute and plot wss for k = 1 to k = 15
@@ -301,8 +367,8 @@ plot(TreeR,
 
 # function to compute average silhouette for k clusters
 # avg_sil <- function(k) {
-#   km.res <- kmeans(e.set.f, centers = k, nstart = 25)
-#   ss <- silhouette(km.res$cluster, dist(e.set.f))
+#   km.res <- kmeans(e.set, centers = k, nstart = 25)
+#   ss <- silhouette(km.res$cluster, dist(e.set))
 #   mean(ss[, 3])
 # }
 # 
@@ -316,10 +382,4 @@ plot(TreeR,
 #      type = "b", pch = 19, frame = FALSE, 
 #      xlab = "Number of clusters K",
 #      ylab = "Average Silhouettes")
-
-
-
-
-
-
 # end
