@@ -2,6 +2,9 @@ library(cluster)
 library(factoextra)
 library(gridExtra)
 library(tidyverse)
+library(plyr)
+require(reshape) # for melt()
+require(scales) # for percent
 
 setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
 # setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -92,15 +95,26 @@ filter_combined = filter_by_fold & filter_by_pvalue
 filtered = e.set[,filter_combined]
 dim(filtered)
 
+match(colnames(bct[,13451:13452])[1], colnames(filtered))
+filtered
+
+pval.df <- data.frame(pvalue)
+pval.df$id <- seq.int(nrow(pval.df))
+pval.df$transcript <- colnames(e.set.t)
+head(pval.df)
+head(pval.df[with(pval.df, order(pvalue)),])
+
+trans.1 <- pval.df[with(pval.df, order(pvalue)),]['transcript'][1,]
+trans.2 <- pval.df[with(pval.df, order(pvalue)),]['transcript'][2,]
+trans.3 <-pval.df[with(pval.df, order(pvalue)),]['transcript'][3,]
 
 
 ############################## CLUSTERING ##############################
 
-unique(label)
-
+# unique(label)
 idx <- (label == 'bacterial' | label =='viral' |
           label == 'greyb' | label =='greyv' | label == 'greyu')
-
+e.set.b <- e.set
 e.set <- data.frame(e.set.t[idx, filter_combined])
 label.i <- label[idx]
 status.i <- status[idx,]
@@ -116,29 +130,24 @@ fviz_gap_stat(gap_stat)
 # distance <- get_dist(e.set)
 # fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 
-## K2
-dim(e.set)
-
+############# K2 #############
 k2 <- kmeans(e.set, centers = 2, nstart = 25)
 str(k2)
-attributes(k2)
-dim(status)
-
-
+# attributes(k2)
 k2$cluster <- as.factor(k2$cluster)
 
-sig.1 <- as.numeric(e.set[,colnames(e.set)[1]])
-sig.2 <- as.numeric(e.set[,colnames(e.set)[2]])
+sig.1 <- e.set.t[idx, filter_combined][,trans.1]
+sig.2 <- e.set.t[idx, filter_combined][,trans.]
 
 ggplot(e.set, aes(sig.1, sig.2, color = k2$cluster, shape=label.i)) +
   geom_point(size=2) +
-  xlab(paste('transcript',colnames(e.set))[1]) +
-  ylab(paste('transcript',colnames(e.set))[2]) +
+  xlab(paste('transcript', trans.1)) +
+  ylab(paste('transcript', trans.2)) +
   ggtitle("Pairwise Scatter Plot of Most Significantly
           Differentially Expressed Transcripts")
 
 e.set.pca <- prcomp(e.set, scale = TRUE)
-summary(e.set.pca)
+# summary(e.set.pca)
 plot(e.set.pca, type = 'l')
 
 pair1 <- as.data.frame(e.set.pca$x[,1:2])
@@ -157,21 +166,177 @@ ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=label.i), 
 #   ylab("Fourth Principal Component") +
 #   ggtitle("Cluster Assignment of Third and Fourth Principal Components")
 
+
+### K2 PHENOTYPE BREKDOWN
 table(k2$cluster, label.i)
 
 attributes(status)$names
-clus1 <- status.i[k2$cluster == 1,c('my_category_2', 'most_general', 'more_general',
-                                    'Age..months.', 'Sex', 'ethnicity', 'WBC', 'array.contemporary.CRP')]
-clus2 <- status.i[k2$cluster == 2,c('my_category_2', 'most_general', 'more_general',
-                                    'Age..months.', 'Sex', 'ethnicity', 'WBC', 'array.contemporary.CRP')]
+clus1 <- status.i[k2$cluster == 1, c('my_category_2', 'most_general', 'more_general',
+                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP')]
+clus2 <- status.i[k2$cluster == 2, c('my_category_2', 'most_general', 'more_general',
+                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP')]
 dim(clus1)
 dim(clus2)
 summary(clus1)
 summary(clus2)
 
+crp.1 <- as.numeric(levels(clus1$array.contemporary.CRP)[clus1$array.contemporary.CRP])
+crp.2 <- as.numeric(levels(clus2$array.contemporary.CRP)[clus2$array.contemporary.CRP])
+
+cor(crp.1[!is.na(crp.1)], clus1$WBC[!is.na(crp.1)]) # check for regressable relationship
+cor(crp.2[!is.na(crp.2)], clus2$WBC[!is.na(crp.2)]) # check for regressable relationship
+
+# Correlation to check imputation vs Regression
+plot(crp.1[!is.na(crp.1)] ~ clus1$WBC[!is.na(crp.1)], xlab = 'wbc', ylab = "crp",
+     main = "WBC vs CRP")
+
+plot(crp.2[!is.na(crp.2)] ~ clus2$WBC[!is.na(crp.2)], xlab = 'wbc', ylab = "crp",
+     main = "WBC vs CRP")
+
+summary(crp.1)
+crp.1[which(is.na(crp.1))] <- summary(crp.1)['Median'][[1]] # imputes Na with median
+summary(crp.1)
+clus1$array.contemporary.CRP <- crp.1
+
+summary(crp.2)
+crp.2[which(is.na(crp.2))] <- summary(crp.2)['Median'][[1]] # imputes Na with median
+summary(crp.2)
+clus2$array.contemporary.CRP <- crp.2
+
+
+## K2 PHENO VISUALIZATION
+# WBC
+clus1.df <- data.frame(cluster='clus1', wbc=clus1$WBC, crp=clus1$array.contemporary.CRP, age=clus1$Age..months., sex=clus1$Sex)
+clus2.df <- data.frame(cluster='clus2', wbc=clus2$WBC, crp=clus2$array.contemporary.CRP, age=clus2$Age..months., sex=clus2$Sex)
+df <- rbind(clus1.df, clus2.df)
+
+ggplot(df, aes(cluster, wbc, fill=sex)) + geom_boxplot() +
+  xlab('cluster') +
+  ylab('WBC Count') +
+  ggtitle("Box Plot of WBC counts by cluster Assignment")
+
+ggplot(df, aes(wbc, fill=sex)) + geom_histogram(bins = 15) + facet_wrap(~cluster, nrow=2, ncol=1)+
+  xlab('WBC') +
+  ylab('Density') +
+  ggtitle("Histogram of WBC Count by Cluster Assignment")
+
+ggplot(df, aes(wbc, fill=cluster)) + geom_density(alpha=.5)+
+  xlab('WBC') +
+  ylab('Density') +
+  ggtitle("Density Plot of WBC Count by Cluster Assignment")
+
+# BIN
+q <- quantile(df$wbc, seq(0,1,0.2))
+df$wbc_bin <- cut(df$wbc, breaks = q, include.lowest = T)
+head(df)
+tab <- with(df, table(wbc_bin, cluster))
+print(prop.table(tab, 2))
+
+chisq.test(tab)
+
+df1 <- melt(ddply(df,.(cluster),function(x){prop.table(table(x$wbc_bin))}),id.vars = 1)
+
+ggplot(df1, aes(x = variable,y = value)) +
+  facet_wrap(~cluster, nrow=2, ncol=1) +
+  scale_y_continuous(labels=percent) +
+  geom_bar(stat = "identity") +
+  xlab('Binned WBC Levels') +
+  ylab('Percentage Bin Assignment') +
+  ggtitle("% Assignment to Binned WBC Levels by Cluster")
+
+ggplot(df, aes(cluster, fill=sex)) + geom_bar(position="dodge")+
+  xlab('Cluster') +
+  ylab('Counts') +
+  ggtitle("Bar Plot of Gender Split Between Clusters")
+
+
+# CRP
+ggplot(df, aes(cluster, crp, fill=sex)) + geom_boxplot() +
+  xlab('Cluster Assignment') +
+  ylab('CRP Count') +
+  ggtitle("Box Plot of CRP Count by Cluster Assignment")
+
+ggplot(df, aes(crp, fill=sex)) + geom_histogram(bins = 15) + facet_wrap(~cluster, nrow=2, ncol=1)+
+  xlab('CRP') +
+  ylab('Density') +
+  ggtitle("Histogram of CRP Count by Cluster Assignment")
+
+ggplot(df, aes(crp, color=cluster)) + geom_density()+
+  xlab('CRP') +
+  ylab('Density') +
+  ggtitle("Density Plot of CRP Count by Cluster Assignment")
+
+# BIN
+q <- quantile(df$crp, seq(0,1,0.2))
+df$crp_bin <- cut(df$crp, breaks = q, include.lowest = T)
+head(df)
+tab <- with(df, table(crp_bin, cluster))
+print(prop.table(tab, 2))
+
+chisq.test(tab)
+
+df1 <- melt(ddply(df,.(cluster),function(x){prop.table(table(x$crp_bin))}),id.vars = 1)
+
+ggplot(df1, aes(x = variable,y = value)) +
+  facet_wrap(~cluster, nrow=2, ncol=1) +
+  scale_y_continuous(labels=percent) +
+  geom_bar(stat = "identity") +
+  xlab('Binned CRP Levels') +
+  ylab('Percentage Bin Assignment') +
+  ggtitle("Percentage Assignment to Binned CRP Levels by Cluster")
+
+
+# AGE
+ggplot(df, aes(cluster, age, fill=sex)) + geom_boxplot() +
+  xlab('Cluster Assignment') +
+  ylab('Age Months') +
+  ggtitle("Box Plot of Age by Cluster Assignment")
+
+ggplot(df, aes(age, fill=sex)) + geom_histogram(bins = 15) + facet_wrap(~cluster, nrow=2, ncol=1)+
+  xlab('Age') +
+  ylab('Density') +
+  ggtitle("Histogram of Age Count by Cluster Assignment")
+
+ggplot(df, aes(age, color=cluster)) + geom_density()+
+  xlab('Age') +
+  ylab('Density') +
+  ggtitle("Density Plot of Age Count by Cluster Assignment")
+
+# BIN
+q <- quantile(df$age, seq(0,1,0.2))
+df$age_bin <- cut(df$age, breaks = q, include.lowest = T)
+head(df)
+tab <- with(df, table(age_bin, cluster))
+print(prop.table(tab, 2))
+
+chisq.test(tab)
+
+df1 <- melt(ddply(df,.(cluster),function(x){prop.table(table(x$age_bin))}),id.vars = 1)
+
+ggplot(df1, aes(x = variable,y = value)) +
+  facet_wrap(~cluster, nrow=2, ncol=1) +
+  scale_y_continuous(labels=percent) +
+  geom_bar(stat = "identity") +
+  xlab('Binned Age Levels') +
+  ylab('Percentage Bin Assignment') +
+  ggtitle("Percentage Assignment to Binned Age Levels by Cluster")
+
+
+
+
+############# K3 #############
+
+
+
+
+
+
+
+# maybe also think about including a visual breakdown of organism eg pie chart of adeno vs RSV vs other vs bact
 # ix the bcts sneaking into vrl cluster
 clus1[clus1$most_general == 'bacterial',]
 # https://flowingdata.com/2012/05/15/how-to-visualize-and-compare-distributions/
+
 
 
 ## K3
