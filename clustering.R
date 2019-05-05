@@ -14,6 +14,7 @@ load('esets.RData')
 
 dim(e.set) # megaExp data
 dim(status) # megaExp labels
+e.set.b <- e.set
 
 class(e.set)
 e.set[1:4,1:4]
@@ -108,10 +109,7 @@ pval.df$transcript <- colnames(e.set.t)
 head(pval.df)
 head(pval.df[with(pval.df, order(pvalue)),])
 
-# 2340452
-# 3370356
-topTable(fit)
-a <- 4730356
+a <- 2570300
 limmaTop <- match(a, pval.df[with(pval.df, order(pvalue)),]['transcript'][[1]])
 limmaTop
 
@@ -127,7 +125,7 @@ trans.3 <-pval.df[with(pval.df, order(pvalue)),]['transcript'][3,]
 # unique(label)
 idx <- (label == 'bacterial' | label =='viral' |
           label == 'greyb' | label =='greyv' | label == 'greyu')
-e.set.b <- e.set
+
 e.set <- data.frame(e.set.t[idx, filter_combined])
 label.i <- label[idx]
 status.i <- status[idx,]
