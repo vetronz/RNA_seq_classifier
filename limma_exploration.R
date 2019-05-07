@@ -38,19 +38,20 @@ e.set.f$sex <- status[idx,c('Sex')]
 dim(e.set.f)
 e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
 
-### DESIGN MATRIX
-# class(label)
-# label <- factor(label)
 
+
+
+
+
+
+
+### DESIGN MATRIX
 design <- model.matrix(~label + 0, data = e.set.f)
-# design <- model.matrix(~label + sex + 0, data = e.set.f)
+colnames(design)<- c("bct","greyb","greyv", 'vrl')
+
 design[1:5,]
 dim(design)
-
-table(e.set.f$label, e.set.f$sex)
-
 colSums(design)
-colnames(design)<- c("bct","greyb","greyv", 'vrl')
 
 contrast.matrix<- makeContrasts(c("bct-vrl"), levels=design)
 contrast.matrix
@@ -62,38 +63,106 @@ dim(design)
 fit <- lmFit(X, design)
 fit2<- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
+
+dim(fit2$coefficients)
+fit2$coefficients[1:10,]
+
 topTable(fit2, adjust="BH", number=10)
-top.hits <- topTable(fit2, adjust="BH", number=nrow(X))
+# attributes(fit2)
+# ranked.list <- topTable(fit2, adjust="BH", number=nrow(X))
 
-results <- decideTests(fit2, method='global', p.value = 0.05, adjust.method = 'BH')
+results <- decideTests(fit2, method='global', p.value = 0.05, adjust.method = 'BH', lfc=2)
 summary(results)
-vennDiagram(results)
+vennDiagram(results, include = 'both')
 
-myTopHits <- as_tibble(top.hits, rownames = "geneSymbol")
-myTopHits[1:5,1:5]
+
+
+
+
+design <- model.matrix(~label + sex + 0, data = e.set.f)
+colnames(design)<- c("bct","greyb","greyv", 'vrl', 'sexM')
+
+design[1:5,]
+dim(design)
+colSums(design)
+
+contrast.matrix<- makeContrasts(c("bct-vrl"), levels=design)
+contrast.matrix
+# colnames(fit$coefficients)
+
+dim(X)
+dim(design)
+
+fit <- lmFit(X, design)
+fit2<- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+dim(fit2$coefficients)
+fit2$coefficients[1:10,]
+
+topTable(fit2, adjust="BH", number=10)
+# attributes(fit2)
+# ranked.list <- topTable(fit2, adjust="BH", number=nrow(X))
+
+results1 <- decideTests(fit2, method='global', p.value = 0.05, adjust.method = 'BH', lfc=2)
+summary(results1)
+vennDiagram(results1, include = 'both')
+
+a<-as.numeric(results)
+b<-as.numeric(results1)
+symdiff(a,b)
+match(a != b)
+c<-ifelse(a==b,0,1)
+sum(ifelse(a==b,0,1))
+match(1, c)
+
+colnames(e.set.f[34814])
+
+
+# a<-as.numeric(results == 1 | results == -1)
+b<-as.numeric(results == 1 | results == -1)
+# colnames(e.set.f[a])
+colnames(e.set.f[b])
+
+intersect(colnames(e.set.f[a]), colnames(e.set.f[b]))
+
+symdiff <- function(x, y) { setdiff(union(x, y), intersect(x, y))}
+symdiff(colnames(e.set.f[a]), colnames(e.set.f[b]))
+
+# "6450255.34"
+colnames(e.set.f[1])
+colnames(e.set.f["6450255.4"])
+
+
+
+as_tibble(ranked.list, rownames = "geneSymbol")
 
 ggplot(myTopHits, aes(y=-log10(adj.P.Val), x=logFC, text = paste("Symbol:", geneSymbol))) +
   geom_point(size=2) +
   ylim(min(-log10(myTopHits$adj.P.Val)), max(-log10(myTopHits$adj.P.Val))) +
   geom_hline(yintercept = -log10(0.01), linetype="longdash", colour="grey", size=1) +
-  geom_vline(xintercept = 1, linetype="longdash", colour="#BE684D", size=1) +
-  geom_vline(xintercept = -1, linetype="longdash", colour="#2C467A", size=1)
+  geom_vline(xintercept = 2, linetype="longdash", colour="#BE684D", size=1) +
+  geom_vline(xintercept = -2, linetype="longdash", colour="#2C467A", size=1)
 
 
-rownames(top.hits)[1:5]
-dim(top.hits)
+rownames(ranked.list)[1:5]
+dim(ranked.list)
 
 # limmaTop <- match(a, pval.df[with(pval.df, order(pvalue)),]['transcript'][[1]])
-rownames(top.hits)[6]
+rownames(ranked.list)[6]
 
-hit.idx <- match(rownames(top.hits)[1:100], colnames(e.set.f))
+hit.idx <- match(rownames(ranked.list)[1:300], colnames(e.set.f))
 hit.idx
 
 e.set.cut <- e.set.f[,hit.idx]
 
 dim(e.set.cut)
-e.set.cut[1:10,1:6]
+e.set.cut[1:5,1:6]
 
+
+
+
+### CLUSTERING
 # cluster centers
 fviz_nbclust(e.set.cut, kmeans, method = "wss")
 fviz_nbclust(e.set.cut, kmeans, method = "silhouette")
@@ -104,16 +173,13 @@ fviz_gap_stat(gap_stat)
 
 
 # K2 Clustering
-k2 <- kmeans(e.set.cut, centers = 2, nstart = 25)
+k2 <- kmeans(e.set.cut, centers = 2, nstart = 50)
 str(k2)
 k2$cluster <- as.factor(k2$cluster)
 
 table(k2$cluster, e.set.f$label)
 
 chisq.test(table(k2$cluster, e.set.f$sex), correct = TRUE)
-
-status[idx, c('my_category_2', 'most_general')][k2$cluster == 1,]
-status[idx, c('my_category_2', 'most_general')]
 
 clus1 <- status[idx, c('my_category_2', 'most_general', 'more_general',
               'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP')][k2$cluster == 1,]
@@ -137,18 +203,15 @@ ggplot(df, aes(cluster, fill=sex)) + geom_bar(position="dodge")+
 
 
 # subgroup analysis
-e.set.f$label[k2$cluster == 1]
-e.set.f$sex[k2$cluster == 1]
-
 clus1.tab <- table(e.set.f$label[k2$cluster == 1], e.set.f$sex[k2$cluster == 1])
 addmargins(clus1.tab)
 
-chisq.test(clus1.tab, correct = FALSE)
+chisq.test(clus1.tab, correct = TRUE)
 
 clus2.tab <- table(e.set.f$label[k2$cluster == 2], e.set.f$sex[k2$cluster == 2])
 addmargins(clus2.tab)
 
-chisq.test(clus2.tab, correct = FALSE)
+chisq.test(clus2.tab, correct = TRUE)
 
 
 ggplot(clus1.df, aes(label, fill=sex)) + geom_bar(position="dodge")+
