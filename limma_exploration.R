@@ -6,7 +6,9 @@ library(Biobase)
 library(cluster)
 library(factoextra)
 
-setwd('/Users/patrickhedley-miller/code/R/infxRNAseq')
+
+
+setwd('/home/patrick/Code/R')
 # setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
 
 rm(list=setdiff(ls(), 'all'))
