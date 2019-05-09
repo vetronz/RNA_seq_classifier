@@ -36,54 +36,125 @@ sum(idx)
 
 attributes(status)$names
 
-which(status[idx,]$array.contemporary.CRP == 'na')
-length(which(status[idx,]$array.contemporary.CRP == 'na'))
+levels(status[idx,]$array.contemporary.CRP)
 
-crp.idx <- seq(1:nrow(status[idx,]))[-(which(status[idx,]$array.contemporary.CRP == 'na'))]
-crp.idx
 
-as.numeric(status[idx,]$array.contemporary.CRP[crp.idx])
-cor(status[idx,]$WBC[crp.idx], as.numeric(status[idx,]$array.contemporary.CRP[crp.idx]))
+which(as.character(status[idx,]$array.contemporary.CRP) == 'na')
+length(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'))
+
+which(status[idx,]$WBC == 0)
+clean<-union(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'), which(status[idx,]$WBC == 0))
+length(a)
+
+clean.idx <- seq(1:nrow(status[idx,]))[-(clean)]
+clean.idx
+
+status[idx,]$array.contemporary.CRP[clean.idx]
+as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx]))
+
+cor(status[idx,]$WBC[clean.idx], as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])))
+
+
+ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])))) +
+  geom_point(shape=1)+
+  geom_smooth(method=lm)
+
+
 
 
 # Gener Breakdown
+positions <- c('bacterial', 'greyb', 'OD', 'greyv', 'viral')
+ggplot(status[idx,], aes(most_general, fill=most_general, alpha=Sex)) +
+  scale_alpha_manual(values=c(0.6, 1)) +
+  labs(title = "Diagnostic Groups", x = "Diagnosis", y = "Counts")+
+  scale_x_discrete(limits = positions)+
+  geom_bar()
+
 ggplot(status[idx,], aes(most_general, group=Sex)) + 
   geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count") +
   geom_text(aes( label = scales::percent(..prop..),
                  y= ..prop.. ), stat= "count", vjust = -.5) +
   labs(y = "Percent", fill="day") +
   facet_grid(~Sex) +
+  scale_x_discrete(limits = positions)+
   scale_y_continuous(labels = scales::percent)
-# ggplot(status[idx,], aes(Sex, fill=Sex)) + geom_bar(position="dodge")+
-#   facet_wrap(~most_general, nrow=3, ncol=2) +
-#   xlab('Cluster') +
-#   ylab('Counts') +
-#   ggtitle("Bar Plot of Gender Split Between Clusters")
-
-# ggplot(status[idx,], aes(most_general, fill=most_general)) + 
-#   geom_bar()+
-#   facet_grid(~Sex)
 
 table(status[idx,]$Sex)
+chisq.test(table(status[idx,]$Sex))
+
 tab.g <- table(droplevels(status[idx,]$most_general), status[idx,]$Sex)
 tab.g
 chisq.test(tab.g)
 
 
-# Diagnosis Breakdowns
-p1 <- ggplot(status[idx,], aes(most_general, WBC, color=Sex)) + geom_jitter(alpha = .5, width = .15) +
-  scale_y_continuous(limits = c(0, 50))+
+# Age Breakdown
+ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., fill=Sex)) + geom_boxplot()+
+  scale_x_discrete(limits = positions)+
+  xlab('Diagnostic Group') +
+  ylab('Age') +
+  scale_x_discrete(limits = positions)+
+  ggtitle("Age (months) by Diagnostic Group, Split by Gender")
+
+ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., color=Sex)) + geom_jitter(alpha = .9, width = 0.2)+
+  scale_x_discrete(limits = positions)+
+  xlab('Diagnostic Group') +
+  ylab('Age (months)') +
+  ggtitle("Age (months) by Diagnostic Group, Split by Gender")
+
+ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
+
+a <- as.data.frame(droplevels(status[idx,]$most_general))
+colnames(a) <- 'dx'
+a$age <-status[idx,]$Age..months.
+head(a)
+summary(a)
+
+b <- ddply(a,~dx)
+
+anova.res <- aov(age ~ dx, data = b)
+summary(anova.res)
+
+dim(status[clean.idx,])
+
+
+
+
+# Inflamatory Marker Breakdown
+positions <- c('bacterial', 'greyb', 'greyv', 'viral')
+p1 <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, color=Sex)) + geom_jitter(alpha = .8, width = .2) +
+  # scale_y_continuous(limits = c(0, 50))+
   ylab('WBC Count') +
+  scale_x_discrete(limits = positions)+
   ggtitle("Jitter Plot: WBC Count by Diagnosis")
 
-p2 <- ggplot(status[idx,][crp.idx,], aes(most_general,
-  as.numeric(status[idx,]$array.contemporary.CRP[crp.idx]), color=Sex))+
-  geom_jitter(alpha = .5, width = .15)+
-  scale_y_continuous(limits = c(0, 210))+
+p2 <- ggplot(status[idx,][clean.idx,], aes(most_general,
+  as.numeric(as.character(status[idx,][clean.idx,]$array.contemporary.CRP)), color=Sex))+
+  geom_jitter(alpha = .8, width = .2)+
+  # scale_y_continuous(limits = c(0, 230))+
   xlab('Cluster Assignment') +
   ylab('CRP Count') +
+  scale_x_discrete(limits = positions)+
   ggtitle("Jitter Plot: CRP Count by Diagnosis")
+
 gridExtra::grid.arrange(p1, p2, nrow = 2)
+
+
+p3 <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, color=Sex)) + geom_boxplot() +
+  # scale_y_continuous(limits = c(0, 50))+
+  ylab('WBC Count') +
+  scale_x_discrete(limits = positions)+
+  ggtitle("Jitter Plot: WBC Count by Diagnosis")
+
+p4 <- ggplot(status[idx,][clean.idx,], aes(most_general,
+  as.numeric(as.character(status[idx,][clean.idx,]$array.contemporary.CRP)), color=Sex))+
+  geom_boxplot()+
+  # scale_y_continuous(limits = c(0, 230))+
+  xlab('Cluster Assignment') +
+  ylab('CRP Count') +
+  scale_x_discrete(limits = positions)+
+  ggtitle("Jitter Plot: CRP Count by Diagnosis")
+
+gridExtra::grid.arrange(p3, p4, nrow = 2)
 
 
 
