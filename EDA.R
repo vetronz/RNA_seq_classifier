@@ -25,8 +25,8 @@ dim(e.set.t)
 idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
   status['most_general'] == 'greyb' |
-  status['most_general'] == 'greyv' |
-  status['most_general'] == 'OD'
+  status['most_general'] == 'greyv'
+  # status['most_general'] == 'OD'
 sum(idx)
 
 # e.set.f <- e.set[,idx]
@@ -36,15 +36,13 @@ sum(idx)
 
 attributes(status)$names
 
-levels(status[idx,]$array.contemporary.CRP)
-
-
 which(as.character(status[idx,]$array.contemporary.CRP) == 'na')
 length(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'))
 
 which(status[idx,]$WBC == 0)
 clean<-union(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'), which(status[idx,]$WBC == 0))
-length(a)
+clean
+length(clean)
 
 clean.idx <- seq(1:nrow(status[idx,]))[-(clean)]
 clean.idx
@@ -60,31 +58,43 @@ ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]
   geom_smooth(method=lm)
 
 
-
+# Diagnosis Breakdown
+table(droplevels(status[idx,]$most_general))
+table(droplevels(status[idx,]$more_general))
 
 # Gener Breakdown
 positions <- c('bacterial', 'greyb', 'OD', 'greyv', 'viral')
+positions <- c('bacterial', 'greyb', 'greyv', 'viral')
 ggplot(status[idx,], aes(most_general, fill=most_general, alpha=Sex)) +
   scale_alpha_manual(values=c(0.6, 1)) +
-  labs(title = "Diagnostic Groups", x = "Diagnosis", y = "Counts")+
+  labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
   scale_x_discrete(limits = positions)+
   geom_bar()
 
-ggplot(status[idx,], aes(most_general, group=Sex)) + 
-  geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count") +
+ggplot(status[idx,], aes(more_general, fill=most_general, alpha=Sex)) +
+  scale_alpha_manual(values=c(0.6, 1)) +
+  labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
+  geom_bar()
+
+ggplot(status[idx,], aes(more_general, group=Sex)) + 
+  geom_bar(aes(y = ..prop.., fill=factor(..x..)), stat="count") +
   geom_text(aes( label = scales::percent(..prop..),
                  y= ..prop.. ), stat= "count", vjust = -.5) +
-  labs(y = "Percent", fill="day") +
+  # labs(x = "Diagnosis", y='Percent', fill="Diagnosis") +
   facet_grid(~Sex) +
-  scale_x_discrete(limits = positions)+
+  coord_flip()+
   scale_y_continuous(labels = scales::percent)
 
 table(status[idx,]$Sex)
 chisq.test(table(status[idx,]$Sex))
 
-tab.g <- table(droplevels(status[idx,]$most_general), status[idx,]$Sex)
-tab.g
-chisq.test(tab.g)
+tab.most.g <- table(droplevels(status[idx,]$most_general), status[idx,]$Sex)
+tab.more.g <- table(droplevels(status[idx,]$more_general), status[idx,]$Sex)
+tab.most.g
+tab.more.g
+
+chisq.test(tab.most.g)
+chisq.test(tab.more.g)
 
 
 # Age Breakdown
@@ -117,8 +127,6 @@ summary(anova.res)
 dim(status[clean.idx,])
 
 
-
-
 # Inflamatory Marker Breakdown
 positions <- c('bacterial', 'greyb', 'greyv', 'viral')
 p1 <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, color=Sex)) + geom_jitter(alpha = .8, width = .2) +
@@ -137,7 +145,6 @@ p2 <- ggplot(status[idx,][clean.idx,], aes(most_general,
   ggtitle("Jitter Plot: CRP Count by Diagnosis")
 
 gridExtra::grid.arrange(p1, p2, nrow = 2)
-
 
 p3 <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, color=Sex)) + geom_boxplot() +
   # scale_y_continuous(limits = c(0, 50))+
@@ -247,11 +254,248 @@ ggplot(df1, aes(x = variable,y = value, fill=Sex)) +
 
 
 
+###### differential gene expression with limma ######
+dim(e.set)
+e.set.t <- t(e.set)
+dim(e.set.t)
+
+
+e.set.f <- e.set.t[idx,]
+dim(e.set.f)
+# label.f <- status[idx,c('most_general')]
+# label <- as.character(label.f)
+X <- as.matrix(t(e.set.f))
+dim(X)
+
+e.set.f <- as.data.frame(e.set.f)
+e.set.f$label <- as.character(status[idx,c('most_general')])
+e.set.f$sex <- status[idx,c('Sex')]
+e.set.f$age <- status[idx,c('Age..months.')]
+
+dim(e.set.f)
+e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
+
+rm(e.set, e.set.i, e.set.t)
+
+### DESIGN MATRIX
+design <- model.matrix(~label + sex + age + 0, data = e.set.f)
+colnames(design)<- c("bct","greyb","greyv", 'vrl', 'sexM', 'age')
+
+design[1:10,]
+dim(design)
+colSums(design)
+
+contrast.matrix<- makeContrasts("bct-vrl", 'bct-greyv', levels=design)
+contrast.matrix
+# colnames(fit$coefficients)
+
+dim(X)
+dim(design)
+
+fit <- lmFit(X, design)
+fit2<- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+dim(fit2$coefficients)
+fit2$coefficients[1:10,]
+
+top.hits <- topTable(fit2, adjust="BH", number=76, coef = 'bct-vrl')
+# ranked.list <- topTable(fit2, adjust="BH", number=nrow(X))
+
+results <- decideTests(fit2, method='global', p.value = 0.05, adjust.method = 'BH', lfc=1.5)
+summary(results)
+
+vennDiagram(results, include = 'both')
+vennCounts(results, include = 'both')
+# heatDiagram(results, include = 'both', coef = 'bct-vrl')
+
+dim(results)
+
+rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))]
+
+# proof that in above we are not taking the intersect of genes that are over expressed on one
+# and under expressed in the other
+a<-which(results[,1] == 1)
+b<-which(results[,2] == 1)
+c<-which(results[,1] == -1)
+d<-which(results[,2] == -1)
+
+rownames(results)[union(intersect(a,b), intersect(c,d))]
+
+# still get 66 taking the intersect of the two above methods
+intersect(union(intersect(a,b), intersect(c,d)),
+          intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1)))
+
+
+
+############################## CLUSTERING ##############################
+### PCA
+X.pca <- prcomp(X.t[,hit.filter], scale = TRUE)
+# summary(e.set.pca)
+plot(X.pca, type = 'l')
+
+pair1 <- as.data.frame(X.pca$x[,1:2])
+pair2 <- as.data.frame(X.pca$x[,3:4])
+
+fviz_cluster(k2, geom = c("point"),  data = X.t[,hit.filter], axes = c(1,2)) +
+  ggtitle("PCA Cluster Assignment k = 2")
+
+hit.filter <- intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))
+
+X.t <- t(X)
+dim(X.t)
+dim(X.t[,hit.filter])
+
+# e.set <- scale(e.set) # worse performance with scaling
+
+fviz_nbclust(X.t[,hit.filter], kmeans, method = "wss")
+fviz_nbclust(X.t[,hit.filter], kmeans, method = "silhouette")
+
+gap_stat <- clusGap(X.t[,hit.filter], FUN = kmeans, nstart = 25,
+                    K.max = 20, B = 50)
+fviz_gap_stat(gap_stat)
+
+### K2
+k2 <- kmeans(X.t[,hit.filter], centers = 2, nstart = 25)
+str(k2)
+k2$cluster <- as.factor(k2$cluster)
+
+droplevels(status[idx,]$most_general)
+k2$cluster
+length(k2$cluster)
+
+addmargins(table(k2$cluster, droplevels(status[idx,]$most_general)))
+addmargins(table(k2$cluster, droplevels(status[idx,]$more_general)))
+
+ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
+  labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
+  geom_bar()
+# table(k2$cluster, status[idx, c('Sex')])
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=status[idx,]$most_general), size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=status[idx,]$most_general), size=2) +
+  xlab("Third Principal Component") +
+  ylab("Fourth Principal Component") +
+  ggtitle("Cluster Assignment of Third-Fourth Principal Components")
+
+ggplot(status[idx,], aes(most_general, Age..months., fill=k2$cluster)) + geom_boxplot()+
+  scale_x_discrete(limits = positions)+
+  xlab('Diagnostic Group') +
+  ylab('Age') +
+  scale_x_discrete(limits = positions)+
+  ggtitle("Age (months) by Diagnostic Group, Split by Gender")
+
+p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, color=k2$cluster[clean.idx])) + geom_boxplot() +
+  # scale_y_continuous(limits = c(0, 50))+
+  ylab('WBC Count') +
+  scale_x_discrete(limits = positions)+
+  ggtitle("Jitter Plot: WBC Count by Diagnosis")
+
+p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general,
+  as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), color=k2$cluster[clean.idx]))+
+  geom_boxplot()+
+  # scale_y_continuous(limits = c(0, 230))+
+  xlab('Cluster Assignment') +
+  ylab('CRP Count') +
+  ggtitle("Jitter Plot: CRP Count by Diagnosis")
+gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
 
 
 
 
+
+### K3
+k3 <- kmeans(X.t[,hit.filter], centers = 3, nstart = 25)
+# str(k3)
+k3$cluster <- as.factor(k3$cluster)
+
+k3$cluster
+
+addmargins(table(k3$cluster, droplevels(status[idx,]$most_general)))
+addmargins(table(k3$cluster, droplevels(status[idx,]$more_general)))
+
+ggplot(status[idx,], aes(more_general, fill=k3$cluster)) +
+  labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
+  geom_bar()
+# table(k2$cluster, status[idx, c('Sex')])
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k3$cluster, shape=status[idx,]$most_general), size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+
+
+### K4
+k4 <- kmeans(X.t[,hit.filter], centers = 4, nstart = 25)
+# str(k4)
+k4$cluster <- as.factor(k4$cluster)
+
+addmargins(table(k4$cluster, droplevels(status[idx,]$most_general)))
+addmargins(table(k4$cluster, droplevels(status[idx,]$more_general)))
+# table(k2$cluster, status[idx, c('Sex')])
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k4$cluster, shape=status[idx,]$most_general), size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+
+### K5
+k5 <- kmeans(X.t[,hit.filter], centers = 5, nstart = 25)
+# str(k5)
+k5$cluster <- as.factor(k5$cluster)
+
+addmargins(table(k5$cluster, droplevels(status[idx,]$most_general)))
+addmargins(table(k5$cluster, droplevels(status[idx,]$more_general)))
+# table(k2$cluster, status[idx, c('Sex')])
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k5$cluster, shape=status[idx,]$most_general), size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+
+### K6
+k6 <- kmeans(X.t[,hit.filter], centers = 6, nstart = 26)
+# str(k6)
+k6$cluster <- as.factor(k6$cluster)
+
+addmargins(table(k6$cluster, droplevels(status[idx,]$most_general)))
+addmargins(table(k6$cluster, droplevels(status[idx,]$more_general)))
+# table(k2$cluster, status[idx, c('Sex')])
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k6$cluster, shape=status[idx,]$most_general), size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+
+### K7
+k7 <- kmeans(X.t[,hit.filter], centers = 7, nstart = 25)
+# str(k7)
+k7$cluster <- as.factor(k7$cluster)
+
+addmargins(table(k7$cluster, droplevels(status[idx,]$most_general)))
+addmargins(table(k7$cluster, droplevels(status[idx,]$more_general)))
+# table(k2$cluster, status[idx, c('Sex')])
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k7$cluster, shape=status[idx,]$more_general), size=2) +
+  xlab("First Principal Component") +
+  ylab("Second Principal Component") +
+  ggtitle("Cluster Assignment of First Two Principal Components")
+
+
+status[idx,][which(k7$cluster == 7),]
+View(status[idx,][which(k7$cluster == 7),][c('more_general', 'most_general','WBC', 'array.contemporary.CRP', 'Diagnosis')])
+
+status[idx,][which(k7$cluster == 1),]
+View(status[idx,][which(k7$cluster == 1),][c('more_general', 'most_general','WBC', 'array.contemporary.CRP', 'Diagnosis')])
 
 
 
