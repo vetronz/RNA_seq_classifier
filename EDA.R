@@ -101,7 +101,7 @@ table(status[idx,]$Sex)
 chisq.test(table(status[idx,]$Sex))
 
 table(droplevels(status[idx,]$most_general), status[idx,]$Sex)
-table(droplevels(status[idx,]$more_general), status[idx,]$Sex)
+# table(droplevels(status[idx,]$more_general), status[idx,]$Sex)
 
 chisq.test(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 # chisq.test(table(droplevels(status[idx,]$more_general), status[idx,]$Sex))
@@ -116,27 +116,27 @@ ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., fill=Sex)) + g
   scale_fill_manual(values=c('#16acfc', '#fc1676'))+
   ggtitle("Box and Whisker Plot of Age by Diagnostic Group, Split by Gender")
 
-ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., color=Sex)) + geom_jitter(alpha = .9, width = 0.2)+
-  scale_x_discrete(limits = positions)+
-  xlab('Diagnostic Group') +
-  ylab('Age') +
-  scale_x_discrete(limits = positions)+
-  scale_color_manual(values=c('#16acfc', '#fc1676'))+
-  ggtitle("Jitter Plot of Age by Diagnostic Group, Split by Gender")
+# ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., color=Sex)) + geom_jitter(alpha = .9, width = 0.2)+
+#   scale_x_discrete(limits = positions)+
+#   xlab('Diagnostic Group') +
+#   ylab('Age') +
+#   scale_x_discrete(limits = positions)+
+#   scale_color_manual(values=c('#16acfc', '#fc1676'))+
+#   ggtitle("Jitter Plot of Age by Diagnostic Group, Split by Gender")
 
 
-ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
-
-a <- as.data.frame(droplevels(status[idx,]$most_general))
-colnames(a) <- 'dx'
-a$age <-status[idx,]$Age..months.
-head(a)
-summary(a)
-
-b <- ddply(a,~dx)
-
-anova.res <- aov(age ~ dx, data = b)
-summary(anova.res)
+# ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
+# 
+# a <- as.data.frame(droplevels(status[idx,]$most_general))
+# colnames(a) <- 'dx'
+# a$age <-status[idx,]$Age..months.
+# head(a)
+# summary(a)
+# 
+# b <- ddply(a,~dx)
+# 
+# anova.res <- aov(age ~ dx, data = b)
+# summary(anova.res)
 
 
 # Inflamatory Marker Breakdown
@@ -260,7 +260,6 @@ dim(e.set)
 e.set.t <- t(e.set)
 dim(e.set.t)
 
-
 e.set.f <- e.set.t[idx,]
 dim(e.set.f)
 # label.f <- status[idx,c('most_general')]
@@ -286,7 +285,7 @@ design[1:10,]
 dim(design)
 colSums(design)
 
-contrast.matrix<- makeContrasts("bct-vrl", levels=design)
+contrast.matrix<- makeContrasts("bct-vrl", 'bct-greyv', levels=design)
 contrast.matrix
 # colnames(fit$coefficients)
 
@@ -297,27 +296,45 @@ fit <- lmFit(X, design)
 fit2<- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 
-dim(fit2$coefficients)
-fit2$coefficients[1:10,]
+lfc <- 1.5
+pval <- 0.05
 
-top.hits <- topTable(fit2, number=100, coef = 'bct-vrl', lfc = 1.5, p.value = 0.05,  adjust="BH")
-dim(top.hits)
-X.t[1:5, rownames(top.hits)]
-
-results <- decideTests(fit2, method='global', p.value = 0.05, adjust.method = 'BH', lfc=1.5)
+results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl')
+dim(results)
 head(results)
 summary(results)
-
 vennDiagram(results, include = 'both')
-# heatDiagram(results, include = 'both', coef = 'bct-vrl')
+vennCounts(results, include = 'both')
 
-dim(results)
-intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))
-rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))]
+results.hits <- union(colnames(X.t)[results[,1] == 1],
+                      colnames(X.t)[results[,1] == -1])
+results.hits
 
-rownames(top.hits)
+top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl')
+# all.hits <- topTable(fit2, number=nrow(fit2), coef = 'bct-vrl')
+top.hits
+dim(top.hits)
+dim(all.hits)
 
-intersect(rownames(top.hits), rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))])
+ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
+  geom_point(size=2) +
+  geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
+  geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
+  ggtitle("Volcano Plot of Log Fold Change Against -log10 P Value
+    Cutoff - Fold Change:1, P Val:0.05")
+
+
+
+# # heatDiagram(results, include = 'both', coef = 'bct-vrl')
+# 
+# dim(results)
+# intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))
+# rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))]
+# 
+# results.hits
+# 
+# intersect(results.hits, rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))])
 
 # 
 # # proof that in above we are not taking the intersect of genes that are over expressed on one
@@ -336,12 +353,13 @@ intersect(rownames(top.hits), rownames(results)[intersect(which(results[,1] == 1
 # 
 # rownames(results)
 ############################## CLUSTERING ##############################
-rm(X, fit, fit2)
+
 
 ### PCA
 X.t <- t(X)
-dim(X.t[,rownames(top.hits)])
-X.pca <- prcomp(X.t[,rownames(top.hits)], scale = TRUE)
+dim(X.t[,results.hits])
+X.pca <- prcomp(X.t[,results.hits], scale = TRUE)
+
 # summary(e.set.pca)
 plot(X.pca, type = 'l')
 
@@ -349,15 +367,15 @@ pair1 <- as.data.frame(X.pca$x[,1:2])
 pair2 <- as.data.frame(X.pca$x[,3:4])
 
 
-fviz_nbclust(X.t[,rownames(top.hits)], kmeans, method = "wss")
-fviz_nbclust(X.t[,rownames(top.hits)], kmeans, method = "silhouette")
+fviz_nbclust(X.t[,results.hits], kmeans, method = "wss")
+fviz_nbclust(X.t[,results.hits], kmeans, method = "silhouette")
 
-gap_stat <- clusGap(X.t[,rownames(top.hits)], FUN = kmeans, nstart = 25,
+gap_stat <- clusGap(X.t[,results.hits], FUN = kmeans, nstart = 25,
                     K.max = 20, B = 25)
 fviz_gap_stat(gap_stat)
 
 ### K2
-k2 <- kmeans(X.t[,rownames(top.hits)], centers = 2, nstart = 25)
+k2 <- kmeans(X.t[,results.hits], centers = 2, nstart = 500)
 str(k2)
 k2$cluster <- as.factor(k2$cluster)
 
@@ -375,7 +393,7 @@ addmargins(table(k2$cluster, droplevels(status[idx,]$more_general)))
 k2.clus.col <- c("#ed0404", "#165bfc")
 positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother')
 ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
-  labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
+  labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
   scale_x_discrete(limits = positions.more)+
   scale_fill_manual(values=k2.clus.col)+
   geom_bar()
@@ -384,50 +402,48 @@ ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
 ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=status[idx,]$most_general), size=2) +
   xlab("First Principal Component") +
   ylab("Second Principal Component") +
-  scale_color_manual(values=clus.col)+
+  scale_color_manual(values=k2.clus.col)+
   ggtitle("Cluster Assignment of First Two Principal Components")
 
 ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=status[idx,]$most_general), size=2) +
   xlab("Third Principal Component") +
   ylab("Fourth Principal Component") +
-  scale_color_manual(values=clus.col)+
+  scale_color_manual(values=k2.clus.col)+
   ggtitle("Cluster Assignment of Third-Fourth Principal Components")
 
 ggplot(status[idx,], aes(most_general, Age..months., fill=k2$cluster)) + geom_boxplot()+
   scale_x_discrete(limits = positions)+
   xlab('Diagnostic Group') +
   ylab('Age') +
-  scale_fill_manual(values=clus.col)+
-  ggtitle("Age (months) by Diagnostic Group, Split by Gender")
+  scale_fill_manual(values=k2.clus.col)+
+  ggtitle("Age (months) by Diagnostic Group, Split by Cluster")
 
 p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=k2$cluster[clean.idx])) + geom_boxplot() +
   # scale_y_continuous(limits = c(0, 50))+
   ylab('WBC Count') +
-  scale_fill_manual(values=clus.col)+
-  ggtitle("Jitter Plot: WBC Count by Diagnosis")
+  xlab('') +
+  scale_fill_manual(values=k2.clus.col)+
+  ggtitle("Box Plot of WBC and CRP Count by Diagnosis")
 p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general,
   as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=k2$cluster[clean.idx]))+
   geom_boxplot()+
   ylab('CRP Count') +
-  scale_fill_manual(values=clus.col)+
-  ggtitle("Jitter Plot: CRP Count by Diagnosis")
-
+  xlab('Diagnosis') +
+  scale_fill_manual(values=k2.clus.col)
 gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
 
 filter.bct <- status[idx,]$most_general == 'bacterial'
-# filter.bct <- status[idx,]$most_general == 'greyb'
-filter.clus <- k2$cluster == 2
-
+filter.clus <- k2$cluster == 1
 filter.comb <- filter.bct & filter.clus
-
-
-sum(filter.comb)
-# View(status[idx,])
 status[idx,]$Diagnosis[filter.comb]
-View(status[idx,][filter.comb, c('my_category_2', 'most_general',
-                                 'more_general', 'Age..months.', 'Sex', 'WBC',
-                                 'array.contemporary.CRP', 'Diagnosis')])
+
+filter.clus <- k2$cluster == 2
+filter.comb <- filter.bct & filter.clus
+status[idx,]$Diagnosis[filter.comb]
+# View(status[idx,][filter.comb, c('my_category_2', 'most_general',
+#                                  'more_general', 'Age..months.', 'Sex', 'WBC',
+#                                  'array.contemporary.CRP', 'Diagnosis')])
 
 detach('package:plyr', unload = TRUE, character.only = TRUE)
 k2.df %>%
@@ -456,7 +472,7 @@ t.test(k2.df$array.contemporary.CRP[k2.df$cluster == 1]
 
 
 ### K3
-k3 <- kmeans(X.t[,rownames(top.hits)], centers = 3, nstart = 25)
+k3 <- kmeans(X.t[,results.hits], centers = 3, nstart = 25)
 # str(k3)
 k3$cluster <- as.factor(k3$cluster)
 
@@ -549,7 +565,7 @@ View(status[idx,][filter.comb, c('my_category_2', 'most_general',
 
 
 ### K5
-k5 <- kmeans(X.t[,rownames(top.hits)], centers = 5, nstart = 25)
+k5 <- kmeans(X.t[,results.hits], centers = 5, nstart = 25)
 k5$cluster <- as.factor(k5$cluster)
 
 addmargins(table(k5$cluster, droplevels(status[idx,]$most_general)))
@@ -604,7 +620,7 @@ gridExtra::grid.arrange(k5.wbc, k5.crp, nrow = 2)
 
 # 
 # ### K7
-# k7 <- kmeans(X.t[,rownames(top.hits)], centers = 7, nstart = 27)
+# k7 <- kmeans(X.t[,results.hits], centers = 7, nstart = 27)
 # k7$cluster <- as.factor(k7$cluster)
 # 
 # addmargins(table(k7$cluster, droplevels(status[idx,]$most_general)))
