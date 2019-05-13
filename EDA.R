@@ -1,5 +1,5 @@
 library(tidyverse)
-library(plyr)
+# library(plyr)
 library(limma)
 library(cluster)
 library(factoextra)
@@ -8,7 +8,6 @@ require(reshape) # for melt()
 require(scales) # for percent
 library(gridExtra)
 library(dplyr)
-
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -34,6 +33,7 @@ sum(idx)
 # status.f <- status[idx,]
 # dim(e.set.f)
 # dim(status.f)
+
 
 attributes(status)$names
 
@@ -65,6 +65,7 @@ table(droplevels(status[idx,]$more_general))
 
 dx.cols <- c("#ed0404", "#fc5716", '#16fc31', "#165bfc")
 dx.cols.f <- c("#ed0404", "#fc5716",'#16fc31', '#16e1fc', '#165bfc', "#7a16fc", '#fc16f4')
+sex.cols <- c('#16acfc', '#fc1676')
 
 positions <- c('bacterial', 'greyb', 'greyv', 'viral')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother')
@@ -76,26 +77,53 @@ ggplot(status[idx,], aes(most_general, fill=most_general, alpha=Sex)) +
   scale_fill_manual(values=dx.cols)+
   geom_bar()
 
-ggplot(status[idx,], aes(most_general, group=Sex)) + 
-  geom_bar(aes(y = ..prop.., fill=factor(..x..)), stat="count") +
-  geom_text(aes( label = scales::percent(..prop..),
-                 y= ..prop.. ), stat= "count", vjust = -.5) +
-  scale_fill_manual(values=dx.cols)+
-  facet_grid(~Sex) +
-  coord_flip()+
-  scale_y_continuous(labels = scales::percent)+
-  labs(title = "Barplot of Percentage Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Percentage")
 
-ggplot(status[idx,], aes(more_general, group=Sex)) + 
-  geom_bar(aes(y = ..prop.., fill=factor(..x..)), stat="count") +
-  geom_text(aes( label = scales::percent(..prop..),
-                 y= ..prop.. ), stat= "count") +
-  scale_fill_manual(values=dx.cols.f)+
-  scale_x_discrete(limits=positions.f)+
-  facet_grid(~Sex) +
-  coord_flip()+
-  scale_y_continuous(labels = scales::percent)+
-  labs(title = "Barplot of Percentage Full Diagnostic Groups Breakdown by Gender", x = "Diagnosis", y = "Percentage")
+c$most_general == 'bacterial' & c$Sex == 'M'
+sum(c$most_general == 'bacterial' & c$Sex == 'M')
+sum(c$most_general == 'bacterial' & c$Sex == 'F')
+sum(c$most_general == 'greyb' & c$Sex == 'M')
+sum(c$most_general == 'greyb' & c$Sex == 'F')
+sum(c$most_general == 'greyv' & c$Sex == 'M')
+sum(c$most_general == 'greyv' & c$Sex == 'F')
+sum(c$most_general == 'viral' & c$Sex == 'M')
+sum(c$most_general == 'viral' & c$Sex == 'F')
+
+
+sex <- c('M', 'F')
+bacterial <- c(22, 30)
+greyb <- c(24,18)
+greyv <- c(4,1)
+viral <- c(65,27)
+df <- data.frame(bacterial, greyb, greyv, viral)
+df.2 <- mutate(df, sex = factor(c('M','F')))
+df.3 <- gather(df.2, dx, count, -sex)
+df.3
+ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
+  geom_bar(position = "fill",stat = "identity")+
+  scale_fill_manual(values=sex.cols)
+  # geom_text(df.3, sex, labels=round(sex))
+
+
+# ggplot(status[idx,], aes(most_general, group=Sex)) +
+#   geom_bar(aes(y = ..prop.., fill=factor(..x..)), stat="count") +
+#   geom_text(aes( label = scales::percent(..prop..),
+#                  y= ..prop.. ), stat= "count", vjust = -.5) +
+#   scale_fill_manual(values=dx.cols)+
+#   facet_grid(~Sex) +
+#   coord_flip()+
+#   scale_y_continuous(labels = scales::percent)+
+#   labs(title = "Barplot of Percentage Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Percentage")
+# 
+# ggplot(status[idx,], aes(more_general, group=Sex)) + 
+#   geom_bar(aes(y = ..prop.., fill=factor(..x..)), stat="count") +
+#   geom_text(aes( label = scales::percent(..prop..),
+#                  y= ..prop.. ), stat= "count") +
+#   scale_fill_manual(values=dx.cols.f)+
+#   scale_x_discrete(limits=positions.f)+
+#   facet_grid(~Sex) +
+#   coord_flip()+
+#   scale_y_continuous(labels = scales::percent)+
+#   labs(title = "Barplot of Percentage Full Diagnostic Groups Breakdown by Gender", x = "Diagnosis", y = "Percentage")
 
 table(status[idx,]$Sex)
 chisq.test(table(status[idx,]$Sex))
@@ -255,7 +283,7 @@ t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_gen
 
 
 
-###### differential gene expression with limma ######
+############ LIMMA ############
 dim(e.set)
 e.set.t <- t(e.set)
 dim(e.set.t)
@@ -277,6 +305,14 @@ e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
 
 rm(e.set, e.set.i, e.set.t)
 
+dim(X)
+X.sub <- X[,]
+dim(X.sub)
+X.sub.m <- apply(X.sub, 1, mean)
+X.sub.sd <- apply(X.sub, 1, sd)
+
+plot(X.sub.m, X.sub.sd)
+
 ### DESIGN MATRIX
 design <- model.matrix(~label + sex + age + 0, data = e.set.f)
 colnames(design)<- c("bct","greyb","greyv", 'vrl', 'sexM', 'age')
@@ -289,12 +325,17 @@ contrast.matrix<- makeContrasts("bct-vrl", 'bct-greyv', levels=design)
 contrast.matrix
 # colnames(fit$coefficients)
 
-dim(X)
-dim(design)
-
 fit <- lmFit(X, design)
+
+hist(fit$Amean)
+plotSA(fit)
+abline(v=5)
+
+keep <- fit$Amean > 5
+sum(keep)
 fit2<- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
+fit2 <- eBayes(fit2[keep,], trend = TRUE)
+plotSA(fit2)
 
 lfc <- 1.5
 pval <- 0.05
@@ -306,12 +347,14 @@ summary(results)
 vennDiagram(results, include = 'both')
 vennCounts(results, include = 'both')
 
-results.hits <- union(colnames(X.t)[results[,1] == 1],
-                      colnames(X.t)[results[,1] == -1])
+
+results.hits <- union(rownames(X[keep,])[results[,1] == 1]
+                      ,rownames(X[keep,])[results[,1] == -1])
 results.hits
+length(results.hits)
 
 top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl')
-# all.hits <- topTable(fit2, number=nrow(fit2), coef = 'bct-vrl')
+all.hits <- topTable(fit2, number=nrow(fit2), coef = 'bct-vrl')
 top.hits
 dim(top.hits)
 dim(all.hits)
@@ -326,8 +369,8 @@ ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
 
 
 
-# # heatDiagram(results, include = 'both', coef = 'bct-vrl')
-# 
+
+
 # dim(results)
 # intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))
 # rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))]

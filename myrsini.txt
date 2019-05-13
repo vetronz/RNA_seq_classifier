@@ -1,0 +1,23 @@
+Ammend
+
+pca prop var explained
+
+
+color pca based on more variables - viral co-infection
+
+
+unsupervised clustering (include all genes not only those sig diff bct-vrl)
+between the 4 groups.
+Similar results to with bct-vrl top diff genes?
+
+Do
+unsupervised clustering of 5 groups
+
+unsupervised clustering of bacterial and greyb to
+whether similar groups emerge as with supervised clustering 
+do the same portion of grey b partition off with the bacs as shown in 
+the supervised clustering.
+
+more comparisons to see whether same clustering
+viral vs control
+bacterial vs control
