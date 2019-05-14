@@ -1,10 +1,5 @@
 Ammend
 
-pca prop var explained
-
-
-color pca based on more variables - viral co-infection
-
 
 unsupervised clustering (include all genes not only those sig diff bct-vrl)
 between the 4 groups.

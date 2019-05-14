@@ -8,6 +8,7 @@ require(reshape) # for melt()
 require(scales) # for percent
 library(gridExtra)
 library(dplyr)
+library(plotly)
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -43,16 +44,16 @@ length(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'))
 which(status[idx,]$WBC == 0)
 clean<-union(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'), which(status[idx,]$WBC == 0))
 clean
-length(clean)
 
 clean.idx <- seq(1:nrow(status[idx,]))[-(clean)]
-clean.idx
 
+dx <- status[idx,]$most_general
+dx.clean <- status[idx,]$most_general[clean.idx]
 status[idx,]$array.contemporary.CRP[clean.idx]
-as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx]))
+wbc <- status[idx,]$WBC[clean.idx]
+crp <- as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx]))
 
-cor(status[idx,]$WBC[clean.idx], as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])))
-
+cor(wbc, crp)
 
 ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])))) +
   geom_point(shape=1)+
@@ -63,9 +64,10 @@ ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]
 table(droplevels(status[idx,]$most_general))
 table(droplevels(status[idx,]$more_general))
 
+dx.cols.2 <- c("#ed0404", "#165bfc")
 dx.cols <- c("#ed0404", "#fc5716", '#16fc31', "#165bfc")
 dx.cols.f <- c("#ed0404", "#fc5716",'#16fc31', '#16e1fc', '#165bfc', "#7a16fc", '#fc16f4')
-sex.cols <- c('#16acfc', '#fc1676')
+sex.cols <- c('#fc1676', '#16acfc')
 
 positions <- c('bacterial', 'greyb', 'greyv', 'viral')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother')
@@ -196,105 +198,177 @@ t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_gen
 # no stat sig difference in crp between males and females in bct group
 
 
-
-# 
-# # WBC
-# ggplot(status[idx,], aes(Sex, WBC)) + geom_boxplot() +
-#   xlab('Cluster Assignment') +
-#   ylab('WBC Count') +
-#   ggtitle("Box Plot of WBC Count by Cluster Assignment")
-# 
-# ggplot(status[idx,], aes(WBC, fill=Sex)) + geom_histogram(bins = 20)
-#   xlab('WBC') +
-#   ylab('Density') +
-#   ggtitle("Histogram of WBC Count by Cluster Assignment")
-# 
-# ggplot(status[idx,], aes(WBC, fill=Sex)) + geom_density(alpha=.5)+
-#   xlab('WBC') +
-#   ylab('Density') +
-#   ggtitle("Density Plot of WBC Count by Cluster Assignment")
-# 
-# ps <- (seq(0,499) + 0.5)/500
-# qs <- quantile(status[idx,]$WBC, ps)
-# normalqs <- qnorm(ps, mean(status[idx,]$WBC), sd(status[idx,]$WBC))
-# plot(normalqs,qs,xlab="Normal Percentiles",ylab="WBC Percentiles")
-# abline(0,1)
-# 
-# # bin
-# q <- quantile(status[idx,]$WBC, seq(0,1,0.2))
-# wbc_bin <- cut(status[idx,]$WBC, breaks=q, include.lowest = T)
-# 
-# tab <- with(status[idx,], table(wbc_bin, Sex))
-# print(prop.table(tab, 2))
-# chisq.test(tab)
-# 
-# df1 <- melt(ddply(status[idx,],.(Sex),function(x){prop.table(table(wbc_bin))}),id.vars = 1)
-# 
-# ggplot(df1, aes(x = variable,y = value)) +
-#   facet_wrap(~Sex, nrow=2, ncol=1) +
-#   scale_y_continuous(labels=percent) +
-#   geom_bar(stat = "identity") +
-#   xlab('Binned WBC Levels') +
-#   ylab('Percentage Bin Assignment') +
-#   ggtitle("% Assignment to Binned WBC Levels by Cluster")
-# 
-# 
-# # CRP
-# ggplot(status[idx,], aes(Sex, as.numeric(array.contemporary.CRP))) + geom_boxplot() +
-#   xlab('Gender') +
-#   ylab('CRP') +
-#   ggtitle("Box Plot of CRP Count by Gender")
-# 
-# ggplot(status[idx,], aes(as.numeric(array.contemporary.CRP), fill=Sex)) + geom_histogram(bins = 10)
-# xlab('CRP') +
-#   ylab('Density') +
-#   ggtitle("Histogram of CRP by Gender")
-# 
-# ggplot(status[idx,], aes(as.numeric(array.contemporary.CRP), fill=Sex)) + geom_density(alpha=.5)+
-#   xlab('CRP') +
-#   ylab('Density') +
-#   ggtitle("Density Plot of CRP by Gender")
-# 
-# 
-# ps <- (seq(0,499) + 0.5)/500
-# qs <- quantile(as.numeric(status[idx,]$array.contemporary.CRP), ps)
-# normalqs <- qnorm(ps, mean(as.numeric(status[idx,]$array.contemporary.CRP)), sd(as.numeric(status[idx,]$array.contemporary.CRP)))
-# plot(normalqs,qs,xlab="Normal Percentiles",ylab="CRP Percentiles")
-# abline(0,1)
-# 
-# # bin
-# q <- quantile(as.numeric(status[idx,]$array.contemporary.CRP), seq(0,1,0.25))
-# crp_bin <- cut(as.numeric(status[idx,]$array.contemporary.CRP), breaks=q, include.lowest = T)
-# 
-# tab <- with(status[idx,], table(crp_bin, Sex))
-# print(prop.table(tab, 2))
-# chisq.test(tab)
-# 
-# df1 <- melt(ddply(status[idx,],.(Sex),function(x){prop.table(table(crp_bin))}),id.vars = 1)
-# df2 <- melt(ddply(status[idx,],.(WBC),function(x){prop.table(table(wbc_bin))}),id.vars = 1)
-# 
-# ggplot(df1, aes(x = variable,y = value, fill=Sex)) +
-#   facet_wrap(~Sex, nrow=2, ncol=1) +
-#   scale_y_continuous(labels=percent) +
-#   geom_bar(stat = "identity") +
-#   xlab('Binned CRP Levels') +
-#   ylab('Percentage Bin Assignment') +
-#   ggtitle("% Assignment to Binned CRP Levels by Cluster")
-
-
-
-############ LIMMA ############
+# PCA
 dim(e.set)
+e.set[,idx]
+dim(e.set[,idx])
+
+X <- e.set[,idx]
+dim(X)
+
 e.set.t <- t(e.set)
 dim(e.set.t)
 
 e.set.f <- e.set.t[idx,]
 dim(e.set.f)
-# label.f <- status[idx,c('most_general')]
-# label <- as.character(label.f)
-X <- as.matrix(t(e.set.f))
-dim(X)
 
+
+full.pca <- prcomp(e.set.f, scale=TRUE)
+pair1 <- as.data.frame(full.pca$x[,1:2])
+pair2 <- as.data.frame(full.pca$x[,3:4])
+
+fviz_eig(full.pca)
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+status[idx,]$most_general
+dim(pair1)
+
+dim()
+# DEF DX PC1 PC2
+fviz_pca_ind(full.pca)
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general), size=2) +
+# ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general[dx.def]), size=2) +  
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  labs(col='Diagnosis')+
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  scale_color_manual(values=dx.cols)+
+  # scale_color_manual(values=dx.cols.2)+
+  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex), size=2) +
+# ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex[dx.def]), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  labs(col='Gender')+
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  scale_color_manual(values=sex.cols)+
+  ggtitle("Male Female Split against PC1 PC2")
+
+
+library("RColorBrewer")
+myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
+wbc.col <- scale_colour_gradientn(colours = myPalette(10), limits=c(min(wbc), max(wbc)))
+crp.col <- scale_colour_gradientn(colours = myPalette(10), limits=c(min(crp), max(crp)))
+
+
+ggplot(pair1[clean.idx,], aes(PC1, PC2, color = wbc, shape=dx.clean)) + geom_point(size=2.5)+
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  wbc.col +
+  labs(col='WBC', shape='Diagnosis')+
+  theme(panel.background = element_rect(fill = '#303030', colour = 'red'))+
+  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+
+ggplot(pair1[clean.idx,], aes(PC1, PC2, color = crp, shape=dx.clean)) + geom_point(size=2.5)+
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  crp.col +
+  labs(col='CRP', shape='Diagnosis')+
+  theme(panel.background = element_rect(fill = '#303030', colour = 'red'))+
+  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+
+
+# top left corner looks like an interesting subset of samples
+# want to check if they reemerge following clustering
+x.pos <- -50
+y.pos <- 80
+
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general, shape=status[idx,]$Sex), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  # geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  # geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_hline(yintercept = y.pos, linetype="longdash", colour="red", size=.5) +
+  geom_vline(xintercept = x.pos, linetype="longdash", colour="red", size=.5) +
+  scale_color_manual(values=dx.cols)+
+  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+
+pair1[pair1$PC1 < x.pos & pair1$PC2 > y.pos,]
+status[idx,][pair1$PC1 < x.pos & pair1$PC2 > y.pos,]$Diagnosis
+View(status[idx,][pair1$PC1 < x.pos & pair1$PC2 > y.pos,])
+
+# plotly play
+pal <- c("red", "blue")
+pal <- setNames(pal, c("M", "F"))
+plot_ly(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex[dx.def]), size=2)
+plot_ly(data = pair1[dx.def,], x = ~PC1, y = ~PC2, color = status[idx,]$Sex[dx.def], colors = pal)
+
+dim(e.set.f)
+dim(X.t)
+
+### Unsupervised Clustering
+fviz_nbclust(X.t, kmeans, method = "wss")
+fviz_nbclust(X.t, kmeans, method = "silhouette")
+
+gap_stat <- clusGap(X.t, FUN = kmeans, nstart = 10,
+K.max = 20, B = 20)
+fviz_gap_stat(gap_stat)
+
+### K2
+dim(e.set.f)
+
+k2 <- kmeans(X, centers = 2, nstart = 10)
+
+k2$cluster <- as.factor(k2$cluster)
+
+table(k2$cluster, droplevels(status[idx,]$most_general))
+table(k2$cluster, droplevels(status[idx,]$more_general))
+
+k2.df <- status[idx,][clean.idx, c('my_category_2', 'most_general', 'more_general',
+                                   'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+k2.df$cluster <- k2$cluster[clean.idx]
+dim(k2.df)
+k2.df[1:5,(ncol(k2.df)-3): ncol(k2.df)]
+k2.df$array.contemporary.CRP <- as.numeric(as.character(k2.df$array.contemporary.CRP))
+
+
+k2.clus.col <- c("#ed0404", "#165bfc")
+positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother')
+ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
+  labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
+  scale_x_discrete(limits = positions.more)+
+  scale_fill_manual(values=k2.clus.col)+
+  geom_bar()
+# table(k2$cluster, status[idx, c('Sex')])
+
+dx.def <- status[idx,]$most_general == 'bacterial' | status[idx,]$most_general == 'viral'
+dx.grey <- status[idx,]$most_general == 'greyb' | status[idx,]$most_general == 'greyv'
+dx.def
+
+dim(pair1[dx.def,])
+length(status[idx,]$most_general[dx.def])
+
+# DEF DX PC1 PC2
+ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$most_general[dx.def]), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  scale_color_manual(values=k2.clus.col)+
+  ggtitle("Cluster Assignment of Bacterial and Viral Against first two PC")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############ LIMMA ############
 e.set.f <- as.data.frame(e.set.f)
 e.set.f$label <- as.character(status[idx,c('most_general')])
 e.set.f$sex <- status[idx,c('Sex')]
@@ -303,9 +377,8 @@ e.set.f$age <- status[idx,c('Age..months.')]
 dim(e.set.f)
 e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
 
-rm(e.set, e.set.i, e.set.t)
+# rm(e.set, e.set.i, e.set.t)
 
-dim(X)
 X.sub <- X[,]
 dim(X.sub)
 X.sub.m <- apply(X.sub, 1, mean)
@@ -334,7 +407,9 @@ abline(v=5)
 keep <- fit$Amean > 5
 sum(keep)
 fit2<- contrasts.fit(fit, contrast.matrix)
+dim(fit2)
 fit2 <- eBayes(fit2[keep,], trend = TRUE)
+dim(fit2)
 plotSA(fit2)
 
 lfc <- 1.5
@@ -353,11 +428,14 @@ results.hits <- union(rownames(X[keep,])[results[,1] == 1]
 results.hits
 length(results.hits)
 
-top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl')
+top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl', number = 77)
 all.hits <- topTable(fit2, number=nrow(fit2), coef = 'bct-vrl')
 top.hits
 dim(top.hits)
 dim(all.hits)
+
+intersect(results.hits, rownames(top.hits))
+
 
 ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   geom_point(size=2) +
@@ -396,26 +474,28 @@ ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
 # 
 # rownames(results)
 ############################## CLUSTERING ##############################
-
-
 ### PCA
 X.t <- t(X)
 dim(X.t[,results.hits])
 X.pca <- prcomp(X.t[,results.hits], scale = TRUE)
 
 # summary(e.set.pca)
-plot(X.pca, type = 'l')
 
 pair1 <- as.data.frame(X.pca$x[,1:2])
 pair2 <- as.data.frame(X.pca$x[,3:4])
 
+fviz_eig(X.pca)
+
+ve <- X.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve
 
 fviz_nbclust(X.t[,results.hits], kmeans, method = "wss")
 fviz_nbclust(X.t[,results.hits], kmeans, method = "silhouette")
 
-gap_stat <- clusGap(X.t[,results.hits], FUN = kmeans, nstart = 25,
-                    K.max = 20, B = 25)
-fviz_gap_stat(gap_stat)
+# gap_stat <- clusGap(X.t[,results.hits], FUN = kmeans, nstart = 25,
+                    # K.max = 20, B = 25)
+# fviz_gap_stat(gap_stat)
 
 ### K2
 k2 <- kmeans(X.t[,results.hits], centers = 2, nstart = 500)
@@ -442,17 +522,51 @@ ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
   geom_bar()
 # table(k2$cluster, status[idx, c('Sex')])
 
-ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=k2$cluster, shape=status[idx,]$most_general), size=2) +
-  xlab("First Principal Component") +
-  ylab("Second Principal Component") +
-  scale_color_manual(values=k2.clus.col)+
-  ggtitle("Cluster Assignment of First Two Principal Components")
+dx.def <- status[idx,]$most_general == 'bacterial' | status[idx,]$most_general == 'viral'
+dx.grey <- status[idx,]$most_general == 'greyb' | status[idx,]$most_general == 'greyv'
+dx.def
 
-ggplot(pair2, aes(PC3, PC4)) + geom_point(aes(color=k2$cluster, shape=status[idx,]$most_general), size=2) +
-  xlab("Third Principal Component") +
-  ylab("Fourth Principal Component") +
+dim(pair1[dx.def,])
+length(status[idx,]$most_general[dx.def])
+
+# DEF DX PC1 PC2
+ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$most_general[dx.def]), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
   scale_color_manual(values=k2.clus.col)+
-  ggtitle("Cluster Assignment of Third-Fourth Principal Components")
+  ggtitle("Cluster Assignment of Bacterial and Viral Against first two PC")
+
+# DEF DX PC3 PC4
+ggplot(pair2[dx.def,], aes(PC3, PC4)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$most_general[dx.def]), size=2) +
+  xlab(paste0("PC3: (", round(pve[3],2), '%)') ) +
+  ylab(paste0("PC4: (", round(pve[4],2), '%)') ) +
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  scale_color_manual(values=k2.clus.col)+
+  ggtitle("Cluster Assignment of Bacterial and Viral Against first two PC")
+
+# M F PC1 PC2
+ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$Sex[dx.def]), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  scale_color_manual(values=k2.clus.col)+
+  ggtitle("Cluster Assignment of Male, Female Against first two PC")
+
+# Grey Dx PC1 PC2
+ggplot(pair1[dx.grey,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.grey], shape=status[idx,]$most_general[dx.grey]), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  scale_color_manual(values=k2.clus.col)+
+  ggtitle("Cluster Assignment of Probable Bacterial and Probable Viral Against first two PC")
+
+
+
 
 ggplot(status[idx,], aes(most_general, Age..months., fill=k2$cluster)) + geom_boxplot()+
   scale_x_discrete(limits = positions)+
