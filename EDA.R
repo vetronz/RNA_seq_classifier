@@ -19,24 +19,14 @@ load('esets.RData')
 ls()
 
 dim(e.set)
-e.set.t <- t(e.set)
-dim(e.set.t)
-
 
 idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
   status['most_general'] == 'greyb' |
-  status['most_general'] == 'greyv'
-  # status['most_general'] == 'OD'
+  status['most_general'] == 'greyv'|
+  status['most_general'] == 'HC'
 sum(idx)
 
-# e.set.f <- e.set[,idx]
-# status.f <- status[idx,]
-# dim(e.set.f)
-# dim(status.f)
-
-
-attributes(status)$names
 
 which(as.character(status[idx,]$array.contemporary.CRP) == 'na')
 length(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'))
@@ -47,8 +37,6 @@ clean
 
 clean.idx <- seq(1:nrow(status[idx,]))[-(clean)]
 
-dx <- status[idx,]$most_general
-dx.clean <- status[idx,]$most_general[clean.idx]
 status[idx,]$array.contemporary.CRP[clean.idx]
 wbc <- status[idx,]$WBC[clean.idx]
 crp <- as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx]))
@@ -59,24 +47,23 @@ ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]
   geom_point(shape=1)+
   geom_smooth(method=lm)
 
-
 # Diagnosis Breakdown
 table(droplevels(status[idx,]$most_general))
 table(droplevels(status[idx,]$more_general))
 
 dx.cols.2 <- c("#ed0404", "#165bfc")
-dx.cols <- c("#ed0404", "#fc5716", '#16fc31', "#165bfc")
-dx.cols.f <- c("#ed0404", "#fc5716",'#16fc31', '#16e1fc', '#165bfc', "#7a16fc", '#fc16f4')
+dx.cols <- c("#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc")
+dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc", "#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc")
 sex.cols <- c('#fc1676', '#16acfc')
 
-positions <- c('bacterial', 'greyb', 'greyv', 'viral')
-positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother')
+positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
 
 ggplot(status[idx,], aes(most_general, fill=most_general, alpha=Sex)) +
   scale_alpha_manual(values=c(0.6, 1)) +
   labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
   scale_x_discrete(limits = positions)+
-  scale_fill_manual(values=dx.cols)+
+  scale_fill_manual(values=dx.cols.f)+
   geom_bar()
 
 
@@ -200,22 +187,20 @@ t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_gen
 
 # PCA
 dim(e.set)
-e.set[,idx]
 dim(e.set[,idx])
 
 X <- e.set[,idx]
 dim(X)
 
-e.set.t <- t(e.set)
-dim(e.set.t)
+dim(t(e.set)[idx,])
 
-e.set.f <- e.set.t[idx,]
+e.set.f <- t(e.set)[idx,]
 dim(e.set.f)
-
 
 full.pca <- prcomp(e.set.f, scale=TRUE)
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pair2 <- as.data.frame(full.pca$x[,3:4])
+pair3D <- as.data.frame(full.pca$x[,1:3])
 
 fviz_eig(full.pca)
 
@@ -226,9 +211,8 @@ pve[1:5]
 status[idx,]$most_general
 dim(pair1)
 
-dim()
 # DEF DX PC1 PC2
-fviz_pca_ind(full.pca)
+# fviz_pca_ind(full.pca)
 
 ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general), size=2) +
 # ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general[dx.def]), size=2) +  
@@ -239,7 +223,7 @@ ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general), 
   geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
   scale_color_manual(values=dx.cols)+
   # scale_color_manual(values=dx.cols.2)+
-  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+  ggtitle("Diagnostic Group Breakdown of based on PC1-PC2")
 
 ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex), size=2) +
 # ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex[dx.def]), size=2) +
@@ -251,12 +235,20 @@ ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex), size=2) +
   scale_color_manual(values=sex.cols)+
   ggtitle("Male Female Split against PC1 PC2")
 
+ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$category), size=2) +
+  # ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$Sex[dx.def]), size=2) +
+  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+  labs(col='Gender')+
+  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
+  ggtitle("Male Female Split against PC1 PC2")
+
 
 library("RColorBrewer")
 myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
 wbc.col <- scale_colour_gradientn(colours = myPalette(10), limits=c(min(wbc), max(wbc)))
 crp.col <- scale_colour_gradientn(colours = myPalette(10), limits=c(min(crp), max(crp)))
-
 
 ggplot(pair1[clean.idx,], aes(PC1, PC2, color = wbc, shape=dx.clean)) + geom_point(size=2.5)+
   xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
@@ -264,7 +256,7 @@ ggplot(pair1[clean.idx,], aes(PC1, PC2, color = wbc, shape=dx.clean)) + geom_poi
   wbc.col +
   labs(col='WBC', shape='Diagnosis')+
   theme(panel.background = element_rect(fill = '#303030', colour = 'red'))+
-  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+  ggtitle("Diagnostic Group Coloured by WBC Count")
 
 ggplot(pair1[clean.idx,], aes(PC1, PC2, color = crp, shape=dx.clean)) + geom_point(size=2.5)+
   xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
@@ -272,7 +264,7 @@ ggplot(pair1[clean.idx,], aes(PC1, PC2, color = crp, shape=dx.clean)) + geom_poi
   crp.col +
   labs(col='CRP', shape='Diagnosis')+
   theme(panel.background = element_rect(fill = '#303030', colour = 'red'))+
-  ggtitle("Bacterial Viral Split on PC 1 and PC2")
+  ggtitle("Diagnostic Group Coloured by CRP Count")
 
 
 # top left corner looks like an interesting subset of samples
@@ -290,9 +282,48 @@ ggplot(pair1, aes(PC1, PC2)) + geom_point(aes(color=status[idx,]$most_general, s
   scale_color_manual(values=dx.cols)+
   ggtitle("Bacterial Viral Split on PC 1 and PC2")
 
+
+plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$most_general[clean.idx],
+        colors = c(dx.cols), size = ~crp, text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>Diagnosis: ', status[idx,]$Diagnosis[clean.idx])) %>%
+        add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
+
 pair1[pair1$PC1 < x.pos & pair1$PC2 > y.pos,]
-status[idx,][pair1$PC1 < x.pos & pair1$PC2 > y.pos,]$Diagnosis
+status[idx,][pair1$PC1 < x.pos & pair1$PC2 > y.pos,]
 View(status[idx,][pair1$PC1 < x.pos & pair1$PC2 > y.pos,])
+status[idx,][pair1$PC1 < x.pos & pair1$PC2 > y.pos,]$Diagnosis
+# bacterialgpos_18_SMH    -76.54628 112.37286
+# bacterialgpos_23_SOT   -113.17935 117.63147
+# bacterialgpos_2_EUC101 -135.65958 107.72649
+
+# a<-status[idx,]$category == 'E' | status[idx,]$category == 'F'
+# a
+# b <- status$my_category_2 == 'bacterialgpos_18_SMH' | status$my_category_2 == 'bacterialgpos_23_SOT' | status$my_category_2 == 'bacterialgpos_2_EUC101'
+# status[b,]$Diagnosis
+# 
+# dim(pair1[a,])
+# View(status[idx,][a,])
+# gb.strep <- c(27,31,32,49)
+# View(status[idx,][a,][gb.strep,])
+# library(ggrepel)
+# ggplot(pair1[a,][gb.strep,], aes(PC1, PC2)) + geom_text_repel(label=status[idx,][a,][gb.strep,]$Diagnosis) +
+#   xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
+#   ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
+#   geom_hline(yintercept = y.pos, linetype="longdash", colour="red", size=.5) +
+#   geom_vline(xintercept = x.pos, linetype="longdash", colour="red", size=.5) +
+#   # scale_color_manual(values=dx.cols)+
+#   scale_x_continuous(limits=c(-200,150))+
+#   scale_y_continuous(limits=c(-100,200))+
+#   ggtitle("Bacterial Viral Split on PC 1 and PC2")
+
+
+
+
+
 
 # plotly play
 pal <- c("red", "blue")
@@ -377,7 +408,6 @@ e.set.f$age <- status[idx,c('Age..months.')]
 dim(e.set.f)
 e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
 
-# rm(e.set, e.set.i, e.set.t)
 
 X.sub <- X[,]
 dim(X.sub)
