@@ -228,6 +228,7 @@ X.sub.sd <- apply(X.sub, 1, sd)
 plot(X.sub.m, X.sub.sd)
 
 ### DESIGN MATRIX
+# site 
 design <- model.matrix(~label + sex + age + 0, data = e.set.f)
 colnames(design)<- c("bct","greyb","greyv", 'vrl', 'sexM', 'age')
 
