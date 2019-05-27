@@ -354,9 +354,9 @@ cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "
 # k4<-cmeans(X.t, 4, iter.max = 50, verbose = FALSE,
 #            dist = "euclidean", method = "cmeans", m = 2,
 #            rate.par = NULL, weights = 1, control = list())
+set.seed(6)
 k4 <- kmeans(X.t, centers = 4, nstart = 100)
 k4$cluster <- as.factor(k4$cluster)
-
 
 
 table(k4$cluster, droplevels(status[idx,]$most_general))
@@ -394,7 +394,7 @@ plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~k4$cluster, size = status
 plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+  layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
@@ -402,7 +402,7 @@ plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, si
 plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
         colors = c(sex.cols), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+  layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
@@ -410,7 +410,7 @@ plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = 
 plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
         colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+  layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
@@ -423,12 +423,13 @@ plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = ~k4$cluster[cl
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
+
 p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=k4$cluster[clean.idx])) + geom_boxplot(position=position_dodge(width=0.8)) +
   ylab('WBC Count') +
   xlab('') +
   scale_x_discrete(limits = positions[-5])+
   scale_fill_manual(values=k4.pal, 'Cluster')+
-  ggtitle("Box Plot of WBC and CRP Count by Diagnosis")
+  ggtitle("Box Plot of Cluster WBC and CRP Count by Diagnosis")
 p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=k4$cluster[clean.idx]))+
   geom_boxplot(position=position_dodge(width=0.8)) +
   ylab('CRP Count') +
@@ -437,18 +438,18 @@ p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.chara
   scale_fill_manual(values=k4.pal, 'Cluster')
 p <- gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
-p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, color=k4$cluster[clean.idx])) + geom_jitter(position=position_dodge(width=0.8)) +
+p1.wbc<-ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=Sex[clean.idx])) + geom_boxplot(position=position_dodge(width=0.8)) +
   ylab('WBC Count') +
   xlab('') +
   scale_x_discrete(limits = positions[-5])+
-  scale_fill_manual(values=k4.pal, 'Cluster')+
-  ggtitle("Box Plot of WBC and CRP Count by Diagnosis")
-p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), color=k4$cluster[clean.idx]))+
-  geom_jitter(position=position_dodge(width=0.8)) +
+  scale_fill_manual(values=sex.cols, 'Cluster')+
+  ggtitle("Box Plot of Cluster WBC and CRP Count by Diagnosis")
+p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=Sex[clean.idx]))+
+  geom_boxplot(position=position_dodge(width=0.8)) +
   ylab('CRP Count') +
   xlab('Diagnosis') +
   scale_x_discrete(limits = positions[-5])+
-  scale_fill_manual(values=k4.pal, 'Cluster')
+  scale_fill_manual(values=sex.cols, 'Cluster')
 p <- gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
 ggplot(status[idx,], aes(most_general, Age..months., fill=k4$cluster)) + geom_boxplot()+
@@ -459,26 +460,61 @@ ggplot(status[idx,], aes(most_general, Age..months., fill=k4$cluster)) + geom_bo
   ggtitle("Age (months) by Diagnostic Group, Split by Cluster")
 
 
-# K4 analysis
 
+# K4 analysis
 k4.df <- status[idx,][, c('category', 'my_category_2', 'most_general', 'more_general', 'site',
                           'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
 k4.df$cluster <- k4$cluster
 dim(k4.df)
+
+table(k4$cluster, droplevels(status[idx,]$most_general))
+
 # k4.df[1:5,(ncol(k4.df)-3): ncol(k4.df)]
 # k4.df$array.contemporary.CRP <- as.numeric(as.character(k4.df$array.contemporary.CRP))
-sum(k4.df$cluster == 1)
-sum(k4.df[k4.df$cluster == 1,]$category == 'E')
-sum(k4.df[k4.df$cluster == 1,]$category == 'F')
+sum(k4.df$cluster == 2)
+sum(k4.df[k4.df$cluster == 2,]$category == 'E')
+sum(k4.df[k4.df$cluster == 2,]$category == 'F')
 
-sum(k4.df$cluster == 1 & k4.df$most_general == 'bacterial')
+sum(k4.df$cluster == 2 & k4.df$most_general == 'bacterial')
 sum(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category)
 sum(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category)
 sum(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category)
 sum(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category)
 
+sum(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category)
+
+prop.test(x = c(7, 13), n = c(9, 33),
+          alternative = "two.sided")
+
+a <- prop.test(x = c(14, 13), n = c(19, 33),
+          alternative = "two.sided", correct = FALSE)
+a$estimate[1]+a$estimate[2]
 
 
+
+
+dim(k4.df[k4.df$most_general == 'bacterial',])
+k4.df[k4.df$most_general == 'bacterial',]
+
+ggplot(k4.df[k4.df$most_general == 'bacterial',], aes(cluster, fill=category)) +
+  labs(title = "Barplot of Microbiology Results by Cluster", x = "Diagnosis", y = "Counts")+
+  scale_fill_manual(values=k4.pal, 'Micro')+
+  geom_bar()
+ggplotly(p)
+
+
+
+# fuzzy clustering allocation
 k4.df %>%
   select(WBC, cluster, most_general, array.contemporary.CRP, Age..months., Sex) %>%
   group_by(cluster, most_general) %>%
