@@ -68,15 +68,15 @@ ggplot(status[idx,], aes(most_general, fill=most_general, alpha=Sex)) +
   geom_bar()
 
 
-c$most_general == 'bacterial' & c$Sex == 'M'
-sum(c$most_general == 'bacterial' & c$Sex == 'M')
-sum(c$most_general == 'bacterial' & c$Sex == 'F')
-sum(c$most_general == 'greyb' & c$Sex == 'M')
-sum(c$most_general == 'greyb' & c$Sex == 'F')
-sum(c$most_general == 'greyv' & c$Sex == 'M')
-sum(c$most_general == 'greyv' & c$Sex == 'F')
-sum(c$most_general == 'viral' & c$Sex == 'M')
-sum(c$most_general == 'viral' & c$Sex == 'F')
+status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M'
+sum(status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M')
+sum(status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'F')
+sum(status[idx,]$most_general == 'greyb' & status[idx,]$Sex == 'M')
+sum(status[idx,]$most_general == 'greyb' & status[idx,]$Sex == 'F')
+sum(status[idx,]$most_general == 'greyv' & status[idx,]$Sex == 'M')
+sum(status[idx,]$most_general == 'greyv' & status[idx,]$Sex == 'F')
+sum(status[idx,]$most_general == 'viral' & status[idx,]$Sex == 'M')
+sum(status[idx,]$most_general == 'viral' & status[idx,]$Sex == 'F')
 
 
 sex <- c('M', 'F')
@@ -88,10 +88,10 @@ df <- data.frame(bacterial, greyb, greyv, viral)
 df.2 <- mutate(df, sex = factor(c('M','F')))
 df.3 <- gather(df.2, dx, count, -sex)
 df.3
-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
+p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
   geom_bar(position = "fill",stat = "identity")+
   scale_fill_manual(values=sex.cols)
-  # geom_text(df.3, sex, labels=round(sex))
+ggplotly(p)
 
 
 # ggplot(status[idx,], aes(most_general, group=Sex)) +

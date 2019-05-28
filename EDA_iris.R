@@ -8,7 +8,7 @@ library(ggplot2)
 # require(scales) # for percent
 library(gridExtra)
 library(dplyr)
-# library(plotly)
+library(plotly)
 
 getwd()
 setwd('/home/patrick/Code/R')

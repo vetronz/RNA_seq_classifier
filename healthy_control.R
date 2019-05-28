@@ -12,6 +12,8 @@ library(e1071)
 library(neuralnet)
 library(ROCR)
 
+# note checkout lumi package
+
 getwd()
 setwd('/home/patrick/Code/R')
 # setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -349,7 +351,7 @@ ggplotly(p)
 # 2D PCA Dx Group
 plot_ly(pair1, type="scatter", x = ~PC1, y = ~PC2, mode = "markers", color = ~k4$cluster, size = status[idx,]$Age..months.,
         colors=k4.pal, text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-  layout(title = 'Cluster Assignment on PC 1-2', xaxis=x, yaxis=y)
+  layout(title = 'Cluster Assignment on PC 1-2')
 
 # 3D PCA Dx Group
 plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~k4$cluster, size = status[idx,]$Age..months.,
@@ -442,6 +444,232 @@ a$estimate[1]+a$estimate[2]
 
 
 
+############# limma differential expression gram +ve gram -ve #############
+dim(X.t)
+
+X.g <- as.data.frame(X.t[status[idx,]$most_general == 'bacterial',])
+dim(X.g)
+class(X.g)
+a <- status[idx,]$category == 'E' | status[idx,]$category == 'F'
+sum(status[idx,]$category == 'F')
+
+b <- status[idx,]$most_general == 'bacterial'
+sum(a == b)
+
+X.g$gram <- droplevels(status[idx,][a,]$category)
+
+
+### DESIGN MATRIX
+# site
+design <- model.matrix(~gram + 0, data = X.g)
+
+colnames(design)<- c('gram.pos', 'gram.neg')
+
+design[1:10,]
+dim(design)
+colSums(design)
+
+contrast.matrix<- makeContrasts("gram.pos-gram.neg", levels=design)
+contrast.matrix
+# colnames(fit$coefficients)
+
+
+dim(t(X.g[-ncol(X.g)]))
+dim(design)
+
+fit <- lmFit(t(X.g[-ncol(X.g)]), design)
+
+hist(fit$Amean)
+plotSA(fit)
+abline(v=5)
+
+keep <- fit$Amean > 5
+sum(keep)
+fit2<- contrasts.fit(fit, contrast.matrix)
+dim(fit2)
+fit2 <- eBayes(fit2[keep,], trend = TRUE)
+dim(fit2)
+plotSA(fit2)
+
+lfc <- 1
+pval <- 0.05
+
+results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'gram.pos-gram.neg')
+dim(results)
+head(results)
+summary(results)
+vennDiagram(results, include = 'both')
+# vennCounts(results, include = 'both')
+
+dim(X.g[-nrow(X.g)])
+colnames(X.g[-ncol(X.g)])
+
+length(colnames(X.g[-ncol(X.g)])[keep])
+dim(results)
+colnames(X.g[-ncol(X.g)])[keep][results == 1]
+colnames(X.g[-ncol(X.g)])[keep][results == -1]
+results.tot <- union(colnames(X.g[-ncol(X.g)])[keep][results == 1], colnames(X.g[-ncol(X.g)])[keep][results == -1])
+
+top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'gram.pos-gram.neg', number = 19)
+head(top.hits)
+all.hits <- topTable(fit2, number=nrow(fit2), coef = 'gram.pos-gram.neg')
+dim(top.hits)
+dim(all.hits)
+
+intersect(results.tot, rownames(top.hits))
+
+ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
+  geom_point(size=2) +
+  geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
+  geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
+  ggtitle("Volcano Plot of Log Fold Change Against -log10 P Value
+          Cutoff - Fold Change:1, P Val:0.05")
+
+dim(X.t)
+dim(X.t[,results.tot])
+# View(X.t[,results.tot])
+X.t[,results.tot][a,]
+dim(X.t[,results.tot][a,])
+
+
+####### hierarchecal clustering #######
+# Dissimilarity matrix
+d <- dist(X.t[,results.tot][a,], method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "average" )
+# hc1 <- hclust(d, method = "ward.D" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+
+fviz_nbclust(X.t[,results.tot][a,], FUN = hcut, method = "wss")
+fviz_nbclust(X.t[,results.tot][a,], FUN = hcut, method = "silhouette")
+gap_stat <- clusGap(X.t[,results.tot][a,], FUN = hcut, nstart = 25, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+
+# Cut tree into 2 groups
+sub_grp <- cutree(hc1, k = 2)
+sub_grp == 1
+table(sub_grp)
+
+sub_grp
+v <- ifelse(sub_grp == 1, TRUE, FALSE)
+sum(sub_grp == 1)
+sum(sub_grp == 2)
+
+sub_grp == 2
+droplevels(status[idx,][a,]$category)[sub_grp == 2]
+sum(droplevels(status[idx,][a,]$category)[sub_grp == 2] == 'F')
+length(droplevels(status[idx,][a,]$category)[sub_grp == 2] == 'F')
+# 16/20 # average
+# 14/18 # ward.D
+
+f <- status[idx,][a,]$category == 'F'
+f
+v == f
+sum(v==f)
+
+prop.test(x = c(25, 16), n = c(52, 20),
+# prop.test(x = c(25, 14), n = c(52, 18),          
+               alternative = "two.sided", correct = TRUE)
+
+plot(hc1, cex = 0.6, hang = -1)
+rect.hclust(hc1, k = 2, border = c(2,4))
+
+fviz_cluster(list(data = X.t[,results.tot][a,], cluster = sub_grp))
+
+
+# cluster DEGs ----
+#begin by clustering the genes (rows) in each set of differentially expressed genes
+clustRows <- hclust(as.dist(1-cor(t(X.t[,results.tot][a,]), method="pearson")), method="complete") #cluster rows by pearson correlation
+
+# hierarchical clustering is a type of unsupervised clustering. Related methods include K-means, SOM, etc 
+# unsupervised methods are blind to sample/group identity
+# in contrast, supervised methods 'train' on a set of labeled data.  
+# supervised clustering methods include random forest, and artificial neural networks
+
+#now cluster your samples (columns)
+#we may not acutally use this clustering result, but it's good to have just in case
+clustColumns <- hclust(as.dist(1-cor(X.t[,results.tot][a,], method="spearman")), method="complete") #cluster columns by spearman correlation
+#note: we use Spearman, instead of Pearson, for clustering samples because it gives equal weight to highly vs lowly expressed transcripts or genes
+
+# Cut the resulting tree and create color vector for clusters.  
+#Vary the cut height to give more or fewer clusters, or you the 'k' argument to force n number of clusters
+#we'll look at these clusters in more detail later
+module.assign <- cutree(clustRows, k=2)
+module.assign
+
+#now assign a color to each module (makes it easy to identify and manipulate)
+module.color <- rainbow(length(unique(module.assign)), start=0.1, end=0.9) 
+module.color <- module.color[as.vector(module.assign)] 
+myheatcolors2 <- colorRampPalette(colors=c("yellow","red","blue"))(100)
+# produce a static heatmap of DEGs ----
+#plot the hclust results as a heatmap
+heatmap.2(X.t[,results.tot][a,],
+          Rowv=as.dendrogram(clustRows), 
+          Colv=NA,
+          RowSideColors=module.color,
+          col=myheatcolors2, scale='row', labRow=NA,
+          density.info="none", trace="none",  
+          cexRow=1, cexCol=1, margins=c(8,20))
+
+
+
+heatmap.2(X.t[,results.tot][a,],
+          Rowv=as.dendrogram(clustRows), 
+          Colv=as.dendrogram(clustColumns),
+          col=redgreen(100),
+          scale="row",
+          margins = c(7, 7),
+          cexCol = 0.7,
+          labRow = F,
+          main = "Heatmap.2",
+          trace = "none")
+
+library(heatmaply) #for making interactive heatmaps using plotly
+heatmaply(X.t[,results.tot][a,],
+          colors = myheatcolors2,
+          Rowv=as.dendrogram(clustRows),
+          RowSideColors=module.color,
+          #showticklabels=c(FALSE,FALSE),
+          scale='row')
+
+
+plot(hc1, cex = 0.6, hang = -1)
+rect.hclust(hc1, k = 2, border = c(2,4))
+
+
+
+TreeC = as.dendrogram(clustColumns, method="average")
+plot(TreeC,
+     main = "Gene Clustering",
+     ylab = "Height")
+
+
+TreeR = as.dendrogram(clustRows, method="average")
+plot(TreeR,
+     leaflab = "none",
+     main = "Sample Clustering",
+     ylab = "Height")
+
+
+hclustk2 = cutree(clustRows, k=2)
+plot(TreeR,
+     leaflab = "none",
+     main = "Gene Clustering",
+     ylab = "Height")
+colored_bars(hclustk2, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=2"),cex.rowLabels=0.7)
+
+
+library(dendextend)
+hclustk4 = cutree(hr, k=4)
+plot(TreeR,
+     leaflab = "none",
+     main = "Gene Clustering",
+     ylab = "Height")
+colored_bars(hclustk4, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=4"),cex.rowLabels=0.7)
 
 
 # fuzzy clustering allocation
