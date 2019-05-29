@@ -1,5 +1,5 @@
 library(tidyverse)
-# library(plyr)
+library(plyr)
 library(limma)
 library(cluster)
 library(factoextra)
@@ -9,6 +9,18 @@ require(scales) # for percent
 library(gridExtra)
 library(dplyr)
 library(plotly)
+
+dx.cols.2 <- c("#ed0404", "#165bfc")
+dx.cols <- c("#ed0404", "#fc5716", '#16fc31',  "#bc38ab", '#384ebc')
+dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31',  "#bc38ab",'#38bc9d', '#55f1fc', '#0934f4', '#384ebc')
+sex.cols <- c('#fc1676', '#16acfc')
+
+positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
+
+
+site.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
+cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc", '#16fc31', '#464647', "#165bfc")
 
 
 getwd()
@@ -34,16 +46,11 @@ length(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'))
 
 which(status[idx,]$WBC == 0)
 clean<-union(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'), which(status[idx,]$WBC == 0))
-clean
 
 clean.idx <- seq(1:nrow(status[idx,]))[-(clean)]
-
-status[idx,]$array.contemporary.CRP[clean.idx]
 wbc <- status[idx,]$WBC[clean.idx]
 crp <- as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx]))
-
 cor(wbc, crp)
-
 ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])))) +
   geom_point(shape=1)+
   geom_smooth(method=lm)
@@ -52,21 +59,17 @@ ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]
 table(droplevels(status[idx,]$most_general))
 table(droplevels(status[idx,]$more_general))
 
-dx.cols.2 <- c("#ed0404", "#165bfc")
-dx.cols <- c("#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc")
-dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc", "#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc")
-sex.cols <- c('#fc1676', '#16acfc')
-
-positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
-positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
-
-ggplot(status[idx,], aes(most_general, fill=most_general, alpha=Sex)) +
-  scale_alpha_manual(values=c(0.6, 1)) +
-  labs(title = "Barplot of Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Counts")+
+ggplot(status[idx,], aes(most_general, fill=most_general)) +
+  labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
   scale_x_discrete(limits = positions)+
-  scale_fill_manual(values=dx.cols.f)+
+  scale_fill_manual(values=dx.cols)+
   geom_bar()
 
+ggplot(status[idx,], aes(more_general, fill=most_general)) +
+  labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
+  scale_x_discrete(limits = positions.f)+
+  scale_fill_manual(values=dx.cols)+
+  geom_bar()
 
 status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M'
 sum(status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M')
@@ -90,7 +93,8 @@ df.3 <- gather(df.2, dx, count, -sex)
 df.3
 p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
   geom_bar(position = "fill",stat = "identity")+
-  scale_fill_manual(values=sex.cols)
+  scale_fill_manual(values=sex.cols)+
+  labs(title = "Barplot of Gender Split within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
 ggplotly(p)
 
 
@@ -104,7 +108,7 @@ ggplotly(p)
 #   scale_y_continuous(labels = scales::percent)+
 #   labs(title = "Barplot of Percentage Diagnostic Group Breakdown by Gender", x = "Diagnosis", y = "Percentage")
 # 
-# ggplot(status[idx,], aes(more_general, group=Sex)) + 
+# ggplot(status[idx,], aes(more_general, group=Sex)) +
 #   geom_bar(aes(y = ..prop.., fill=factor(..x..)), stat="count") +
 #   geom_text(aes( label = scales::percent(..prop..),
 #                  y= ..prop.. ), stat= "count") +
@@ -124,37 +128,22 @@ table(droplevels(status[idx,]$most_general), status[idx,]$Sex)
 chisq.test(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 # chisq.test(table(droplevels(status[idx,]$more_general), status[idx,]$Sex))
 
-
 # Age Breakdown
-ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., fill=Sex)) + geom_boxplot()+
-  scale_x_discrete(limits = positions)+
-  xlab('Diagnostic Group') +
-  ylab('Age') +
-  scale_x_discrete(limits = positions)+
-  scale_fill_manual(values=c('#16acfc', '#fc1676'))+
-  ggtitle("Box and Whisker Plot of Age by Diagnostic Group, Split by Gender")
+plot_ly(status[idx,], x = ~droplevels(most_general), y = ~Age..months., color = status[idx,]$Sex, colors=c(sex.cols), type = "box") %>%
+  layout(boxmode = "group",
+         title = 'Box and Whisker Plot of Age by Diagnostic Group, Split by Gender', 
+         xaxis = list(title = 'Diagnosis'),
+         yaxis = list(title = 'Age'))
 
-# ggplot(status[idx,], aes(status[idx,]$most_general, Age..months., color=Sex)) + geom_jitter(alpha = .9, width = 0.2)+
-#   scale_x_discrete(limits = positions)+
-#   xlab('Diagnostic Group') +
-#   ylab('Age') +
-#   scale_x_discrete(limits = positions)+
-#   scale_color_manual(values=c('#16acfc', '#fc1676'))+
-#   ggtitle("Jitter Plot of Age by Diagnostic Group, Split by Gender")
-
-
-# ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
-# 
-# a <- as.data.frame(droplevels(status[idx,]$most_general))
-# colnames(a) <- 'dx'
-# a$age <-status[idx,]$Age..months.
-# head(a)
-# summary(a)
-# 
-# b <- ddply(a,~dx)
-# 
-# anova.res <- aov(age ~ dx, data = b)
-# summary(anova.res)
+ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
+a <- as.data.frame(droplevels(status[idx,]$most_general))
+colnames(a) <- 'dx'
+a$age <-status[idx,]$Age..months.
+head(a)
+summary(a)
+b <- ddply(a,~dx)
+anova.res <- aov(age ~ dx, data = b)
+summary(anova.res)
 
 
 # Inflamatory Marker Breakdown
@@ -185,19 +174,81 @@ t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_gen
 # p-value = 0.6789
 # no stat sig difference in crp between males and females in bct group
 
+dim(status)
+dim(e.set[,idx])
+dim(status[idx,])
+####### PCA #######
+full.pca <- prcomp(t(e.set[,idx]), scale=TRUE)
+pair1 <- as.data.frame(full.pca$x[,1:2])
+pair2 <- as.data.frame(full.pca$x[,3:4])
+pair3D <- as.data.frame(full.pca$x[,1:3])
+
+fviz_eig(full.pca)
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+status[idx,]$most_general
+dim(pair1)
 
 
-# DEF DX PC1 PC2
-ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$most_general[dx.def]), size=2) +
-  xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
-  ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
-  geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
-  geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
-  scale_color_manual(values=k2.clus.col)+
-  ggtitle("Cluster Assignment of Bacterial and Viral Against first two PC")
+# most_gen 2D
+plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+        colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
+         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+         yaxis = list(title = paste0("PC1: (", round(pve[2],2), '%)')))
+# most_gen
+plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$most_general, size = status[idx,]$Age..months.,
+        colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
+# # category
+# plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
+#         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
+#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
+# sex
+plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
+        colors = c(sex.cols), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
+p1.wbc<-ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=Sex[clean.idx])) + geom_boxplot(position=position_dodge(width=0.8)) +
+  ylab('WBC Count') +
+  xlab('') +
+  scale_x_discrete(limits = positions[-5])+
+  scale_fill_manual(values=sex.cols, 'Cluster')+
+  ggtitle("Box Plot of Cluster WBC and CRP Count by Diagnosis")
+p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=Sex[clean.idx]))+
+  geom_boxplot(position=position_dodge(width=0.8)) +
+  ylab('CRP Count') +
+  xlab('Diagnosis') +
+  scale_x_discrete(limits = positions[-5])+
+  scale_fill_manual(values=sex.cols, 'Cluster')
+p <- gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
+
+# site
+plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
+        colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
 
 

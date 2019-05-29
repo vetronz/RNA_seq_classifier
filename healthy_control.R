@@ -170,15 +170,16 @@ sex.cols <- c('#fc1676', '#16acfc')
 
 positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
+site.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
+cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc", '#16fc31', '#464647', "#165bfc")
 
-
-# most_gen
+# most_gen 2D
 plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~status[idx,]$most_general, size = status[idx,]$Age..months.,
         colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)'))))
+         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+         yaxis = list(title = paste0("PC1: (", round(pve[2],2), '%)')))
 # most_gen
 plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$most_general, size = status[idx,]$Age..months.,
         colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
@@ -323,8 +324,6 @@ gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
 ### K4
 k4.pal <- c("#f70d09", "#f76409", '#09f70d', '#2909f7')
-site.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
-cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc", '#16fc31', '#464647', "#165bfc")
 # k4<-cmeans(X.t, 4, iter.max = 50, verbose = FALSE,
 #            dist = "euclidean", method = "cmeans", m = 2,
 #            rate.par = NULL, weights = 1, control = list())
