@@ -23,6 +23,9 @@ load('esets.RData')
 ls()
 
 dim(e.set)
+e.set[1:5,1:5]
+
+colnames(e.set[,1])
 
 idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
@@ -451,6 +454,7 @@ X.g <- as.data.frame(X.t[status[idx,]$most_general == 'bacterial',])
 dim(X.g)
 class(X.g)
 a <- status[idx,]$category == 'E' | status[idx,]$category == 'F'
+
 sum(status[idx,]$category == 'F')
 
 b <- status[idx,]$most_general == 'bacterial'
@@ -492,7 +496,7 @@ dim(fit2)
 plotSA(fit2)
 
 lfc <- 1
-pval <- 0.05
+pval <- 0.1
 
 results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'gram.pos-gram.neg')
 dim(results)
@@ -528,76 +532,77 @@ ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
 
 dim(X.t)
 dim(X.t[,results.tot])
+colnames(X.t[,results.tot])
+gram.hits<-colnames(X.t[,results.tot])
+gram.hits
 # View(X.t[,results.tot])
 X.t[,results.tot][a,]
-dim(X.t[,results.tot][a,])
+
 
 
 ####### hierarchecal clustering #######
 # Dissimilarity matrix
+d <- dist(t(X.t[,results.tot][a,]), method = "euclidean")
 d <- dist(X.t[,results.tot][a,], method = "euclidean")
+
+dim(t(X.t[,results.tot][a,]))
 
 # Hierarchical clustering using Complete Linkage
 hc1 <- hclust(d, method = "average" )
 # hc1 <- hclust(d, method = "ward.D" )
 
 # Plot the obtained dendrogram
-plot(hc1, cex = 0.6, hang = -1)
+plot(hc1, cex = 0.7, hang = -1)
+rect.hclust(hc1, k = 2, border = c(2,4))
+rect.hclust(hc1, k = 3, border = c(2,4))
 
-fviz_nbclust(X.t[,results.tot][a,], FUN = hcut, method = "wss")
-fviz_nbclust(X.t[,results.tot][a,], FUN = hcut, method = "silhouette")
-gap_stat <- clusGap(X.t[,results.tot][a,], FUN = hcut, nstart = 25, K.max = 10, B = 50)
+# outlier
+dim(X.t[,results.tot][a,][rownames(X.t[,results.tot][a,]) != 'bacterialgpos_19_SMH',])
+e.set.g <- X.t[,results.tot][a,][rownames(X.t[,results.tot][a,]) != 'bacterialgpos_19_SMH',]
+
+fviz_nbclust(e.set.g, FUN = hcut, method = "wss")
+fviz_nbclust(e.set.g, FUN = hcut, method = "silhouette")
+gap_stat <- clusGap(e.set.g, FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
+
+# d <- dist(t(e.set.g), method = "euclidean")
+d <- dist(e.set.g, method = "euclidean")
+hc1 <- hclust(d, method = "average" )
+# hc1 <- hclust(d, method = "ward.D" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.7, hang = -1)
+rect.hclust(hc1, k = 2, border = c(2,4))
+rect.hclust(hc1, k = 3, border = c(2,4))
 
 # Cut tree into 2 groups
 sub_grp <- cutree(hc1, k = 2)
-sub_grp == 1
+sub_grp
 table(sub_grp)
 
-sub_grp
-v <- ifelse(sub_grp == 1, TRUE, FALSE)
-sum(sub_grp == 1)
-sum(sub_grp == 2)
-
-sub_grp == 2
-droplevels(status[idx,][a,]$category)[sub_grp == 2]
-sum(droplevels(status[idx,][a,]$category)[sub_grp == 2] == 'F')
-length(droplevels(status[idx,][a,]$category)[sub_grp == 2] == 'F')
-# 16/20 # average
+sum(droplevels(status.g$category)[sub_grp == 2] == 'F')
+length(droplevels(status.g$category)[sub_grp == 2] == 'F')
+# 15/17 # average
 # 14/18 # ward.D
 
-f <- status[idx,][a,]$category == 'F'
-f
-v == f
-sum(v==f)
-
-prop.test(x = c(25, 16), n = c(52, 20),
+prop.test(x = c(25, 15), n = c(52, 17),
 # prop.test(x = c(25, 14), n = c(52, 18),          
                alternative = "two.sided", correct = TRUE)
 
-plot(hc1, cex = 0.6, hang = -1)
-rect.hclust(hc1, k = 2, border = c(2,4))
-
-fviz_cluster(list(data = X.t[,results.tot][a,], cluster = sub_grp))
+fviz_cluster(list(data = e.set.g, cluster = sub_grp))
 
 
-# cluster DEGs ----
-#begin by clustering the genes (rows) in each set of differentially expressed genes
-clustRows <- hclust(as.dist(1-cor(t(X.t[,results.tot][a,]), method="pearson")), method="complete") #cluster rows by pearson correlation
+# Hierarchical clustering using Complete Linkage
+d1 <- as.dist(1-cor(t(e.set.g), method="pearson"))
+d2 <- as.dist(1-cor(e.set.g, method="spearman"))
 
-# hierarchical clustering is a type of unsupervised clustering. Related methods include K-means, SOM, etc 
-# unsupervised methods are blind to sample/group identity
-# in contrast, supervised methods 'train' on a set of labeled data.  
-# supervised clustering methods include random forest, and artificial neural networks
+hc1 <- hclust(d1, method = "complete" )
+plot(hc1, cex = 0.7, hang = -1)
+rect.hclust(hc1, k = 3, border = c(2,4))
 
-#now cluster your samples (columns)
-#we may not acutally use this clustering result, but it's good to have just in case
-clustColumns <- hclust(as.dist(1-cor(X.t[,results.tot][a,], method="spearman")), method="complete") #cluster columns by spearman correlation
-#note: we use Spearman, instead of Pearson, for clustering samples because it gives equal weight to highly vs lowly expressed transcripts or genes
+clustRows <- hclust(d1, method="average")
+clustColumns <- hclust(d2, method="average")
 
-# Cut the resulting tree and create color vector for clusters.  
-#Vary the cut height to give more or fewer clusters, or you the 'k' argument to force n number of clusters
-#we'll look at these clusters in more detail later
 module.assign <- cutree(clustRows, k=2)
 module.assign
 
@@ -607,7 +612,7 @@ module.color <- module.color[as.vector(module.assign)]
 myheatcolors2 <- colorRampPalette(colors=c("yellow","red","blue"))(100)
 # produce a static heatmap of DEGs ----
 #plot the hclust results as a heatmap
-heatmap.2(X.t[,results.tot][a,],
+heatmap.2(e.set.g,
           Rowv=as.dendrogram(clustRows), 
           Colv=NA,
           RowSideColors=module.color,
@@ -616,8 +621,7 @@ heatmap.2(X.t[,results.tot][a,],
           cexRow=1, cexCol=1, margins=c(8,20))
 
 
-
-heatmap.2(X.t[,results.tot][a,],
+heatmap.2(e.set.g,
           Rowv=as.dendrogram(clustRows), 
           Colv=as.dendrogram(clustColumns),
           col=redgreen(100),
@@ -629,7 +633,7 @@ heatmap.2(X.t[,results.tot][a,],
           trace = "none")
 
 library(heatmaply) #for making interactive heatmaps using plotly
-heatmaply(X.t[,results.tot][a,],
+heatmaply(e.set.g,
           colors = myheatcolors2,
           Rowv=as.dendrogram(clustRows),
           RowSideColors=module.color,
@@ -642,34 +646,51 @@ rect.hclust(hc1, k = 2, border = c(2,4))
 
 
 
-TreeC = as.dendrogram(clustColumns, method="average")
+TreeC = as.dendrogram(clustColumns)
 plot(TreeC,
      main = "Gene Clustering",
      ylab = "Height")
 
+head(hclusth1.5)
+hclusth1.5 = cutree(clustRows, h=0.3) #cut tree at height of 1.5
+hclusth1.0 = cutree(clustRows, h=1.2) #cut tree at height of 1.0
+hclusth0.5 = cutree(clustRows, h=0.1) #cut tree at height of 0.5
 
-TreeR = as.dendrogram(clustRows, method="average")
+
+TreeR = as.dendrogram(clustColumns)
 plot(TreeR,
      leaflab = "none",
      main = "Sample Clustering",
      ylab = "Height")
 
 
-hclustk2 = cutree(clustRows, k=2)
+library(dendextend)
+
+#add the three cluster vectors
+the_bars <- cbind(hclusth0.5, hclusth1.0, hclusth1.5)
+#this makes the bar
+colored_bars(the_bars, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("h=0.5","h=1.0","h=1.5"),cex.rowLabels=0.7)
+#this will add lines showing the cut heights
+abline(h=0.3, lty = 2, col="grey")
+abline(h=0.2, lty = 2, col="grey")
+abline(h=0.1, lty = 2, col="grey")
+
+
+hclustk2 = cutree(clustColumns, k=4)
 plot(TreeR,
      leaflab = "none",
      main = "Gene Clustering",
      ylab = "Height")
 colored_bars(hclustk2, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=2"),cex.rowLabels=0.7)
 
-
-library(dendextend)
 hclustk4 = cutree(hr, k=4)
 plot(TreeR,
      leaflab = "none",
      main = "Gene Clustering",
      ylab = "Height")
 colored_bars(hclustk4, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=4"),cex.rowLabels=0.7)
+
+
 
 
 # fuzzy clustering allocation
