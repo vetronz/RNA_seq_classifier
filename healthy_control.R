@@ -248,76 +248,77 @@ fviz_nbclust(X.t, kmeans, method = "wss")
 # optimal without filtering = 9
 # optimal with filter = 8
 
-### K2
-k2 <- kmeans(X.t, centers = 2, nstart = 20)
-k2$cluster <- as.factor(k2$cluster)
-k2.df <- status[idx,][clean.idx, c('my_category_2', 'most_general', 'more_general',
-                                   'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
-k2.df$cluster <- k2$cluster[clean.idx]
-dim(k2.df)
-k2.df[1:5,(ncol(k2.df)-3): ncol(k2.df)]
-k2.df$array.contemporary.CRP <- as.numeric(as.character(k2.df$array.contemporary.CRP))
-
-k2.df %>%
-  select(WBC, cluster, most_general, array.contemporary.CRP, Age..months., Sex) %>%
-  group_by(cluster, most_general) %>%
-  summarise(wbc.m = mean(WBC), crp.m = mean(array.contemporary.CRP), age.m = mean(Age..months.))
-
-table(k2$cluster, droplevels(status[idx,]$most_general))
-table(k2$cluster, droplevels(status[idx,]$more_general))
-
-p<-ggplot(status[idx,], aes(most_general, fill=k2$cluster)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
-  scale_x_discrete(limits = positions)+
-  scale_fill_manual(values=dx.cols.2, 'Cluster')+
-  geom_bar()
-ggplotly(p)
-
-positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
-p<-ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
-  scale_x_discrete(limits = positions.more)+
-  scale_fill_manual(values=dx.cols.2, 'Cluster')+
-  geom_bar()
-ggplotly(p)
-
-dx.cols.r <- c("#165bfc", "#ed0404")
-# mode = 'markers', symbol = ~Species, symbols = c('circle','x','o')
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~k2$cluster,
-        colors = c(dx.cols.2), marker = list(size = 3), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
-plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = ~k2$cluster[clean.idx],
-        colors = c(dx.cols.2), size = crp, text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>Diagnosis: ',status[idx,]$Diagnosis[clean.idx])) %>%
-  add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
-ggplot(status[idx,], aes(most_general, Age..months., fill=k2$cluster)) + geom_boxplot()+
-  scale_x_discrete(limits = positions)+
-  xlab('Diagnostic Group') +
-  ylab('Age') +
-  scale_fill_manual(values=dx.cols.2)+
-  ggtitle("Age (months) by Diagnostic Group, Split by Cluster")
-
-p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=k2$cluster[clean.idx])) + geom_boxplot() +
-  ylab('WBC Count') +
-  xlab('') +
-  scale_fill_manual(values=dx.cols.2, 'Cluster')+
-  ggtitle("Box Plot of WBC and CRP Count by Diagnosis")
-p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general,
-                                               as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=k2$cluster[clean.idx]))+
-  geom_boxplot()+
-  ylab('CRP Count') +
-  xlab('Diagnosis') +
-  scale_fill_manual(values=dx.cols.2, 'Cluster')
-gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
+# 
+# ### K2
+# k2 <- kmeans(X.t, centers = 2, nstart = 20)
+# k2$cluster <- as.factor(k2$cluster)
+# k2.df <- status[idx,][clean.idx, c('my_category_2', 'most_general', 'more_general',
+#                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+# k2.df$cluster <- k2$cluster[clean.idx]
+# dim(k2.df)
+# k2.df[1:5,(ncol(k2.df)-3): ncol(k2.df)]
+# k2.df$array.contemporary.CRP <- as.numeric(as.character(k2.df$array.contemporary.CRP))
+# 
+# k2.df %>%
+#   select(WBC, cluster, most_general, array.contemporary.CRP, Age..months., Sex) %>%
+#   group_by(cluster, most_general) %>%
+#   summarise(wbc.m = mean(WBC), crp.m = mean(array.contemporary.CRP), age.m = mean(Age..months.))
+# 
+# table(k2$cluster, droplevels(status[idx,]$most_general))
+# table(k2$cluster, droplevels(status[idx,]$more_general))
+# 
+# p<-ggplot(status[idx,], aes(most_general, fill=k2$cluster)) +
+#   labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
+#   scale_x_discrete(limits = positions)+
+#   scale_fill_manual(values=dx.cols.2, 'Cluster')+
+#   geom_bar()
+# ggplotly(p)
+# 
+# positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
+# p<-ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
+#   labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
+#   scale_x_discrete(limits = positions.more)+
+#   scale_fill_manual(values=dx.cols.2, 'Cluster')+
+#   geom_bar()
+# ggplotly(p)
+# 
+# dx.cols.r <- c("#165bfc", "#ed0404")
+# # mode = 'markers', symbol = ~Species, symbols = c('circle','x','o')
+# plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~k2$cluster,
+#         colors = c(dx.cols.2), marker = list(size = 3), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# 
+# plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = ~k2$cluster[clean.idx],
+#         colors = c(dx.cols.2), size = crp, text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>Diagnosis: ',status[idx,]$Diagnosis[clean.idx])) %>%
+#   add_markers() %>%
+#   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# 
+# ggplot(status[idx,], aes(most_general, Age..months., fill=k2$cluster)) + geom_boxplot()+
+#   scale_x_discrete(limits = positions)+
+#   xlab('Diagnostic Group') +
+#   ylab('Age') +
+#   scale_fill_manual(values=dx.cols.2)+
+#   ggtitle("Age (months) by Diagnostic Group, Split by Cluster")
+# 
+# p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=k2$cluster[clean.idx])) + geom_boxplot() +
+#   ylab('WBC Count') +
+#   xlab('') +
+#   scale_fill_manual(values=dx.cols.2, 'Cluster')+
+#   ggtitle("Box Plot of WBC and CRP Count by Diagnosis")
+# p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general,
+#                                                as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=k2$cluster[clean.idx]))+
+#   geom_boxplot()+
+#   ylab('CRP Count') +
+#   xlab('Diagnosis') +
+#   scale_fill_manual(values=dx.cols.2, 'Cluster')
+# gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
 
 
@@ -558,6 +559,10 @@ rect.hclust(hc1, k = 3, border = c(2,4))
 # outlier
 dim(X.t[,results.tot][a,][rownames(X.t[,results.tot][a,]) != 'bacterialgpos_19_SMH',])
 e.set.g <- X.t[,results.tot][a,][rownames(X.t[,results.tot][a,]) != 'bacterialgpos_19_SMH',]
+status.g <- status[idx,][a,][status[idx,][a,]$my_category_2 != 'bacterialgpos_19_SMH',]
+dim(e.set.g)
+dim(status.g)
+
 
 fviz_nbclust(e.set.g, FUN = hcut, method = "wss")
 fviz_nbclust(e.set.g, FUN = hcut, method = "silhouette")
@@ -595,15 +600,28 @@ fviz_cluster(list(data = e.set.g, cluster = sub_grp))
 d1 <- as.dist(1-cor(t(e.set.g), method="pearson"))
 d2 <- as.dist(1-cor(e.set.g, method="spearman"))
 
-hc1 <- hclust(d1, method = "complete" )
-plot(hc1, cex = 0.7, hang = -1)
-rect.hclust(hc1, k = 3, border = c(2,4))
+
+hc2 <- hclust(d1, method = "average" )
+hc3 <- hclust(d2, method = "average" )
+
+# Plot the obtained dendrogram
+plot(hc2, cex = 0.7, hang = -1)
+rect.hclust(hc2, k = 2, border = c(2,4))
+rect.hclust(hc2, k = 3, border = c(2,4))
+
+# Plot the obtained dendrogram
+plot(hc3, cex = 0.7, hang = -1)
+rect.hclust(hc3, k = 2, border = c(2,4))
+rect.hclust(hc3, k = 3, border = c(2,4))
 
 clustRows <- hclust(d1, method="average")
 clustColumns <- hclust(d2, method="average")
 
-module.assign <- cutree(clustRows, k=2)
-module.assign
+module.assign <- cutree(clustColumns, k=3)
+module.assign == 2
+module.assign[module.assign == 2]
+
+
 
 #now assign a color to each module (makes it easy to identify and manipulate)
 module.color <- rainbow(length(unique(module.assign)), start=0.1, end=0.9) 
@@ -640,54 +658,34 @@ heatmaply(e.set.g,
           scale='row')
 
 
-plot(hc1, cex = 0.6, hang = -1)
-rect.hclust(hc1, k = 2, border = c(2,4))
+library("illuminaHumanv4.db")
+
+getwd()
+setwd('~/Documents/RNA_seq_classifier/Data')
+illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+
+head(illumina)
+nrow(illumina)
+
+module.assign[module.assign == 2]
+# 5720482 2570300 2100196  990768 3360343
+trans <- c(5720482, 2570300, 2100196,  990768, 3360343)
+trans <- c(7650358, 5720482, 2570300, 3180392, 5090754)
+trans <- c(3180392)
+which(illumina$Array_Address_Id %in% trans)
+
+probeID <- illumina$Probe_Id[which(illumina$Array_Address_Id %in% trans)]
 
 
-
-TreeC = as.dendrogram(clustColumns)
-plot(TreeC,
-     main = "Gene Clustering",
-     ylab = "Height")
-
-head(hclusth1.5)
-hclusth1.5 = cutree(clustRows, h=0.3) #cut tree at height of 1.5
-hclusth1.0 = cutree(clustRows, h=1.2) #cut tree at height of 1.0
-hclusth0.5 = cutree(clustRows, h=0.1) #cut tree at height of 0.5
-
-
-TreeR = as.dendrogram(clustColumns)
-plot(TreeR,
-     leaflab = "none",
-     main = "Sample Clustering",
-     ylab = "Height")
-
-
-library(dendextend)
-
-#add the three cluster vectors
-the_bars <- cbind(hclusth0.5, hclusth1.0, hclusth1.5)
-#this makes the bar
-colored_bars(the_bars, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("h=0.5","h=1.0","h=1.5"),cex.rowLabels=0.7)
-#this will add lines showing the cut heights
-abline(h=0.3, lty = 2, col="grey")
-abline(h=0.2, lty = 2, col="grey")
-abline(h=0.1, lty = 2, col="grey")
-
-
-hclustk2 = cutree(clustColumns, k=4)
-plot(TreeR,
-     leaflab = "none",
-     main = "Gene Clustering",
-     ylab = "Height")
-colored_bars(hclustk2, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=2"),cex.rowLabels=0.7)
-
-hclustk4 = cutree(hr, k=4)
-plot(TreeR,
-     leaflab = "none",
-     main = "Gene Clustering",
-     ylab = "Height")
-colored_bars(hclustk4, TreeR, sort_by_labels_order = T, y_shift=-0.1, rowLabels = c("k=4"),cex.rowLabels=0.7)
+x <- illuminaHumanv4CHR
+x <- illuminaHumanv4NUID
+x <- illuminaHumanv4ALIAS2PROBE
+x <- illuminaHumanv4ENSEMBL
+x <- illuminaHumanv4GENENAME
+x <- illuminaHumanv4GO
+x <- illuminaHumanv4MAP
+x <- illuminaHumanv4REFSEQ
+data.frame(Gene=unlist(mget(x = probeID, envir = x)))
 
 
 
