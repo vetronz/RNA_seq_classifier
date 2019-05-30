@@ -10,6 +10,19 @@ library(gridExtra)
 library(dplyr)
 library(plotly)
 
+
+
+getwd()
+setwd('/home/patrick/Code/R')
+# setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
+
+rm(list=setdiff(ls(), 'all'))
+load('esets.RData')
+ls()
+
+Sys.setenv("plotly_username"="vetronz1992")
+Sys.setenv("plotly_api_key"="Wtx9CzYqbl9iC8EzXp2B")
+
 dx.cols.2 <- c("#ed0404", "#165bfc")
 dx.cols <- c("#ed0404", "#fc5716", '#16fc31',  "#bc38ab", '#384ebc')
 dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31',  "#bc38ab",'#38bc9d', '#55f1fc', '#0934f4', '#384ebc')
@@ -21,15 +34,6 @@ positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viraloth
 
 site.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
 cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc", '#16fc31', '#464647', "#165bfc")
-
-
-getwd()
-setwd('/home/patrick/Code/R')
-# setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
-
-rm(list=setdiff(ls(), 'all'))
-load('esets.RData')
-ls()
 
 dim(e.set)
 
@@ -73,20 +77,24 @@ dim(pair1)
 
 
 # most_gen 2D
-plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
         colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
          yaxis = list(title = paste0("PC1: (", round(pve[2],2), '%)')))
+p
+
 # most_gen
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
         colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
+# api_create(p, filename = "3d_pca")
 
 # # category
 # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
