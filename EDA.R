@@ -214,14 +214,12 @@ df.3 <- data.frame(dx, dx.m, dx.f)
 sex.cols.p <- 
 p <- plot_ly(df.3, x = ~dx, y = ~dx.m, type = 'bar', name = 'male', marker = list(color = '#16acfc')) %>%
   add_trace(y = ~dx.f, name = 'female', marker = list(color = '#fc1676')) %>%
-  layout(title = 'Barplot of Diagnostic Group Breakdown',
+  layout(title = 'Barplot of Diagnostic Group Breakdown by Sex',
          yaxis = list(title = 'Count'),
          xaxis = list(title = 'Diagnosis'),
-         barmode = 'stack')
+         barmode = 'group')
 p
 api_create(p, filename = "prop_plot_sex")
-
-
 
 
 table(status[idx,]$Sex)
