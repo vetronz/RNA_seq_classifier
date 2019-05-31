@@ -10,8 +10,6 @@ library(gridExtra)
 library(dplyr)
 library(plotly)
 
-
-
 getwd()
 setwd('/home/patrick/Code/R')
 # setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -24,9 +22,10 @@ Sys.setenv("plotly_username"="vetronz1992")
 Sys.setenv("plotly_api_key"="Wtx9CzYqbl9iC8EzXp2B")
 
 dx.cols.2 <- c("#ed0404", "#165bfc")
-dx.cols <- c("#ed0404", "#fc5716", '#16fc31',  "#bc38ab", '#384ebc')
-dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31',  "#bc38ab",'#38bc9d', '#55f1fc', '#0934f4', '#384ebc')
+dx.cols <- c("#ed0404", "#fc5716", '#16fc31', '#384ebc', "#bc38ab")
+dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31','#38bc9d', '#55f1fc', '#0934f4', '#384ebc', "#bc38ab")
 sex.cols <- c('#fc1676', '#16acfc')
+
 
 positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
@@ -94,7 +93,6 @@ p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[id
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
-# api_create(p, filename = "3d_pca")
 
 # # category
 # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
@@ -106,13 +104,14 @@ p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[id
 #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
 # sex
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
         colors = c(sex.cols), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
 
 # sex CRP
 # plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = status[idx,][clean.idx,]$Sex, size = crp,
@@ -139,21 +138,45 @@ plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size =
 table(droplevels(status[idx,]$most_general))
 table(droplevels(status[idx,]$more_general))
 
-p <- ggplot(status[idx,], aes(most_general, fill=most_general)) +
-  labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
-  scale_x_discrete(limits = positions)+
-  scale_fill_manual(values=dx.cols)+
-  guides(fill=guide_legend(title="Diagnosis"))+
-  geom_bar()
-ggplotly(p)
+# p<-ggplot(status[idx,], aes(most_general, fill=most_general)) +
+#   labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
+#   scale_x_discrete(limits = positions, labels=c("bacterial", "when", "i", 'was','young'))+
+#   scale_fill_manual(values=dx.cols)+
+#   guides(fill=guide_legend(title="Diagnosis"))+
+#   geom_bar()
+# ggplotly(p)
+# 
+# ggplot(status[idx,], aes(more_general, fill=most_general)) +
+#   labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
+#   scale_x_discrete(limits = positions.f)+
+#   scale_fill_manual(values=dx.cols)+
+#   guides(fill=guide_legend(title="Diagnosis"))+
+#   geom_bar()
+# ggplotly(p)
 
-p<-ggplot(status[idx,], aes(more_general, fill=most_general)) +
-  labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
-  scale_x_discrete(limits = positions.f)+
-  scale_fill_manual(values=dx.cols)+
-  guides(fill=guide_legend(title="Diagnosis"))+
-  geom_bar()
-ggplotly(p)
+dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+counts <- c(52, 42, 5, 92, 62)
+data <- data.frame(dx, counts)
+p <- plot_ly(data, x = ~dx, y = ~counts, type = 'bar', marker = list(color = dx.cols)) %>%
+  layout(title = 'Barplot of Diagnostic Group Breakdown',
+         yaxis = list(title = 'Count'),
+         xaxis = list(title = 'Diagnosis'),
+         barmode = 'group')
+p
+api_create(p, filename = "barplot_dx_breakdown")
+
+dx <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
+counts <- c(52, 42, 5, 23, 23, 27, 19, 62)
+data <- data.frame(dx, counts)
+p <- plot_ly(data, x = ~dx, y = ~counts, type = 'bar', marker = list(color = dx.cols.f)) %>%
+  layout(title = 'Barplot of Diagnostic Group Breakdown',
+         yaxis = list(title = 'Count'),
+         xaxis = list(title = 'Diagnosis'),
+         barmode = 'group')
+p
+api_create(p, filename = "barplot_dx_breakdown_full")
+
+
 
 # sex
 status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M'
@@ -165,21 +188,41 @@ sum(status[idx,]$most_general == 'greyv' & status[idx,]$Sex == 'M')
 sum(status[idx,]$most_general == 'greyv' & status[idx,]$Sex == 'F')
 sum(status[idx,]$most_general == 'viral' & status[idx,]$Sex == 'M')
 sum(status[idx,]$most_general == 'viral' & status[idx,]$Sex == 'F')
+sum(status[idx,]$most_general == 'HC' & status[idx,]$Sex == 'M')
+sum(status[idx,]$most_general == 'HC' & status[idx,]$Sex == 'F')
 
 sex <- c('M', 'F')
 bacterial <- c(22, 30)
 greyb <- c(24,18)
 greyv <- c(4,1)
 viral <- c(65,27)
-df <- data.frame(bacterial, greyb, greyv, viral)
+HC <- c(33,29)
+df <- data.frame(bacterial, greyb, greyv, viral, HC)
 df.2 <- mutate(df, sex = factor(c('M','F')))
 df.3 <- gather(df.2, dx, count, -sex)
 df.3
-p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
-  geom_bar(position = "fill",stat = "identity")+
-  scale_fill_manual(values=sex.cols)+
-  labs(title = "Barplot of Gender Split within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
-ggplotly(p)
+# p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
+#   geom_bar(position = "fill",stat = "identity")+
+#   scale_fill_manual(values=sex.cols)+
+#   labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
+# ggplotly(p)
+# api_create(p, filename = "prop_plot_sex")
+dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+dx.m <- c(22, 24, 4, 65, 33)
+dx.f <- c(30, 18, 1, 27, 29)
+df.3 <- data.frame(dx, dx.m, dx.f)
+sex.cols.p <- 
+p <- plot_ly(df.3, x = ~dx, y = ~dx.m, type = 'bar', name = 'male', marker = list(color = '#16acfc')) %>%
+  add_trace(y = ~dx.f, name = 'female', marker = list(color = '#fc1676')) %>%
+  layout(title = 'Barplot of Diagnostic Group Breakdown',
+         yaxis = list(title = 'Count'),
+         xaxis = list(title = 'Diagnosis'),
+         barmode = 'stack')
+p
+api_create(p, filename = "prop_plot_sex")
+
+
+
 
 table(status[idx,]$Sex)
 chisq.test(table(status[idx,]$Sex))
