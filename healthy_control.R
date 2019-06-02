@@ -86,7 +86,8 @@ design[1:10,]
 dim(design)
 colSums(design)
 
-contrast.matrix<- makeContrasts("bct-HC", 'vrl-HC', levels=design)
+# contrast.matrix<- makeContrasts("bct-HC", 'vrl-HC', 'greyb-HC', levels=design)
+contrast.matrix<- makeContrasts("vrl-HC", levels=design)
 contrast.matrix
 # colnames(fit$coefficients)
 
@@ -115,31 +116,30 @@ vennDiagram(results, include = 'both')
 # vennCounts(results, include = 'both')
 
 
-results.hits <- union(rownames(X[keep,])[results[,1] == 1]
+results.tot <- union(rownames(X[keep,])[results[,1] == 1]
                       ,rownames(X[keep,])[results[,1] == -1])
-results.hits
-length(results.hits)
-results.hits.2 <- union(rownames(X[keep,])[results[,2] == 1]
+length(results.bct)
+results.vrl <- union(rownames(X[keep,])[results[,2] == 1]
                       ,rownames(X[keep,])[results[,2] == -1])
-results.tot <- union(results.hits, results.hits.2)
+results.tot <- union(results.bct, results.vrl)
 length(results.tot)
 
 top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-HC')
-dim(top.hits)
-head(top.hits)
-all.hits <- topTable(fit2, number=nrow(fit2), coef = 'bct-HC', 'vrl-HC')
+top.hits
+all.hits <- topTable(fit2, number=nrow(fit2), coef = 'vrl-HC')
 dim(top.hits)
 dim(all.hits)
 
 intersect(results.tot, rownames(top.hits))
 
-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
+p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   geom_point(size=2) +
   geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
   geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
-  ggtitle("Volcano Plot of Log Fold Change Against -log10 P Value
-          Cutoff - Fold Change:1, P Val:0.05")
+  ggtitle("Volcano Plot of Log Fold Change Against -log10 P Value")
+p
+ggplotly(p)
 
 
 results.tot

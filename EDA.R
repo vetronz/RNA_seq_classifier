@@ -59,100 +59,11 @@ ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]
   geom_smooth(method=lm)
 
 
-####### PCA #######
-full.pca <- prcomp(t(e.set[,idx]), scale=TRUE)
-pair1 <- as.data.frame(full.pca$x[,1:2])
-pair2 <- as.data.frame(full.pca$x[,3:4])
-pair3D <- as.data.frame(full.pca$x[,1:3])
-
-fviz_eig(full.pca)
-
-ve <- full.pca$sdev^2
-pve <- ve/sum(ve)*100
-pve[1:5]
-
-status[idx,]$most_general
-dim(pair1)
-
-
-# most_gen 2D
-p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
-        colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
-         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-         yaxis = list(title = paste0("PC1: (", round(pve[2],2), '%)')))
-p
-
-# most_gen
-p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
-        colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
-
-# # category
-# plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
-#         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
-#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
-# sex
-p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
-        colors = c(sex.cols), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
-
-# sex CRP
-# plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = status[idx,][clean.idx,]$Sex, size = crp,
-#         colors = c(sex.cols), text= ~paste0('age: ', status[idx,][clean.idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,][clean.idx,]$my_category_2, '<br>Diagnosis: ',status[idx,][clean.idx,]$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
-#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
-
-
-# site
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
-        colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
 
 # Diagnosis Breakdown
 table(droplevels(status[idx,]$most_general))
 table(droplevels(status[idx,]$more_general))
-
-# p<-ggplot(status[idx,], aes(most_general, fill=most_general)) +
-#   labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
-#   scale_x_discrete(limits = positions, labels=c("bacterial", "when", "i", 'was','young'))+
-#   scale_fill_manual(values=dx.cols)+
-#   guides(fill=guide_legend(title="Diagnosis"))+
-#   geom_bar()
-# ggplotly(p)
-# 
-# ggplot(status[idx,], aes(more_general, fill=most_general)) +
-#   labs(title = "Barplot of Diagnostic Group Breakdown", x = "Diagnosis", y = "Counts")+
-#   scale_x_discrete(limits = positions.f)+
-#   scale_fill_manual(values=dx.cols)+
-#   guides(fill=guide_legend(title="Diagnosis"))+
-#   geom_bar()
-# ggplotly(p)
 
 dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
 counts <- c(52, 42, 5, 92, 62)
@@ -160,7 +71,7 @@ data <- data.frame(dx, counts)
 p <- plot_ly(data, x = ~dx, y = ~counts, type = 'bar', marker = list(color = dx.cols)) %>%
   layout(title = 'Barplot of Diagnostic Group Breakdown',
          yaxis = list(title = 'Count'),
-         xaxis = list(title = 'Diagnosis'),
+         xaxis = list(title = 'Figure 1.2'),
          barmode = 'group')
 p
 # api_create(p, filename = "barplot_dx_breakdown")
@@ -177,35 +88,23 @@ p
 # api_create(p, filename = "barplot_dx_breakdown_full")
 
 # sex
-status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M'
-sum(status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'M')
-sum(status[idx,]$most_general == 'bacterial' & status[idx,]$Sex == 'F')
-sum(status[idx,]$most_general == 'greyb' & status[idx,]$Sex == 'M')
-sum(status[idx,]$most_general == 'greyb' & status[idx,]$Sex == 'F')
-sum(status[idx,]$most_general == 'greyv' & status[idx,]$Sex == 'M')
-sum(status[idx,]$most_general == 'greyv' & status[idx,]$Sex == 'F')
-sum(status[idx,]$most_general == 'viral' & status[idx,]$Sex == 'M')
-sum(status[idx,]$most_general == 'viral' & status[idx,]$Sex == 'F')
-sum(status[idx,]$most_general == 'HC' & status[idx,]$Sex == 'M')
-sum(status[idx,]$most_general == 'HC' & status[idx,]$Sex == 'F')
-
-sex <- c('M', 'F')
-bacterial <- c(22, 30)
-greyb <- c(24,18)
-greyv <- c(4,1)
-viral <- c(65,27)
-HC <- c(33,29)
-df <- data.frame(bacterial, greyb, greyv, viral, HC)
-df.2 <- mutate(df, sex = factor(c('M','F')))
-df.3 <- gather(df.2, dx, count, -sex)
-df.3
+# sex <- c('M', 'F')
+# bacterial <- c(22, 30)
+# greyb <- c(24,18)
+# greyv <- c(4,1)
+# viral <- c(65,27)
+# HC <- c(33,29)
+# df <- data.frame(bacterial, greyb, greyv, viral, HC)
+# df.2 <- mutate(df, sex = factor(c('M','F')))
+# df.3 <- gather(df.2, dx, count, -sex)
+# df.3
 # p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
 #   geom_bar(position = "fill",stat = "identity")+
 #   scale_fill_manual(values=sex.cols)+
 #   labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
 # ggplotly(p)
 # api_create(p, filename = "prop_plot_sex")
-dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+
 dx.m <- c(22, 24, 4, 65, 33)
 dx.f <- c(30, 18, 1, 27, 29)
 df.3 <- data.frame(dx, dx.m, dx.f)
@@ -214,15 +113,15 @@ p <- plot_ly(df.3, x = ~dx, y = ~dx.m, type = 'bar', name = 'male', marker = lis
   add_trace(y = ~dx.f, name = 'female', marker = list(color = '#fc1676')) %>%
   layout(title = 'Barplot of Diagnostic Group by Sex',
          yaxis = list(title = 'Count'),
-         xaxis = list(title = 'Diagnosis'),
+         xaxis = list(title = 'Figure 1.2'),
          barmode = 'group')
 p
-# api_create(p, filename = "prop_plot_sex")
+api_create(p, filename = "prop_plot_sex")
 
 table(status[idx,]$Sex)
 chisq.test(table(status[idx,]$Sex))
 
-table(droplevels(status[idx,]$most_general), status[idx,]$Sex)
+addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 chisq.test(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 
 
@@ -234,6 +133,7 @@ chisq.test(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 #   scale_fill_manual(values=site.pal)+
 #   geom_bar()
 # ggplotly(p)
+
 dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
 dx.chw <- c(table(droplevels(status[idx,]$most_general), droplevels(status[idx,]$site))[,1])
 dx.euc101 <- c(table(droplevels(status[idx,]$most_general), droplevels(status[idx,]$site))[,2])
@@ -258,7 +158,7 @@ p <- plot_ly(site.df, x = ~dx, y = ~dx.chw, type = 'bar', name = 'CHW', marker =
   add_trace(y = ~dx.ucsd, name = 'UCSD', marker = list(color = '#165bfc')) %>%
   layout(title = 'Barplot of Diagnostic Group by Recruitment Site',
          yaxis = list(title = 'Count'),
-         xaxis = list(title = 'Diagnosis'),
+         xaxis = list(title = 'Figure 1.1'),
          barmode = 'stack')
 p
 api_create(p, filename = "barplot_recruitment")
@@ -284,7 +184,7 @@ p<-plot_ly(status[idx,][order(plot.code),], x = ~droplevels(most_general), y = ~
          xaxis = list(title = 'Diagnosis'),
          yaxis = list(title = 'Age'))
 p
-api_create(p, filename = "box_whisker_age")
+# api_create(p, filename = "box_whisker_age")
 
 # check sums
 status[idx,][order(plot.code),] %>%
@@ -305,13 +205,6 @@ summary(anova.res)
 
 
 ### Inflamatory Marker Breakdown
-plot.code <- ifelse(status[idx,][clean.idx,]$most_general == 'bacterial', 1,
-                    ifelse(status[idx,][clean.idx,]$most_general == 'greyb', 2,
-                           ifelse(status[idx,][clean.idx,]$most_general == 'greyv', 3,
-                                  ifelse(status[idx,][clean.idx,]$most_general == 'viral', 4,
-                                         ifelse(status[idx,][clean.idx,]$most_general == 'HC', 5, 0)))))
-View(status[idx,][clean.idx,][order(plot.code),])
-
 v <- status[idx,][clean.idx,]$most_general == 'bacterial' | status[idx,][clean.idx,]$most_general == 'greyb' |
   status[idx,][clean.idx,]$most_general == 'greyv' | status[idx,][clean.idx,]$most_general == 'viral'
 status[idx,][clean.idx,][v,]
@@ -322,14 +215,12 @@ p<-plot_ly(status[idx,][clean.idx,][v,], x = ~droplevels(status[idx,][clean.idx,
   layout(boxmode = "group",
          title = 'Box and Whisker Plot of WBC Count by Diagnostic Group, Split by Gender', 
          xaxis = list(title = 'Diagnosis'),
-         categoryorder = "array",
-         categoryarray = ~player,
          yaxis = list(title = 'WBC Count'))
 p
 api_create(p, filename = "box_whisker_wbc")
 
-  # check sums
-status[idx,][clean.idx,][order(plot.code),] %>%
+# check sums
+status[idx,][clean.idx,] %>%
   group_by(most_general) %>%
   summarise(crp.m = median(WBC))
 
@@ -337,27 +228,12 @@ p<-plot_ly(status[idx,][clean.idx,][v,], x = ~droplevels(status[idx,][clean.idx,
            color = status[idx,][clean.idx,][v,]$Sex, colors=c(sex.cols), type = "box",
            text= ~paste0('<br>label:', my_category_2, '<br>Age: ', Age..months., '<br>WBC: ', WBC, '<br>CRP: ', array.contemporary.CRP, '<br>Diagnosis: ',Diagnosis)) %>%
   layout(boxmode = "group",
-         title = 'Box and Whisker Plot of WBC Count by Diagnostic Group, Split by Gender', 
-         xaxis = list(title = 'Diagnosis'),
-         categoryorder = "array",
-         categoryarray = ~player,
-         yaxis = list(title = 'WBC Count'))
-p
-api_create(p, filename = "box_whisker_wbc")
-           
-p<-plot_ly(status[idx,][clean.idx,][order(plot.code),], x = ~droplevels(most_general), y = ~as.numeric(as.character(status[idx,][clean.idx,][order(plot.code),]$array.contemporary.CRP)),
-        color = status[idx,][clean.idx,][order(plot.code),]$Sex, colors=c(sex.cols), type = "box",
-        text= ~paste0('<br>label:', my_category_2, '<br>Age: ', Age..months., '<br>WBC: ', WBC, '<br>CRP: ', array.contemporary.CRP, '<br>Diagnosis: ',Diagnosis)) %>%
-  layout(boxmode = "group",
          title = 'Box and Whisker Plot of CRP Count by Diagnostic Group, Split by Gender', 
          xaxis = list(title = 'Diagnosis'),
          yaxis = list(title = 'CRP Count'))
+p
 api_create(p, filename = "box_whisker_crp")
 
-# check sums
-status[idx,][clean.idx,][order(plot.code),] %>%
-  group_by(most_general) %>%
-  summarise(crp.m = median(as.numeric(as.character(array.contemporary.CRP))))
 
 crp <- as.numeric(as.character(status[idx,][clean.idx,]$array.contemporary.CRP))
 crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_general == 'bacterial']
@@ -380,143 +256,123 @@ dim(status[idx,])
 
 
 
+####### PCA #######
+# full pca
+full.pca <- prcomp(t(e.set[,idx]), scale=TRUE)
 
-
-
-
-
-############ LIMMA ############
-e.set[idx,]
-idx
-dim(e.set[idx,])
-e.set.f <- as.data.frame(e.set.f)
-e.set.f$label <- as.character(status[idx,c('most_general')])
-e.set.f$sex <- status[idx,c('Sex')]
-e.set.f$age <- status[idx,c('Age..months.')]
-
+# filter pca
+e.set.f <- as.data.frame(e.set[,idx])
+e.set.f <- as.data.frame(t(e.set.f))
 dim(e.set.f)
-e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
+
+# mean/variance calculations
+x_var <- apply(e.set[,idx], 1, var)
+x_mean <- apply(e.set[,idx], 1, mean)
+# hist(x_mean)
+# hist(log2(x_mean))
+plot(log2(x_mean), log2(x_var), pch='.')
+abline(v=log2(5), col='red')
+
+plot_ly(x = log2(x_mean), y=x_var, color = x_mean, type='scatter',
+        mode = 'markers', marker = list(pacity= 0.5)) %>%
+  layout(shapes=list(type='line', x0= log2(5), x1= log2(5), y0=0, y1=10, line=list(dash='dot', width=1)),
+         title = 'Figure XYZ',
+         xaxis = list(title = "X-Axis", showgrid = TRUE),
+         yaxis = list(title = "Y-Axis", showgrid = TRUE))
+  
+
+X <- e.set[,idx][which(x_mean > 5),]
+dim(X)
+
+X.t <- t(X)
+X.pca <- prcomp(X.t, scale = TRUE)
 
 
-X.sub <- X[,]
-dim(X.sub)
-X.sub.m <- apply(X.sub, 1, mean)
-X.sub.sd <- apply(X.sub, 1, sd)
+# set pca
+# pca <- full.pca
+pca <- X.pca
+pair1 <- as.data.frame(pca$x[,1:2])
+pair2 <- as.data.frame(pca$x[,3:4])
+pair3D <- as.data.frame(pca$x[,1:3])
 
-plot(X.sub.m, X.sub.sd)
+fviz_eig(pca)
 
-### DESIGN MATRIX
-# site 
-design <- model.matrix(~label + sex + age + 0, data = e.set.f)
-colnames(design)<- c("bct","greyb","greyv", 'vrl', 'sexM', 'age')
-
-design[1:10,]
-dim(design)
-colSums(design)
-
-contrast.matrix<- makeContrasts("bct-vrl", 'bct-greyv', levels=design)
-contrast.matrix
-# colnames(fit$coefficients)
-
-fit <- lmFit(X, design)
-
-hist(fit$Amean)
-plotSA(fit)
-abline(v=5)
-
-keep <- fit$Amean > 5
-sum(keep)
-fit2<- contrasts.fit(fit, contrast.matrix)
-dim(fit2)
-fit2 <- eBayes(fit2[keep,], trend = TRUE)
-dim(fit2)
-plotSA(fit2)
-
-lfc <- 1.5
-pval <- 0.05
-
-results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl')
-dim(results)
-head(results)
-summary(results)
-vennDiagram(results, include = 'both')
-vennCounts(results, include = 'both')
+ve <- pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
 
 
-results.hits <- union(rownames(X[keep,])[results[,1] == 1]
-                      ,rownames(X[keep,])[results[,1] == -1])
-results.hits
-length(results.hits)
+# most_gen 2D
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+             colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
+         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+         yaxis = list(title = paste0("PC1: (", round(pve[2],2), '%)')))
+p
+# api_create(p, filename = "2d_pca")
 
-top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'bct-vrl', number = 77)
-all.hits <- topTable(fit2, number=nrow(fit2), coef = 'bct-vrl')
-top.hits
-dim(top.hits)
-dim(all.hits)
+# most_gen 3D
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+             colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+p
+# api_create(p, filename = "3d_pca")
 
-intersect(results.hits, rownames(top.hits))
+# # category
+# plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
+#         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
+#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
+# sex
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
+             colors = c(sex.cols), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
+p
+# api_create(p, filename = "sex_pca")
 
 
-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
-  geom_point(size=2) +
-  geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
-  geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
-  geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
-  ggtitle("Volcano Plot of Log Fold Change Against -log10 P Value
-    Cutoff - Fold Change:1, P Val:0.05")
+# site
+plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
+        colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
-# 
-# 
-# 
-# 
-# # dim(results)
-# # intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))
-# # rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))]
-# # 
-# # results.hits
-# # 
-# # intersect(results.hits, rownames(results)[intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1))])
-# 
-# # 
-# # # proof that in above we are not taking the intersect of genes that are over expressed on one
-# # # and under expressed in the other
-# # a<-which(results[,1] == 1)
-# # b<-which(results[,2] == 1)
-# # c<-which(results[,1] == -1)
-# # d<-which(results[,2] == -1)
-# # 
-# # rownames(results)[union(intersect(a,b), intersect(c,d))]
-# # 
-# # # still get 66 taking the intersect of the two above methods
-# # intersect(union(intersect(a,b), intersect(c,d)),
-# #           intersect(which(results[,1] == 1 | results[,1] == -1), which(results[,2] == 1 | results[,2] == -1)))
-# # 
-# # 
-# # rownames(results)
-# ############################## CLUSTERING ##############################
-# ### PCA
-# X.t <- t(X)
-# dim(X.t[,results.hits])
-# X.pca <- prcomp(X.t[,results.hits], scale = TRUE)
-# 
-# # summary(e.set.pca)
-# 
-# pair1 <- as.data.frame(X.pca$x[,1:2])
-# pair2 <- as.data.frame(X.pca$x[,3:4])
-# 
-# fviz_eig(X.pca)
-# 
-# ve <- X.pca$sdev^2
-# pve <- ve/sum(ve)*100
-# pve
-# 
-# fviz_nbclust(X.t[,results.hits], kmeans, method = "wss")
-# fviz_nbclust(X.t[,results.hits], kmeans, method = "silhouette")
-# 
-# # gap_stat <- clusGap(X.t[,results.hits], FUN = kmeans, nstart = 25,
-#                     # K.max = 20, B = 25)
-# # fviz_gap_stat(gap_stat)
-# 
+
+
+
+############################## CLUSTERING ##############################
+### PCA
+
+fviz_eig(pca)
+
+ve <- pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+fviz_nbclust(X.t, kmeans, method = "wss")
+fviz_nbclust(X.t, kmeans, method = "silhouette")
+
+gap_stat <- clusGap(X.t, FUN = kmeans, nstart = 10,
+                    K.max = 20, B = 25)
+fviz_gap_stat(gap_stat)
+#
 # ### K2
 # k2 <- kmeans(X.t[,results.hits], centers = 2, nstart = 500)
 # str(k2)
