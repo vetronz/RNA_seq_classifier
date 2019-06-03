@@ -1,3 +1,4 @@
+
 # library(tidyverse)
 library(limma)
 library(cluster)
@@ -22,13 +23,19 @@ rm(list=setdiff(ls(), 'all'))
 load('esets.RData')
 
 
+Sys.setenv("plotly_username"="vetronz1992")
+Sys.setenv("plotly_api_key"="Wtx9CzYqbl9iC8EzXp2B")
+
 dx.cols.2 <- c("#ed0404", "#165bfc")
-dx.cols <- c("#ed0404", "#fc5716", '#16fc31', '#464647', "#165bfc")
-dx.cols.f <- c('#bd35fc', "#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
+dx.cols <- c("#ed0404", "#fc5716", '#16fc31', '#384ebc', "#bc38ab")
+dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31','#38bc9d', '#55f1fc', '#0934f4', '#384ebc', "#bc38ab")
 sex.cols <- c('#fc1676', '#16acfc')
+
 
 positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
+
+
 site.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
 cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc", '#16fc31', '#464647', "#165bfc")
 
@@ -145,7 +152,7 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
   ggtitle("Volcano Plot of Log Fold Change Against -log10 P Value")
 p
-ggplotly(p)
+# ggplotly(p)
 
 
 # results.tot
@@ -167,21 +174,25 @@ pve <- ve/sum(ve)*100
 pve[1:5]
 
 # most_gen 2D
-plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~status[idx,]$most_general, size = status[idx,]$Age..months.,
-        colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+             colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
          yaxis = list(title = paste0("PC1: (", round(pve[2],2), '%)')))
+p
+# api_create(p, filename = "2d_pca_filt")
 
-# most_gen
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$most_general, size = status[idx,]$Age..months.,
-        colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# most_gen 3D
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
+             colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+p
+# api_create(p, filename = "3d_pca_filt")
 
 # more_gen
 dx.cols.f <- c('#bd35fc', "#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
@@ -194,23 +205,24 @@ plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$more_general
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 
 # category
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
+p<-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+api_create(p, filename = "3d_pca_cat")
 
 # sex
-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
+p<-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$Sex, size = ~status[idx,]$Age..months.,
         colors = c(sex.cols), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Gender by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
+api_create(p, filename = "3d_pca_sex")
 
 # site
 plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
@@ -326,11 +338,10 @@ chisq.test(table(droplevels(k2.df$category[bct]), droplevels(k2.df$cluster[bct])
 
 
 ### K4
-k4.pal <- c("#f70d09", "#f76409", '#09f70d', '#2909f7')
+k4.pal <- c('#09f70d', "#f76409", "#f70d09", '#2909f7')
 set.seed(44)
 k4 <- kmeans(X.t, centers = 4, nstart = 100)
 k4$cluster <- as.factor(k4$cluster)
-
 
 table(k4$cluster, droplevels(status[idx,]$most_general))
 table(k4$cluster, droplevels(status[idx,]$more_general))
@@ -340,7 +351,9 @@ p<-ggplot(status[idx,], aes(most_general, fill=k4$cluster)) +
   scale_x_discrete(limits = positions)+
   scale_fill_manual(values=k4.pal, 'Cluster')+
   geom_bar()
-ggplotly(p)
+p
+api_create(p, filename = "barplot_k4_dx")
+
 
 positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
 p<-ggplot(status[idx,], aes(more_general, fill=k4$cluster)) +
@@ -387,6 +400,7 @@ p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.chara
   scale_fill_manual(values=k4.pal, 'Cluster')
 p <- gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
 
+
 ggplot(status[idx,], aes(most_general, Age..months., fill=k4$cluster)) + geom_boxplot()+
   scale_x_discrete(limits = positions)+
   xlab('Diagnostic Group') +
@@ -407,7 +421,8 @@ p<-ggplot(k4.df[k4.df$most_general == 'bacterial',], aes(cluster, fill=category)
   labs(title = "Barplot of Microbiology Results by Cluster", x = "Diagnosis", y = "Counts")+
   scale_fill_manual(values=c('#6c5ddd', '#dd5dbb'), 'Micro')+
   geom_bar()
-ggplotly(p)
+p
+api_create(p, filename = "barplot_k4_micro")
 
 
 table(droplevels(k4.df$category[k4.df$most_general=='bacterial']), droplevels(k4.df$cluster[k4.df$most_general=='bacterial']))
@@ -568,7 +583,7 @@ fit2 <- eBayes(fit2[keep,], trend = TRUE)
 dim(fit2)
 plotSA(fit2)
 
-lfc <- 1
+lfc <- 0.5
 pval <- 0.1
 
 results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc, coef = 'gram.pos-gram.neg')
@@ -653,13 +668,12 @@ rect.hclust(hc1, k = 2, border = c(2,4))
 rect.hclust(hc1, k = 3, border = c(2,4))
 
 # Cut tree into 2 groups
-sub_grp <- cutree(hc1, k = 2)
+sub_grp <- cutree(hc1, k = 3)
 sub_grp
 table(droplevels(status.g$category), sub_grp)
 chisq.test(table(droplevels(status.g$category), sub_grp))
 
 fviz_cluster(list(data = e.set.g, cluster = sub_grp))
-
 
 # Hierarchical clustering using Complete Linkage
 d1 <- as.dist(1-cor(t(e.set.g), method="pearson"))
@@ -691,7 +705,7 @@ module.assign <- cutree(clustRows, k=2)
 #now assign a color to each module (makes it easy to identify and manipulate)
 module.color <- rainbow(length(unique(module.assign)), start=0.1, end=0.9) 
 module.color <- module.color[as.vector(module.assign)] 
-myheatcolors2 <- colorRampPalette(colors=c("yellow","red","blue"))(100)
+myheatcolors2 <- colorRampPalette(colors=c("blue", "yellow","red"))(100)
 # produce a static heatmap of DEGs ----
 #plot the hclust results as a heatmap
 heatmap.2(e.set.g,
@@ -716,13 +730,17 @@ heatmap.2(e.set.g,
 
 
 library(heatmaply) #for making interactive heatmaps using plotly
-heatmaply(e.set.g,
+p<-heatmaply(e.set.g,
           colors = myheatcolors2,
           Rowv=as.dendrogram(clustRows),
           RowSideColors=module.color,
-          #showticklabels=c(FALSE,FALSE),
+          # showticklabels=c(FALSE,FALSE),
           scale='row')
+p
+api_create(p, filename = "heatmap_micro")
 
+p<-heatmaply(mtcars, k_col = 2, k_row = 3) %>% layout(margin = list(l = 130, b = 40))
+api_create(p, filename = "heatmap_test")
 
 library("illuminaHumanv4.db")
 
@@ -735,15 +753,15 @@ nrow(illumina)
 
 module.assign[module.assign == 2]
 # 5720482 2570300 2100196  990768 3360343
-trans <- c(5720482, 2570300, 2100196,  990768, 3360343)
-trans <- c(7650358, 5720482, 2570300, 3180392, 5090754)
-trans <- c(3180392)
-trans <- c(2100196)
+trans <- c(3180392, 2570300, 2100196, 5720482, 7650358, 4780075, 7650433)
+# trans <- c(7650358, 5720482, 2570300, 3180392, 5090754)
+# trans <- c(3180392)
+# trans <- c(2100196)
 
 which(illumina$Array_Address_Id %in% trans)
 
 probeID <- illumina$Probe_Id[which(illumina$Array_Address_Id %in% trans)]
-
+probeID
 
 x <- illuminaHumanv4CHR
 x <- illuminaHumanv4NUID
@@ -753,7 +771,7 @@ x <- illuminaHumanv4GENENAME
 x <- illuminaHumanv4GO
 x <- illuminaHumanv4MAP
 x <- illuminaHumanv4REFSEQ
-data.frame(Gene=unlist(mget(x = probeID, envir = x)))
+data.frame(trans, Gene=unlist(mget(x = probeID, envir = x)))
 
 
 

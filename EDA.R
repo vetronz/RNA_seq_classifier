@@ -273,12 +273,12 @@ x_mean <- apply(e.set[,idx], 1, mean)
 plot(log2(x_mean), log2(x_var), pch='.')
 abline(v=log2(5), col='red')
 
-plot_ly(x = log2(x_mean), y=x_var, color = x_mean, type='scatter',
-        mode = 'markers', marker = list(pacity= 0.5)) %>%
-  layout(shapes=list(type='line', x0= log2(5), x1= log2(5), y0=0, y1=10, line=list(dash='dot', width=1)),
-         title = 'Figure XYZ',
-         xaxis = list(title = "X-Axis", showgrid = TRUE),
-         yaxis = list(title = "Y-Axis", showgrid = TRUE))
+# plot_ly(x = log2(x_mean), y=log2(x_var), color = x_mean, type='scatter',
+#         mode = 'markers', marker = list(opacity= 0.5)) %>%
+#   layout(shapes=list(type='line', x0= log2(5), x1= log2(5), y0=0, y1=10, line=list(dash='dot', width=1)),
+#          title = 'Figure XYZ',
+#          xaxis = list(title = "X-Axis", showgrid = TRUE),
+#          yaxis = list(title = "Y-Axis", showgrid = TRUE))
   
 
 X <- e.set[,idx][which(x_mean > 5),]
@@ -289,8 +289,8 @@ X.pca <- prcomp(X.t, scale = TRUE)
 
 
 # set pca
-# pca <- full.pca
-pca <- X.pca
+pca <- full.pca
+# pca <- X.pca
 pair1 <- as.data.frame(pca$x[,1:2])
 pair2 <- as.data.frame(pca$x[,3:4])
 pair3D <- as.data.frame(pca$x[,1:3])
@@ -369,141 +369,132 @@ pve[1:5]
 fviz_nbclust(X.t, kmeans, method = "wss")
 fviz_nbclust(X.t, kmeans, method = "silhouette")
 
-gap_stat <- clusGap(X.t, FUN = kmeans, nstart = 10,
-                    K.max = 20, B = 25)
+gap_stat <- clusGap(X.t, FUN = kmeans, nstart = 1,
+                    K.max = 5, B = 5)
 fviz_gap_stat(gap_stat)
-#
-# ### K2
-# k2 <- kmeans(X.t[,results.hits], centers = 2, nstart = 500)
-# str(k2)
-# k2$cluster <- as.factor(k2$cluster)
-# 
-# 
-# k2.df <- status[idx,][clean.idx, c('my_category_2', 'most_general', 'more_general',
-#                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
-# k2.df$cluster <- k2$cluster[clean.idx]
-# dim(k2.df)
-# k2.df[1:5,(ncol(k2.df)-3): ncol(k2.df)]
-# k2.df$array.contemporary.CRP <- as.numeric(as.character(k2.df$array.contemporary.CRP))
-# 
-# addmargins(table(k2$cluster, droplevels(status[idx,]$most_general)))
-# addmargins(table(k2$cluster, droplevels(status[idx,]$more_general)))
-# 
-# k2.clus.col <- c("#ed0404", "#165bfc")
-# positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother')
-# ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
-#   labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
-#   scale_x_discrete(limits = positions.more)+
-#   scale_fill_manual(values=k2.clus.col)+
-#   geom_bar()
-# # table(k2$cluster, status[idx, c('Sex')])
-# 
-# dx.def <- status[idx,]$most_general == 'bacterial' | status[idx,]$most_general == 'viral'
-# dx.grey <- status[idx,]$most_general == 'greyb' | status[idx,]$most_general == 'greyv'
-# dx.def
-# 
-# dim(pair1[dx.def,])
-# length(status[idx,]$most_general[dx.def])
-# 
-# # DEF DX PC1 PC2
-# ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$most_general[dx.def]), size=2) +
-#   xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
-#   ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
-#   geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   scale_color_manual(values=k2.clus.col)+
-#   ggtitle("Cluster Assignment of Bacterial and Viral Against first two PC")
-# 
-# # DEF DX PC3 PC4
-# ggplot(pair2[dx.def,], aes(PC3, PC4)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$most_general[dx.def]), size=2) +
-#   xlab(paste0("PC3: (", round(pve[3],2), '%)') ) +
-#   ylab(paste0("PC4: (", round(pve[4],2), '%)') ) +
-#   geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   scale_color_manual(values=k2.clus.col)+
-#   ggtitle("Cluster Assignment of Bacterial and Viral Against first two PC")
-# 
-# # M F PC1 PC2
-# ggplot(pair1[dx.def,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.def], shape=status[idx,]$Sex[dx.def]), size=2) +
-#   xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
-#   ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
-#   geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   scale_color_manual(values=k2.clus.col)+
-#   ggtitle("Cluster Assignment of Male, Female Against first two PC")
-# 
-# # Grey Dx PC1 PC2
-# ggplot(pair1[dx.grey,], aes(PC1, PC2)) + geom_point(aes(color=k2$cluster[dx.grey], shape=status[idx,]$most_general[dx.grey]), size=2) +
-#   xlab(paste0("PC1: (", round(pve[1],2), '%)') ) +
-#   ylab(paste0("PC2: (", round(pve[2],2), '%)') ) +
-#   geom_hline(yintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   geom_vline(xintercept = 0, linetype="longdash", colour="grey", size=1) +
-#   scale_color_manual(values=k2.clus.col)+
-#   ggtitle("Cluster Assignment of Probable Bacterial and Probable Viral Against first two PC")
-# 
-# 
-# 
-# 
-# ggplot(status[idx,], aes(most_general, Age..months., fill=k2$cluster)) + geom_boxplot()+
-#   scale_x_discrete(limits = positions)+
-#   xlab('Diagnostic Group') +
-#   ylab('Age') +
-#   scale_fill_manual(values=k2.clus.col)+
-#   ggtitle("Age (months) by Diagnostic Group, Split by Cluster")
-# 
-# p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=k2$cluster[clean.idx])) + geom_boxplot() +
-#   # scale_y_continuous(limits = c(0, 50))+
-#   ylab('WBC Count') +
-#   xlab('') +
-#   scale_fill_manual(values=k2.clus.col)+
-#   ggtitle("Box Plot of WBC and CRP Count by Diagnosis")
-# p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general,
-#   as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=k2$cluster[clean.idx]))+
-#   geom_boxplot()+
-#   ylab('CRP Count') +
-#   xlab('Diagnosis') +
-#   scale_fill_manual(values=k2.clus.col)
-# gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
-# 
-# 
-# filter.bct <- status[idx,]$most_general == 'bacterial'
-# filter.clus <- k2$cluster == 1
-# filter.comb <- filter.bct & filter.clus
-# status[idx,]$Diagnosis[filter.comb]
-# 
-# filter.clus <- k2$cluster == 2
-# filter.comb <- filter.bct & filter.clus
-# status[idx,]$Diagnosis[filter.comb]
-# # View(status[idx,][filter.comb, c('my_category_2', 'most_general',
-# #                                  'more_general', 'Age..months.', 'Sex', 'WBC',
-# #                                  'array.contemporary.CRP', 'Diagnosis')])
-# 
-# detach('package:plyr', unload = TRUE, character.only = TRUE)
-# k2.df %>%
-#   select(WBC, cluster, most_general, array.contemporary.CRP, Age..months., Sex) %>%
-#   group_by(cluster, most_general) %>%
-#   summarise(wbc.m = mean(WBC), crp.m = mean(array.contemporary.CRP), age.m = mean(Age..months.))
-# 
-# k2.df$WBC[k2.df$cluster == 1 & k2.df$most_general == 'bacterial']
-# k2.df$WBC[k2.df$cluster == 2 & k2.df$most_general == 'bacterial']
-# t.test(k2.df$WBC[k2.df$cluster == 1 & k2.df$most_general == 'bacterial'], k2.df$WBC[k2.df$cluster == 2 & k2.df$most_general == 'bacterial'])
-# # not enough power to detect sig diff within bct group given few bct assigned to class 2
-# # no difference with crp
-# 
-# k2.df$WBC[k2.df$cluster == 1]
-# k2.df$WBC[k2.df$cluster == 2]
-# t.test(k2.df$WBC[k2.df$cluster == 1], k2.df$WBC[k2.df$cluster == 2])
-# # t = 4.628, df = 138.86, p-value = 8.385e-06
-# 
-# k2.df$array.contemporary.CRP[k2.df$cluster == 1]
-# k2.df$array.contemporary.CRP[k2.df$cluster == 2]
-# t.test(k2.df$array.contemporary.CRP[k2.df$cluster == 1]
-#        ,k2.df$array.contemporary.CRP[k2.df$cluster == 2])
-# # t = 8.1468, df = 127.89, p-value = 2.92e-13
-# 
-# 
-# 
-# 
+gap_stat
+
+
+### K2
+k2.pal <- c("#f70d09", '#2909f7')
+set.seed(18)
+k2 <- kmeans(X.t, centers = 2, nstart = 25)
+k2$cluster <- as.factor(k2$cluster)
+
+table(k2$cluster, droplevels(status[idx,]$most_general))
+# table(k2$cluster, droplevels(status[idx,]$more_general))
+
+p<-ggplot(status[idx,], aes(most_general, fill=k2$cluster)) +
+  labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
+  scale_x_discrete(limits = positions)+
+  scale_fill_manual(values=k4.pal, 'Cluster')+
+  geom_bar()
+ggplotly(p)
+
+positions.more <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
+p<-ggplot(status[idx,], aes(more_general, fill=k2$cluster)) +
+  labs(title = "Barplot of Diagnostic Groups by Cluster", x = "Diagnosis", y = "Counts")+
+  scale_x_discrete(limits = positions.more)+
+  scale_fill_manual(values=k4.pal, 'Cluster')+
+  geom_bar()
+ggplotly(p)
+
+# 2D PCA Dx Group
+plot_ly(pair1, type="scatter", x = ~PC1, y = ~PC2, mode = "markers", color = ~k4$cluster, size = status[idx,]$Age..months.,
+        colors=k4.pal, text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  layout(title = 'Cluster Assignment on PC 1-2')
+
+# 3D PCA Dx Group
+plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~k4$cluster, size = status[idx,]$Age..months.,
+        colors = c(k4.pal), text= ~paste0('age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Cluster Assignment by PCA 1-2-3, Age Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
+plot_ly(pair3D[clean.idx,], x = ~PC1, y = ~PC2, z = ~PC3, color = ~k4$cluster[clean.idx],
+        colors = c(k4.pal), size = ~crp, text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2[clean.idx], '<br>Diagnosis: ',status[idx,]$Diagnosis[clean.idx])) %>%
+  add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+
+
+p1.wbc <- ggplot(status[idx,][clean.idx,], aes(most_general, WBC, fill=k4$cluster[clean.idx])) + geom_boxplot(position=position_dodge(width=0.8)) +
+  ylab('WBC Count') +
+  xlab('') +
+  scale_x_discrete(limits = positions[-5])+
+  scale_fill_manual(values=k4.pal, 'Cluster')+
+  ggtitle("Box Plot of Cluster WBC and CRP Count by Diagnosis")
+p2.crp <- ggplot(status[idx,][clean.idx,], aes(most_general, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])), fill=k4$cluster[clean.idx]))+
+  geom_boxplot(position=position_dodge(width=0.8)) +
+  ylab('CRP Count') +
+  xlab('Diagnosis') +
+  scale_x_discrete(limits = positions[-5])+
+  scale_fill_manual(values=k4.pal, 'Cluster')
+p <- gridExtra::grid.arrange(p1.wbc, p2.crp, nrow = 2)
+
+ggplot(status[idx,], aes(most_general, Age..months., fill=k4$cluster)) + geom_boxplot()+
+  scale_x_discrete(limits = positions)+
+  xlab('Diagnostic Group') +
+  ylab('Age') +
+  scale_fill_manual(values=k4.pal, 'Cluster')+
+  ggtitle("Age (months) by Diagnostic Group, Split by Cluster")
+
+
+
+# K4 analysis
+k4.df <- status[idx,][, c('category', 'my_category_2', 'most_general', 'more_general', 'site',
+                          'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+k4.df$cluster <- k4$cluster
+dim(k4.df)
+
+dim(k4.df[k4.df$most_general == 'bacterial',])
+k4.df[k4.df$most_general == 'bacterial',]
+
+ggplot(k4.df[k4.df$most_general == 'bacterial',], aes(cluster, fill=category)) +
+  labs(title = "Barplot of Microbiology Results by Cluster", x = "Diagnosis", y = "Counts")+
+  scale_fill_manual(values=c('#6c5ddd', '#dd5dbb'), 'Micro')+
+  geom_bar()
+ggplotly(p)
+
+# k4.df[1:5,(ncol(k4.df)-3): ncol(k4.df)]
+# k4.df$array.contemporary.CRP <- as.numeric(as.character(k4.df$array.contemporary.CRP))
+sum(k4.df$cluster == 2)
+sum(k4.df[k4.df$cluster == 2,]$category == 'E')
+sum(k4.df[k4.df$cluster == 2,]$category == 'F')
+
+sum(k4.df$cluster == 2 & k4.df$most_general == 'bacterial')
+sum(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category)
+sum(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category)
+sum(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category)
+sum(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category == 'E')/length(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 1 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 2 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 3 & k4.df$most_general == 'bacterial',]$category)
+
+sum(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category == 'E')
+length(k4.df[k4.df$cluster == 4 & k4.df$most_general == 'bacterial',]$category)
+
+prop.test(x = c(7, 13), n = c(9, 33),
+          alternative = "two.sided")
+
+a <- prop.test(x = c(14, 13), n = c(19, 33),
+               alternative = "two.sided", correct = TRUE)
+a
+a$estimate[1]+a$estimate[2]
+
+
+
+
 # ### K3
 # k3 <- kmeans(X.t[,results.hits], centers = 3, nstart = 25)
 # # str(k3)

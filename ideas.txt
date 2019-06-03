@@ -1,0 +1,41 @@
+general overview
+need more agnostic gene selection process to as to use for publication narative
+this can be achieved by using a HC vs all disease groups rather than multiple comparisons
+(Bct + greyb + greyv + virl + OD)/5 - HC
+this constructs a contrast matrix of disease vs HC where each disease contrbutes a portion to the comparison rather than the multiple 1 vs 1 comparison)
+
+this means the narative of your work has a disease agnostic component
+this means you dont get penalized by reviews saying of course you found that the clusters formed bct and vrl groups becuase you included genes that were
+sig differentiially expressed between those groups!
+
+however you still need to pair down some of the dimensionality of the gene expression data somehow without inviting this criticism.
+
+myrsinis idea is to use the above method to construct the contrast matrix and then combine this with a lenient p value and lfc so as to reduce dimensionality
+in a class agnostic manner.
+This means any results of clustering are purly becuase of real bio effect rather than because you are feeding the algo genes that are known to be sig.
+
+once you have used the healthy controls to construct the diff genes you can eliminate them from the clustering process as they will muddy the waters.
+
+
+boxplot inflam markers by cluster rather than by diagnostic group will make your point clearer.
+
+barplot of cluster with pathogen found proportions would be interesting
+
+t sne plots (perplexity)
+
+sweeney sepsis signature: could look at how this validates aginst our group.
+
+
+
+
+Myrsini long term view.
+
+data is out there.
+construct unsupervised clustering groups using disease agnostic groups from the above contrast matrix.
+check for effect within clusters either in terms of gram +ve gram -ve or pathogen or site infected
+
+then validate in validation cohort.
+
+= paper! publication
+
+
