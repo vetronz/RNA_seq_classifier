@@ -9,6 +9,7 @@ require(scales) # for percent
 library(gridExtra)
 library(dplyr)
 library(plotly)
+library(tidyr)
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -65,6 +66,9 @@ ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]
 table(droplevels(status[idx,]$most_general))
 table(droplevels(status[idx,]$more_general))
 
+dim(status[idx,])
+ggplot()
+
 dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
 counts <- c(52, 42, 5, 92, 62)
 data <- data.frame(dx, counts)
@@ -88,21 +92,21 @@ p
 # api_create(p, filename = "barplot_dx_breakdown_full")
 
 # sex
-# sex <- c('M', 'F')
-# bacterial <- c(22, 30)
-# greyb <- c(24,18)
-# greyv <- c(4,1)
-# viral <- c(65,27)
-# HC <- c(33,29)
-# df <- data.frame(bacterial, greyb, greyv, viral, HC)
-# df.2 <- mutate(df, sex = factor(c('M','F')))
-# df.3 <- gather(df.2, dx, count, -sex)
-# df.3
-# p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) + 
-#   geom_bar(position = "fill",stat = "identity")+
-#   scale_fill_manual(values=sex.cols)+
-#   labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
-# ggplotly(p)
+sex <- c('M', 'F')
+bacterial <- c(22, 30)
+greyb <- c(24,18)
+greyv <- c(4,1)
+viral <- c(65,27)
+HC <- c(33,29)
+df <- data.frame(bacterial, greyb, greyv, viral, HC)
+df.2 <- mutate(df, sex = factor(c('M','F')))
+df.3 <- gather(df.2, dx, count, -sex)
+df.3
+p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
+  geom_bar(position = "fill",stat = "identity")+
+  scale_fill_manual(values=sex.cols)+
+  labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
+ggplotly(p)
 # api_create(p, filename = "prop_plot_sex")
 
 dx.m <- c(22, 24, 4, 65, 33)
