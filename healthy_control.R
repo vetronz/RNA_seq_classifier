@@ -49,6 +49,26 @@ site.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', 
 cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc", '#16fc31', '#464647', "#165bfc")
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+boot <- 6
+lfc <- bootstraps[[boot]][1]
+pval <- bootstraps[[boot]][2]
+lfc
+pval
+
 idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
   status['most_general'] == 'greyb' |
@@ -86,9 +106,9 @@ length(idx)
 # greyu <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[3,])
 # greyv <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[4,])
 # viral <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[5,])
-# HC <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[6,])
+# # HC <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[6,])
 # 
-# df <- data.frame(bacterial, greyb, greyu, greyv, HC, viral)
+# df <- data.frame(bacterial, greyb, greyu, greyv, viral)
 # df
 # df.2 <- mutate(df, sex = factor(c('F','M')))
 # df.2
@@ -98,7 +118,7 @@ length(idx)
 #   geom_bar(position = "fill",stat = "identity")+
 #   scale_fill_manual(values=sex.cols)+
 #   labs(title = "Barplot Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
-# 
+
 
 # # age
 # ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$Age..months., fill = status[idx,]$most_general)) +
@@ -200,17 +220,17 @@ fit2 <- eBayes(fit2[keep,], trend = TRUE)
 dim(fit2)
 plotSA(fit2)
 
-bootstraps <- list(c(0, 1), c(0.25, 0.1), c(0.375, 0.1), c(0.5, 0.05), c(0.75, 0.05), c(1, 0.05))
-# 1) 35,000 2) 7,141 3) 4,060 4) 2,290 5) 823 6) 330
+bootstraps <- list(c(0, 1), # 1 full
+                   c(0.25, 0.1), # 2 7141
+                   c(0.375, 0.1), # 3
+                   c(0.5, 0.1), # 4 gap stat 6 (9 with p val 0.05)
+                   c(0.75, 0.05), # 5 gap stat of three
+                   c(1, 0.05)) # 6
 
-lfc <- bootstraps[[1]][1]
-pval <- bootstraps[[1]][2]
-lfc
-pval
 
 results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc)
 dim(results)
-head(results)
+# head(results)
 # summary(results)
 vennDiagram(results, include = 'both')
 # vennCounts(results, include = 'both')
@@ -359,14 +379,45 @@ pve[1:5]
 ### Clustering
 X.t <- t(X[results.tot,])
 dim(X.t)
-fviz_nbclust(X.t, kmeans, method = "wss")
-fviz_nbclust(X.t, kmeans, method = "silhouette")
-fviz_nbclust(X.t, kmeans, method = "gap_stat", nboot = 12)
+
+# fviz_nbclust(X.t, kmeans, method = "wss")
+# fviz_nbclust(X.t, kmeans, method = "silhouette")
+# fviz_nbclust(X.t, kmeans, method = "gap_stat", nboot = 12)
 
 # fviz_nbclust(X.t, cluster::fanny, method = "wss")
 # fviz_nbclust(X.t, cluster::fanny, method = "silhouette")
 # fviz_nbclust(X.t, cluster::fanny, method = "gap_stat")
 
+
+
+# k2.df <- status[idx,][, c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
+                          # 'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+
+# write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
+
+setwd('/home/patrick/Documents/RNA_seq_classifier/Data')
+clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = TRUE)
+
+
+k2.df$most_general <- as.character(k2.df$most_general)
+k2.df$most_general[k2.df$most_general == 'greyb'] <- 'probable bacterial'
+k2.df$most_general[k2.df$most_general == 'greyu'] <- 'unknown'
+k2.df$most_general[k2.df$most_general == 'greyv'] <- 'probable viral'
+k2.df$most_general <- as.factor(k2.df$most_general)
+
+
+k2.df$system <- clin$system
+k2.df$system.spec <- clin$system_spec
+k2.df$micro <- clin$micro
+k2.df$sepsis <- clin$sepsis
+
+k2.df$my_wbc <- clin$wbc
+k2.df$abs_neut <- clin$abs_neut
+k2.df$perc_neut <- clin$perc_neut
+k2.df$perc_lymph <- clin$perc_lymph
+k2.df$Path_1 <- clin$Path_1
+k2.df$Path_2 <- clin$Path_2
+k2.df$Path_3 <- clin$Path_3
 
 
 
@@ -415,8 +466,10 @@ k2.df$Path_1 <- clin$Path_1
 k2.df$Path_2 <- clin$Path_2
 k2.df$Path_3 <- clin$Path_3
 
-boot <- '.1.2'
-clus.boot <- paste0('clus', boot)
+
+clus.boot <-paste0('clus.', boot, '.2')
+clus.boot
+
 k2.df$clus <- k2$cluster # have to assign using clus then rename it
 colnames(k2.df)[ncol(k2.df)] <- clus.boot
 k2.df[clus.boot]
@@ -594,13 +647,17 @@ clus.1.2$Id <- seq(1: nrow(clus.1.2))
 
 # write.csv(clus.1.2, file = "clus.1.2.csv", row.names=TRUE)
 
+
+
+
 ############ K4 ############
 set.seed(47)
 k4 <- kmeans(X.t, centers = 4, nstart = 50)
 k4$cluster <- as.factor(k4$cluster)
 
-boot <- '.1.4'
-clus.boot <- paste0('clus', boot)
+clus.boot <-paste0('clus.', boot, '.4')
+clus.boot
+
 k2.df$clus <- k4$cluster # have to assign using clus then rename it
 colnames(k2.df)[ncol(k2.df)] <- clus.boot
 k2.df[clus.boot]
@@ -608,6 +665,10 @@ colnames(k2.df)
 
 table(k4$cluster, droplevels(k2.df$most_general)) # sanity check
 table(k2.df[[clus.boot]], droplevels(k2.df$most_general)) # sanity check
+
+View(k2.df)
+# getwd()
+# setwd('/home/patrick/Documents/RNA_seq_classifier/Data')
 
 cluster <- c(1, 2, 3, 4)
 clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
@@ -694,7 +755,6 @@ grid.arrange(p1, p2, ncol=2)
 #          xaxis = list(title = 'Diagnosis'),
 #          yaxis = list(title = 'CRP Count'))
 # p
-
 
 # K4 analysis
 table(k2.df[[clus.boot]], droplevels(k2.df$most_general))
@@ -790,11 +850,56 @@ View(clus.1.4)
 
 
 
+############ bootstraping ############
+# write.csv(k2.df, file = "k2.df_bootstrapping.csv", row.names=TRUE) # original bootstrap sample file
+# constructed conversion between clusters manually
+k2.df$clus.3.4_con <- ifelse(k2.df$clus.3.4 == 1, 4, ifelse(k2.df$clus.3.4 == 2, 3, ifelse(k2.df$clus.3.4 == 3, 2, ifelse(k2.df$clus.3.4 == 4, 1, 0))))
+k2.df$clus.4.4_con <- ifelse(k2.df$clus.4.4 == 1, 3, ifelse(k2.df$clus.4.4 == 2, 4, ifelse(k2.df$clus.4.4 == 3, 1, ifelse(k2.df$clus.4.4 == 4, 2, 0))))
+k2.df$clus.5.4_con <- ifelse(k2.df$clus.5.4 == 1, 3, ifelse(k2.df$clus.5.4 == 2, 2, ifelse(k2.df$clus.5.4 == 3, 4, ifelse(k2.df$clus.5.4 == 4, 1, 0))))
+k2.df$clus.6.4_con <- ifelse(k2.df$clus.6.4 == 1, 2, ifelse(k2.df$clus.6.4 == 2, 3, ifelse(k2.df$clus.6.4 == 3, 4, ifelse(k2.df$clus.6.4 == 4, 1, 0))))
+
+tot <- 239
+sum(k2.df$clus.1.4 == k2.df$clus.2.4)
+tot - sum(k2.df$clus.1.4 == k2.df$clus.2.4)
+
+sum(k2.df$clus.1.4 == k2.df$clus.3.4_con)
+tot - sum(k2.df$clus.1.4 == k2.df$clus.3.4_con)
+
+sum(k2.df$clus.1.4 == k2.df$clus.4.4_con)
+tot - sum(k2.df$clus.1.4 == k2.df$clus.4.4_con)
+
+sum(k2.df$clus.1.4 == k2.df$clus.5.4_con)
+tot - sum(k2.df$clus.1.4 == k2.df$clus.5.4_con)
+
+sum(k2.df$clus.1.4 == k2.df$clus.6.4_con)
+tot - sum(k2.df$clus.1.4 == k2.df$clus.6.4_con)
+
+b2 <- c(198, 41)
+b3 <- c(176, 63)
+b4 <- c(178, 61)
+b5 <- c(161, 78)
+b6 <- c(155, 84)
+df.1 <- data.frame(b2, b3, b4, b5, b6)
+df.1
+df.2 <- gather(df.1, boot, count)
+df.2
+
+df.3 <- mutate(df.2, cluster.assigned=rep(c('same', 'different'), times = 5))
+
+ggplot(df.3, aes(x = boot, y = count, fill = cluster.assigned)) +
+  geom_bar(position = "fill",stat = "identity")+
+  scale_fill_manual(values=cols[c(1,4)])+
+  labs(title = "Barplot Proportions of Bootstrap Samples with Same Cluster Assignment", x = "Bootstrap Sample", y = "Proportion")
 
 
 
 
-### K9
+
+
+
+
+
+############ K9 ############
 set.seed(47)
 n = 9
 cols = gg_color_hue(n)
