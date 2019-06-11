@@ -49,11 +49,7 @@ cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "
 
 
 
-boot <- 1
-lfc <- bootstraps[[boot]][1]
-pval <- bootstraps[[boot]][2]
-lfc
-pval
+
 
 idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
@@ -63,79 +59,100 @@ idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'HC'
 sum(idx)
 
-# outlier
-which(status$my_category_2 == 'bacterialgpos_19_SMH')
-status$my_category_2[28]
-idx[28]
-idx[28] <- FALSE
-idx[28]
-sum(idx)
-length(idx)
+# rename most_general
+status$most_general <- as.character(status$most_general)
+status$most_general[status$most_general == 'greyb'] <- 'probable bacterial'
+status$most_general[status$most_general == 'greyu'] <- 'unknown'
+status$most_general[status$most_general == 'greyv'] <- 'probable viral'
+status$most_general[status$most_general == 'HC'] <- 'healthy control'
+status$most_general <- as.factor(status$most_general)
 
-# 
+
+status.idx <- status[idx,]
+levels(status.idx$most_general)
+dx <- c('bacterial', 'probable bacterial', 'unknown', 'probable viral', 'viral', 'healthy control')
+status.idx$most_general <- factor(status.idx$most_general, levels = dx)
+
+levels(status[idx,]$most_general)
+levels(status.idx$most_general)
+
+# outlier
+# which(status$my_category_2 == 'bacterialgpos_19_SMH')
+# status$my_category_2[28]
+# idx[28]
+# idx[28] <- FALSE
+# idx[28]
+# sum(idx)
+# length(idx)
+
+#
 # ############ EDA ############
-# #Dx
-# ggplot(status[idx,], aes(status[idx,]$most_general, fill = status[idx,]$most_general)) +
-#   scale_color_manual(values=dx.cols.6) +
-#   labs(title="Barplot Diagnostics Groups",
-#        x ="", y = "Count") +
-#   scale_fill_discrete(name = "Dx") +
-#   geom_bar()
-# 
-# addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
+#Dx
+p<-ggplot(status.idx, aes(most_general, fill = most_general)) +
+  scale_color_manual(values=dx.cols.6) +
+  labs(title="Barplot Diagnostics Groups",
+       x ="", y = "Count") +
+  scale_fill_discrete(name = "Diagnostic Group") +
+  geom_bar()
+p
+api_create(p, filename = "barplot_dx_groups")
+addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
+
+
 
 #sex
-# sex <- c('F', 'M')
-# 
-# bacterial <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[1,])
-# greyb <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[2,])
-# greyu <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[3,])
-# greyv <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[4,])
-# viral <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[5,])
-# # HC <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[6,])
-# 
-# df <- data.frame(bacterial, greyb, greyu, greyv, viral)
-# df
-# df.2 <- mutate(df, sex = factor(c('F','M')))
-# df.2
-# df.3 <- gather(df.2, dx, count, -sex)
-# df.3
-# ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
-#   geom_bar(position = "fill",stat = "identity")+
-#   scale_fill_manual(values=sex.cols)+
-#   labs(title = "Barplot Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
+sex <- c('F', 'M')
+
+bacterial <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[1,])
+greyb <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[2,])
+greyu <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[3,])
+greyv <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[4,])
+viral <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[5,])
+
+# HC <- c(table(droplevels(status[idx,]$most_general), status[idx,]$Sex)[6,])
+
+df <- data.frame(bacterial, greyb, greyu, greyv, viral)
+df
+df.2 <- mutate(df, sex = factor(c('F','M')))
+df.2
+df.3 <- gather(df.2, dx, count, -sex)
+df.3
+ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
+  geom_bar(position = "fill",stat = "identity")+
+  scale_fill_manual(values=sex.cols)+
+  labs(title = "Barplot Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
 
 
 # # age
-# ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$Age..months., fill = status[idx,]$most_general)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot Age (months) Distributions by Diagnostic Groups",
-#        x ="", y = "Age") +
-#   scale_fill_discrete(name = "Dx") +
-#   geom_boxplot()
-# 
-# ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$Age..months., fill = status[idx,]$Sex)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot Age (months) Distributions by Gender",
-#        x ="", y = "Age") +
-#   scale_fill_manual(values=sex.cols, name = "Dx")+
-#   geom_boxplot()
-# 
+ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$Age..months., fill = status[idx,]$most_general)) +
+  # scale_fill_manual(values=dx.cols)+
+  labs(title="Boxplot Age (months) Distributions by Diagnostic Groups",
+       x ="", y = "Age") +
+  scale_fill_discrete(name = "Dx") +
+  geom_boxplot()
+
+ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$Age..months., fill = status[idx,]$Sex)) +
+  # scale_fill_manual(values=dx.cols)+
+  labs(title="Boxplot Age (months) Distributions by Gender",
+       x ="", y = "Age") +
+  scale_fill_manual(values=sex.cols, name = "Dx")+
+  geom_boxplot()
+#
 # # inflam
-# p1<-ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$WBC, fill = status[idx,]$most_general)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot WBC Distributions by Diagnostic Group",
-#        x ="", y = "WBC Count") +
-#   scale_fill_discrete(name = "Dx") +
-#   guides(fill=FALSE)+
-#   geom_boxplot()
-# p2<-ggplot(status[idx,], aes(x = status[idx,]$most_general, y = as.numeric(as.character(status[idx,]$array.contemporary.CRP)), fill = status[idx,]$most_general)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot CRP Distributions by Diagnostic Group",
-#        x ="", y = "CRP Count") +
-#   scale_fill_discrete(name = "Dx") +
-#   geom_boxplot()
-# grid.arrange(p1, p2, ncol=2)
+p1<-ggplot(status[idx,], aes(x = status[idx,]$most_general, y = status[idx,]$WBC, fill = status[idx,]$most_general)) +
+  # scale_fill_manual(values=dx.cols)+
+  labs(title="Boxplot WBC Distributions by Diagnostic Group",
+       x ="", y = "WBC Count") +
+  scale_fill_discrete(name = "Dx") +
+  guides(fill=FALSE)+
+  geom_boxplot()
+p2<-ggplot(status[idx,], aes(x = status[idx,]$most_general, y = as.numeric(as.character(status[idx,]$array.contemporary.CRP)), fill = status[idx,]$most_general)) +
+  # scale_fill_manual(values=dx.cols)+
+  labs(title="Boxplot CRP Distributions by Diagnostic Group",
+       x ="", y = "CRP Count") +
+  scale_fill_discrete(name = "Dx") +
+  geom_boxplot()
+grid.arrange(p1, p2, ncol=2)
 
 
 
@@ -214,6 +231,12 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(0.75, 0.05), # 5 gap stat of three
                    c(1, 0.05)) # 6
 
+
+boot <- 1
+lfc <- bootstraps[[boot]][1]
+pval <- bootstraps[[boot]][2]
+lfc
+pval
 
 results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc)
 dim(results)

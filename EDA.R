@@ -19,6 +19,13 @@ rm(list=setdiff(ls(), 'all'))
 load('esets.RData')
 ls()
 
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+n = 6
+cols = gg_color_hue(n)
+
 Sys.setenv("plotly_username"="vetronz1992")
 Sys.setenv("plotly_api_key"="Wtx9CzYqbl9iC8EzXp2B")
 
@@ -28,7 +35,7 @@ dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31','#38bc9d', '#55f1fc', '#0934f4', 
 sex.cols <- c('#fc1676', '#16acfc')
 
 
-positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+positions <- c('bacterial', 'greyb', 'unknown', 'greyv', 'viral', 'HC')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother', 'HC')
 
 
@@ -41,86 +48,88 @@ idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
   status['most_general'] == 'greyb' |
   status['most_general'] == 'greyv'|
+  status['most_general'] == 'greyu' |
   status['most_general'] == 'HC'
 sum(idx)
 
 
-which(as.character(status[idx,]$array.contemporary.CRP) == 'na')
-length(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'))
-
-which(status[idx,]$WBC == 0)
-clean<-union(which(as.character(status[idx,]$array.contemporary.CRP) == 'na'), which(status[idx,]$WBC == 0))
-
-clean.idx <- seq(1:nrow(status[idx,]))[-(clean)]
-wbc <- status[idx,]$WBC[clean.idx]
-crp <- as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx]))
-cor(wbc, crp)
-ggplot(status[idx,][clean.idx,], aes(x=WBC, as.numeric(as.character(status[idx,]$array.contemporary.CRP[clean.idx])))) +
-  geom_point(shape=1)+
-  geom_smooth(method=lm)
+# rename most_general
+status$most_general <- as.character(status$most_general)
+status$most_general[status$most_general == 'greyb'] <- 'probable bacterial'
+status$most_general[status$most_general == 'greyu'] <- 'unknown'
+status$most_general[status$most_general == 'greyv'] <- 'probable viral'
+status$most_general[status$most_general == 'HC'] <- 'healthy control'
+status$most_general <- as.factor(status$most_general)
 
 
+status.idx <- status[idx,]
+levels(status.idx$most_general)
+dx <- c('bacterial', 'probable bacterial', 'unknown', 'probable viral', 'viral', 'healthy control')
+status.idx$most_general <- factor(status.idx$most_general, levels = dx)
 
+# crp to numeric
+status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
 
-# Diagnosis Breakdown
-table(droplevels(status[idx,]$most_general))
-table(droplevels(status[idx,]$more_general))
+### Diagnosis Breakdown
+table(status.idx$most_general)
 
-dim(status[idx,])
-ggplot()
-
-dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
-counts <- c(52, 42, 5, 92, 62)
-data <- data.frame(dx, counts)
-p <- plot_ly(data, x = ~dx, y = ~counts, type = 'bar', marker = list(color = dx.cols)) %>%
+dx <- c('bacterial', 'probable bacterial', 'unknown', 'probable viral', 'viral', 'healthy control')
+# dx <- c('bacterial', 'greyb', 'greyv', 'viral', 'HC')
+counts <- table(status.idx$most_general)
+counts
+df.1 <- data.frame(dx, counts)
+df.1
+df.1$dx <- factor(df.1$dx, levels = dx)
+p <- plot_ly(df.1, x = ~dx, y = ~counts, type = 'bar', marker = list(color = cols)) %>%
   layout(title = 'Barplot of Diagnostic Group Breakdown',
          yaxis = list(title = 'Count'),
-         xaxis = list(title = 'Figure 1.2'),
+         xaxis = list(title = 'Figure XYZ'),
          barmode = 'group')
 p
 # api_create(p, filename = "barplot_dx_breakdown")
 
-dx <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
-counts <- c(52, 42, 5, 23, 23, 27, 19, 62)
-data <- data.frame(dx, counts)
-p <- plot_ly(data, x = ~dx, y = ~counts, type = 'bar', marker = list(color = dx.cols.f)) %>%
-  layout(title = 'Barplot of Diagnostic Group Breakdown',
-         yaxis = list(title = 'Count'),
-         xaxis = list(title = 'Diagnosis'),
-         barmode = 'group')
-p
+# dx <- c('bacterial', 'greyb', 'greyv', 'adeno', 'flu', 'RSV', 'viralother', 'HC')
+# counts <- c(52, 42, 5, 23, 23, 27, 19, 62)
+# data <- data.frame(dx, counts)
+# p <- plot_ly(data, x = ~dx, y = ~counts, type = 'bar', marker = list(color = dx.cols.f)) %>%
+#   layout(title = 'Barplot of Diagnostic Group Breakdown',
+#          yaxis = list(title = 'Count'),
+#          xaxis = list(title = 'Diagnosis'),
+#          barmode = 'group')
+# p
 # api_create(p, filename = "barplot_dx_breakdown_full")
 
-# sex
-sex <- c('M', 'F')
-bacterial <- c(22, 30)
-greyb <- c(24,18)
-greyv <- c(4,1)
-viral <- c(65,27)
-HC <- c(33,29)
-df <- data.frame(bacterial, greyb, greyv, viral, HC)
-df.2 <- mutate(df, sex = factor(c('M','F')))
-df.3 <- gather(df.2, dx, count, -sex)
-df.3
-p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
-  geom_bar(position = "fill",stat = "identity")+
-  scale_fill_manual(values=sex.cols)+
-  labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
-ggplotly(p)
-# api_create(p, filename = "prop_plot_sex")
+### sex
+table(status.idx$most_general, status.idx$Sex)[,1]
+table(status.idx$most_general, status.idx$Sex)
 
-dx.m <- c(22, 24, 4, 65, 33)
-dx.f <- c(30, 18, 1, 27, 29)
-df.3 <- data.frame(dx, dx.m, dx.f)
+sex <- c('F', 'M')
+df.1 <- cbind(table(status.idx$most_general, status.idx$Sex)[,1], table(status.idx$most_general, status.idx$Sex)[,2])
+colnames(df.1) <- sex
+# df.1
+df.2 <- as.data.frame(df.1)
+# df.2
+class(df.2)
+df.3 <- mutate(df.2, dx = dx)
+df.3$dx <- factor(df.3$dx, levels = dx)
 
-p <- plot_ly(df.3, x = ~dx, y = ~dx.m, type = 'bar', name = 'male', marker = list(color = '#16acfc')) %>%
-  add_trace(y = ~dx.f, name = 'female', marker = list(color = '#fc1676')) %>%
+p<- plot_ly(df.3, x = ~dx, y = ~F, type = 'bar', name = 'Female', marker = list(color = '#fc1676')) %>%
+  add_trace(y = ~M, name = 'Male', marker = list(color = '#16acfc')) %>%
   layout(title = 'Barplot of Diagnostic Group by Sex',
          yaxis = list(title = 'Count'),
-         xaxis = list(title = 'Figure 1.2'),
+         xaxis = list(title = 'Figure XYZ'),
          barmode = 'group')
-p
-api_create(p, filename = "prop_plot_sex")
+# api_create(p, filename = "barplot_dx_sex_dist")
+
+# df <- data.frame(bacterial, greyb, greyv, viral, HC)
+# df.2 <- mutate(df, sex = factor(c('M','F')))
+# df.3 <- gather(df.2, dx, count, -sex)
+# df.3
+# p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
+#   geom_bar(position = "fill",stat = "identity")+
+#   scale_fill_manual(values=sex.cols)+
+#   labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
+# ggplotly(p)
 
 table(status[idx,]$Sex)
 chisq.test(table(status[idx,]$Sex))
@@ -128,7 +137,64 @@ chisq.test(table(status[idx,]$Sex))
 addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 chisq.test(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 
+### Age Breakdown
+p <- ggplot(status.idx, aes(x = most_general, y=Age..months., fill=most_general))+
+  labs(title = "Box and Whisker Plot of Age Distributions by Diagnostic Group", x = "", y = "Age (months)")+
+  scale_fill_manual(values=cols, 'Diagnostic Group')+
+  geom_boxplot()
+ggplotly(p)
+api_create(p, filename = "box_whisker_age")
 
+
+# stats
+ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
+a <- as.data.frame(droplevels(status[idx,]$most_general))
+colnames(a) <- 'dx'
+a$age <-status[idx,]$Age..months.
+head(a)
+summary(a)
+b <- ddply(a,~dx)
+anova.res <- aov(age ~ dx, data = b)
+summary(anova.res)
+
+
+### Inflamatory Marker Breakdown
+# p<-plot_ly(status.idx, x = ~most_general, y = ~WBC,
+#         color = ~Sex, colors=c(sex.cols), type = "box") %>%
+#   layout(boxmode = "group",
+#          title = 'Box and Whisker Plot of WBC Count by Diagnostic Group, Split by Gender', 
+#          xaxis = list(title = 'Diagnosis'),
+#          yaxis = list(title = 'WBC Count'))
+# p
+p <- ggplot(status.idx, aes(x = most_general, y=WBC, fill=most_general))+
+  labs(title = "Box and Whisker Plot of WBC Distributions by Diagnostic Group", x = "", y = "WBC Count")+
+  scale_fill_manual(values=cols, 'Diagnostic Group')+
+  geom_boxplot()
+ggplotly(p)
+# api_create(p, filename = "box_whisker_wbc")
+
+# p<-plot_ly(status.idx, x = ~most_general, y = ~array.contemporary.CRP,
+#            color = ~Sex, colors=c(sex.cols), type = "box") %>%
+#   layout(boxmode = "group",
+#          title = 'Box and Whisker Plot of CRP Count by Diagnostic Group, Split by Gender', 
+#          xaxis = list(title = 'Diagnosis'),
+#          yaxis = list(title = 'CRP Count'))
+# p
+p <- ggplot(status.idx, aes(x = most_general, y=array.contemporary.CRP, fill=most_general))+
+  labs(title = "Box and Whisker Plot of CRP Distributions by Diagnostic Group", x = "", y = "CRP Count")+
+  scale_fill_manual(values=cols, 'Diagnostic Group')+
+  geom_boxplot()
+ggplotly(p)
+# api_create(p, filename = "box_whisker_crp")
+
+t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_general == 'bacterial'],
+       crp[status[idx,][clean.idx,]$Sex=='F' & status[idx,][clean.idx,]$most_general == 'bacterial'])
+# p-value = 0.6789
+# no stat sig difference in crp between males and females in bct group
+
+dim(status)
+dim(e.set[,idx])
+dim(status[idx,])
 
 
 ### site
@@ -169,94 +235,6 @@ api_create(p, filename = "barplot_recruitment")
 
 table(droplevels(status[idx,]$most_general), droplevels(status[idx,]$site))
 chisq.test(table(droplevels(status[idx,]$most_general), droplevels(status[idx,]$site)))
-
-
-
-plot.code <- ifelse(status[idx,]$most_general == 'bacterial', 1,
-       ifelse(status[idx,]$most_general == 'greyb', 2,
-              ifelse(status[idx,]$most_general == 'greyv', 3,
-                     ifelse(status[idx,]$most_general == 'viral', 4,
-                            ifelse(status[idx,]$most_general == 'HC', 5, 0)))))
-
-
-### Age Breakdown
-p<-plot_ly(status[idx,][order(plot.code),], x = ~droplevels(most_general), y = ~Age..months.,
-           color = status[idx,][order(plot.code),]$Sex, colors=c(sex.cols), type = "box",
-           text= ~paste0('<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis, '<br>Age: ', Age..months.)) %>%
-  layout(boxmode = "group",
-         title = 'Box and Whisker Plot of Age (momths) by Diagnostic Group, Split by Gender', 
-         xaxis = list(title = 'Diagnosis'),
-         yaxis = list(title = 'Age'))
-p
-# api_create(p, filename = "box_whisker_age")
-
-# check sums
-status[idx,][order(plot.code),] %>%
-  group_by(most_general, Sex) %>%
-  summarise(age.m = median(Age..months.))
-
-# stats
-ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
-a <- as.data.frame(droplevels(status[idx,]$most_general))
-colnames(a) <- 'dx'
-a$age <-status[idx,]$Age..months.
-head(a)
-summary(a)
-b <- ddply(a,~dx)
-anova.res <- aov(age ~ dx, data = b)
-summary(anova.res)
-
-
-
-### Inflamatory Marker Breakdown
-v <- status[idx,][clean.idx,]$most_general == 'bacterial' | status[idx,][clean.idx,]$most_general == 'greyb' |
-  status[idx,][clean.idx,]$most_general == 'greyv' | status[idx,][clean.idx,]$most_general == 'viral'
-status[idx,][clean.idx,][v,]
-
-p<-plot_ly(status[idx,][clean.idx,][v,], x = ~droplevels(status[idx,][clean.idx,][v,]$most_general), y = ~status[idx,][clean.idx,][v,]$WBC,
-        color = status[idx,][clean.idx,][v,]$Sex, colors=c(sex.cols), type = "box",
-        text= ~paste0('<br>label:', my_category_2, '<br>Age: ', Age..months., '<br>WBC: ', WBC, '<br>CRP: ', array.contemporary.CRP, '<br>Diagnosis: ',Diagnosis)) %>%
-  layout(boxmode = "group",
-         title = 'Box and Whisker Plot of WBC Count by Diagnostic Group, Split by Gender', 
-         xaxis = list(title = 'Diagnosis'),
-         yaxis = list(title = 'WBC Count'))
-p
-api_create(p, filename = "box_whisker_wbc")
-
-# check sums
-status[idx,][clean.idx,] %>%
-  group_by(most_general) %>%
-  summarise(crp.m = median(WBC))
-
-p<-plot_ly(status[idx,][clean.idx,][v,], x = ~droplevels(status[idx,][clean.idx,][v,]$most_general), y = ~as.numeric((as.character(status[idx,][clean.idx,][v,]$array.contemporary.CRP))),
-           color = status[idx,][clean.idx,][v,]$Sex, colors=c(sex.cols), type = "box",
-           text= ~paste0('<br>label:', my_category_2, '<br>Age: ', Age..months., '<br>WBC: ', WBC, '<br>CRP: ', array.contemporary.CRP, '<br>Diagnosis: ',Diagnosis)) %>%
-  layout(boxmode = "group",
-         title = 'Box and Whisker Plot of CRP Count by Diagnostic Group, Split by Gender', 
-         xaxis = list(title = 'Diagnosis'),
-         yaxis = list(title = 'CRP Count'))
-p
-api_create(p, filename = "box_whisker_crp")
-
-
-crp <- as.numeric(as.character(status[idx,][clean.idx,]$array.contemporary.CRP))
-crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_general == 'bacterial']
-crp[status[idx,][clean.idx,]$Sex=='F' & status[idx,][clean.idx,]$most_general == 'bacterial']
-
-t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_general == 'bacterial'],
-       crp[status[idx,][clean.idx,]$Sex=='F' & status[idx,][clean.idx,]$most_general == 'bacterial'])
-# p-value = 0.6789
-# no stat sig difference in crp between males and females in bct group
-
-dim(status)
-dim(e.set[,idx])
-dim(status[idx,])
-
-
-
-
-
-
 
 
 
