@@ -14,8 +14,6 @@ library(neuralnet)
 library(ROCR)
 library(tidyr)
 
-# note checkout lumi package
-
 getwd()
 setwd('/home/patrick/Code/R')
 # setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
@@ -51,19 +49,7 @@ cat.pal <- c("#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-boot <- 6
+boot <- 1
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 lfc
@@ -187,6 +173,7 @@ e.set[,idx][which(x_mean > 5)]
 dim(t(e.set[,idx][which(x_mean > 5),]))
 X <- e.set[,idx][which(x_mean > 5),]
 dim(X)
+
 
 ### DESIGN MATRIX
 # site

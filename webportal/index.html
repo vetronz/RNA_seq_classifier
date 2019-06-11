@@ -6,6 +6,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 		<link rel="stylesheet" href="assets/css/main.css" />
+		<!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous"> -->
 		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
 	</head>
 	<body class="is-preload">
@@ -32,11 +33,13 @@
 				<!-- Nav -->
 					<nav id="nav">
 						<ul class="links">
-							<li class="active"><a href="index.html">This is Massively</a></li>
-							<li><a href="generic.html">Generic Page</a></li>
+							<li class='active'><a href="index.html">Home</a></li>
+							<li><a href="intro.html">Intro</a></li>
 							<li><a href="methods.html">Methods</a></li>
-							<li><a href="elements.html">Elements Reference</a></li>
-							<li><a href="progress.html">Progress</a></li>
+							<li><a href="results.html">Results</a></li>
+							<li><a href="conclusion.html">Conclusion</a></li>
+							<li><a href="acknowledgements.html">Acknowledgements</a></li>
+							<li><a href="elements.html">elementss</a></li>
 						</ul>
 						<ul class="icons">
 							<li><a href="#" class="icon fa-twitter"><span class="label">Twitter</span></a></li>
@@ -46,9 +49,57 @@
 						</ul>
 					</nav>
 
-				<!-- Main -->
 					<div id="main">
+						<section> <!-- ABSTRACT LAY SUMMARY -->
+							<header>
+								<h2><a href="#">Lay Summary</a></h2>
+							</header>
+							<div class="box">
+								<p>The accurate diagnosis of unwell children still presents a major challenge to healthcare systems across the world. 
 
+										A principal concern of emergency doctors is to assess the likelihood of bacterial vs viral infections as they will necessitate different treatments.
+										Missed bacterial infections can lead to significant morbidity and even death. On the other hand overuse of antibiotics is a major concern because of the risk of development of multi-drug resistant pathogens.
+										This is a difficult issue to solve because clinical features do not reliable distinguish children suffering with bacterial vs viral infections.
+										
+										Recent work performed at the St Mary's research group has demonstrated the efficacy of using gene expression data from unwell patients to distinguish bacterial from viral infections.
+										A supervised machine learning model was trained using genes that were significantly different between the bacterial and viral cases.
+										
+										However bacterial and viral infections are both heterogeneous cohorts that are themselves composed of multiple different pathogens.
+										It is possible therefore that an unsupervised method could further subdivide the bacterial and viral cases into pathogen specific groups.
+										
+										This would be a useful finding because antibiotic therapy is most effective when targeted to a particular pathogen.</p>
+							</div>
+							<header>
+									<h2><a href="#">Abstract</a></h2>
+								</header>
+								<div class="box">
+									<p>
+											Transcriptomic signatures can be used to distinguish bacterial from viral infection with a high degree of accuracy jama paper (https://jamanetwork.com/journals/jama/fullarticle/2545687)
+											
+											Clinicians can then use this information to guide theraputic decisions reducing the chance of missing bacterial infections and minimising unnecessery use of antibiotics in patients with viral infections.
+											
+											However antibiotic therapy is most effective when used to target a specific pathogen. 
+											It is possible that using a fully unsupervised approach distinct subclasses would emerge that would be characterized by the type of pathogen.
+											
+											objective
+											to subdivide that transcriptomic data from febrile children in order to identify biologically relevant subclasses that could be used to guide treatment.
+											
+											methods
+											I have used K means clustering to optimally partition 35,970 transcripts from 239 febrile children and 62 health controls who presented to participating hospitals in the United Kingdom, Spain, the Netherlands, and the United States between 2009-2013.
+											
+											results
+											Cluster assignment of patents to 4 clusters shows a statistically significant relationship between the the cluster assignment and the causative pathogen.
+											This is particularly eveident with meningococcal disease with X number assigned to cluster Y.
+											
+											Interestingly those 2/3 cases not assigned to the consensus cluster appeared to be suffering from co-infection which explained the transcriptomic deviation.
+											
+											conclusion
+											Fully unsupervised clustering of transcriptomic data from febrile children is able to identify clinically meaningful subgroups that are determined by the causative organism.
+											This implications of this are that in addition to discrimination bacterial from viral cases, trascriptomic signatures could be used to identify pathogen specific infections.
+											This would enable earlier initiation of microbial targeted antibiotic therapy with the potential to improve clinical outcome.</p>
+								</div>
+						</section>
+						
 						<!-- Featured Post -->
 							<article class="post featured">
 								<header class="major">
@@ -222,6 +273,8 @@
 			<script src="assets/js/breakpoints.min.js"></script>
 			<script src="assets/js/util.js"></script>
 			<script src="assets/js/main.js"></script>
-
+			<!-- <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script> -->
+			<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script> -->
+			<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script> -->
 	</body>
 </html>
