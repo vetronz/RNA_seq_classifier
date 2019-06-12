@@ -1,0 +1,11 @@
+Euclidian distance
+d_{euc}(x,y) = \sqrt[2]{\sum_{i=1}^n(xi-yi)^2}
+
+# Hartigan-Wong algorithm (1979). Minimise:
+sum of squared Euclidean distances between items and the corresponding centroid
+W(C_k)=\sum_{x_i\setx \in C_k}(x_i-\mu_k)^2
+
+
+tot.withiness = \sum_{k=1}^kW(C_k) = \sum_{k=1}^k\sum_{x_i\setx \in C_k}(x_i-\mu_k)^2
+
+https://csdn.codecogs.com/eqneditor/editor.php

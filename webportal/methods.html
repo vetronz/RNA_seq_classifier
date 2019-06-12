@@ -21,11 +21,15 @@
 				<!-- Nav -->
 					<nav id="nav">
 						<ul class="links">
-							<li><a href="index.html">This is Massively</a></li>
-							<li><a href="generic.html">Generic Page</a></li>
+							<li><a href="index.html">Home</a></li>
+							<li><a href="intro.html">Intro</a></li>
 							<li class="active"><a href="methods.html">Methods</a></li>
-							<li><a href="elements.html">Elements Reference</a></li>
-							<li><a href="progress.html">Progress</a></li>
+							<li><a href="results.html">Results</a></li>
+							<li><a href="conclusion.html">Conclusion</a></li>
+							<li><a href="acknowledgements.html">Acknowledgements</a></li>
+							<!-- <li class="active"><a href="generic.html">Generic Page</a></li> -->
+
+							<!-- <li><a href="elements.html">Elements Reference</a></li> -->
 						</ul>
 						<ul class="icons">
 							<li><a href="#" class="icon fa-twitter"><span class="label">Twitter</span></a></li>
@@ -36,211 +40,108 @@
 					</nav>
 
 				<!-- Main -->
-					<div id="main">
+                <div id="main">
+				<section class="post">
+						<header class="major">
+							<h1>Data Preparation</h1>
+						</header>
+						<p>
+							I begin by filtering the microarray data based on mean expression. There is a risk when analysing microarray data that transcripts with low expression levels have a higher tendency to contribute noise rather than valid biological signal. Figure 4 below shows the relationship between log2 mean transcript expression on the X axis against log2 transcript variance on the y axis for the 47,323 genes in the dataset. The vertical line indicates a mean transcript expression of 5. The initial trend we see is that the transcript variance decreases as mean expression increases up until the threshold of 5.
+							This indicates there is higher variability in the transcript results and potentially greater uncertanty, for genes that had lower expression levels. Excluding transcripts from down stream analysis whos mean expression was below the threshold reduces the chance that patients will be clustered based on erroneous transcripts whos variance was a product of low expression rather than biology.
+							The cutoff of a mean expression of 5 was chosen based on domain knowledge and appears coherent with the trend seen in the Figure 4.
+							Additionally excluding genes with lower mean expression will mean an increased ability to detect differentially expressed genes when using a Semi-Supervised approach becuase of the reduced number of tests that need to be adjusted for in multiple test correction.
+							Following this procedure 35,970 genes remained for analysis.
+						</p>
+						<span class="image fit"><img src="images/mean_variance_scatter.png" alt="" /></span>
+					</section>					
+					<section class="post">
+						<header class="major">
+							<h1>Unsupervised<br>Clustering</h1>
+						</header>
+						<h2>K-Means Clustering</h2>
+						<p>
+							In the fully unsupervised stream I have used the K-means clustering algorithm to find the optimal cluster assignment for each patient based on the full 35,970 transcripts.
+							Healthy control cases have been removed in the fully unsupervised stream since they were included in order to establish the list of differentially expressed genes between health and disease. As I am clustering based on all transcripts there is no need to select differentially expressed genes and hence I can remove the controls leaving 239 patients in the sample.
+							I have chosen to use the Euclidian distance metric, defined in Figure XYZ below, to represent the (dis)similarity between pairs of observations x and y.
+						</p>
+						<div class="box alt">
+							<div class="row gtr-100 gtr-uniform">
+								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/euclidian_distance.svg" alt="" /></span></div>
+							</div>
+						</div>
 
-							<!-- <section class="post">
-								<header class="major">
-									<h1>Exploratory<br> Data Analysis</h1>
-								</header>
-								<iframe src="https://plot.ly/~vetronz1992/17/.embed"
-									height="600" width="90%"
-									scrolling="yes" seamless="seamless"
-									frameBorder="0">
-								</iframe>
-							</section> -->
-							<section class="post">
-								<header class="major">
-									<h1>PCA</h1>
-								</header>
-								<iframe src="https://plot.ly/~vetronz1992/29/#/.embed"
-									height="600" width="90%"
-									scrolling="yes" seamless="seamless"
-									frameBorder="0">
-								</iframe>
-								<iframe src="https://plot.ly/~vetronz1992/33.embed"
-									height="600" width="90%"
-									scrolling="yes" seamless="seamless"
-									frameBorder="0">
-								</iframe>
-							</section>
-							<section class="post">
-									<header class="major">
-										<h1>Barplot Microbiology</h1>
-									</header>
-									<iframe src="https://plot.ly/~vetronz1992/43.embed"
-										height="600" width="90%"
-										scrolling="yes" seamless="seamless"
-										frameBorder="0">
-									</iframe>
-							</section>
-							<section class="post">
-								<header class="major">
-									<h1>PCA Clustering K9</h1>
-								</header>
-								<iframe src="https://plot.ly/~vetronz1992/45/#/.embed"
-									height="600" width="90%"
-									scrolling="yes" seamless="seamless"
-									frameBorder="0">
-								</iframe>
-							</section>
-							
+						<p>The basic intuition of the K-means algorithm is to define clusters so that the within cluster variation is minimized. The within cluster variation is defined as the sum of squared Euclidian distances between items and the centroid to which they have been assigned:</p>
+						<div class="box alt">
+							<div class="row gtr-100 gtr-uniform">
+								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/sum_squares.svg" alt="" /></span></div>
+							</div>
+						</div>
+						<p>where:
+							<ul>
+								<li>x<sub>i</sub> is a data point belonging to the cluster C<sub>k</sub></li>
+								<li>μ<sub>k</sub> is the mean value of the points assigned to the cluster C</li>
+							</ul>
+						</p>
+						<p>Each observation x<sub>i</sub> is assigned to a given cluster so that the sum of squared distances between the observation and their assigned cluster centers μ<sub>k</sub> is minimized.</p>
+						<p>By summing over all the K clusters we compute the total sum squares.</p>
+						<div class="box alt">
+							<div class="row gtr-100 gtr-uniform">
+								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/tot_sum_squares.svg" alt="" /></span></div>
+							</div>
+						</div>
+						<h2>Optimal Number of Clusters</h2>
+						<div class="box alt">
+							<div class="row gtr-50 gtr-uniform">
+								<div class="col-12">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz1992/64/#/.embed"
+											height="400" width="100%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>								
+								<div class="col-6">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz1992/66/#/.embed"
+											height="400" width="100%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>
+								<div class="col-6">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz1992/68/#/.embed"
+											height="400" width="100%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>
+							</div>
+						</div>
 
-						<section class="post">
-							<header class="major">
-								<h1>Exploratory<br> Data Analysis</h1>
-							</header>
-							<p>
-								The MegaExperiment Dataset kindly provided by Dr Kaforou is composed of 656 patients with clinical data recorded for each of 23 variables.
-								Gene expression data has been recorded for each patient using Illumina HumanHT-12 v4 Expression BeadChip resulting in measurement of 47,323 transcripts after filtering and normalization.
+					</section>
 
-								From this data set I extracted a subset of patients with definite bacterial, probable bacterial (greyb), definite viral, probable viral (greyv) and healthy controls (HC) resulting in a data set of 253 patients.
-								A subset of the clinical data for these patients is show in Table 1.
-							</p>
-							<iframe src="https://plot.ly/~vetronz1992/17/.embed"
-								height="500" width="100%"
-								scrolling="yes" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							Table 1 - Summary of clinical data from the MegaExperiment patient subset. Site details the recreutment site, Age the patient age in months, Sex the patient gender, WBC the peak patietn white blood cell count, CRP the peak patient C reactive protein, Presentation the clinical description.
-							<br>
-						</section>
+					<section class="post">
+						<header class="major">
+							<h1>Semi-Supervised<br>Clustering</h1>
+						</header>							
+					</section>					
+                </div>
+                
 
-						<section class="post">
-							<iframe src="https://plot.ly/~vetronz1992/19/.embed"
-								height="400" width="50%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<iframe src="https://plot.ly/~vetronz1992/11/.embed"
-								height="400" width="45	%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<br>
-							<p>Figure 1.1 shows the breakdown of patients within diagnostic groups according to recruitment site. 52 patients were classified as definite bacterial following culture of bacterial organism from a normally sterile site in context of systemic illness. 42 patients were classified as probable bacterial if they had a clinically suspicious presentation with a CRP of greater than 60 but without a positive culture. 92 patients were classified as definite viral if viral swabs were positive for an organism that matched the clinical presentation. 5 patients had a viral presentation but had no virues identified on swabs and were classified as probable viral infections. 62 health controls were also included. Recruitment was not balanced across sites with respect to diagnosis with 100% of viral cases coming from the UCSD cohort and the healthy controls cominng from the CHW cohort.</p>
-							<p>Figure 1.2 shows the breakdown of gender between these diagnostic groups. 148 boys were recruited and 105 girls. Unusually there was a predomenance of girls within the bacterial cohort with boys outnumbering girls in all other diagnostic groups. A Chi-Squared statistic of 12.90 was associated with a p-value of 0.012 indicating that gender was potentially playing a role in determining diagnositc groups and would need to be corrected for in downsteam analysis. </p>
-
-
-							<iframe src="https://plot.ly/~vetronz1992/21/.embed"
-								height="400" width="95	%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<iframe src="https://plot.ly/~vetronz1992/23/.embed"
-								height="400" width="45	%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<iframe src="https://plot.ly/~vetronz1992/25/.embed"
-								height="400" width="45	%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-						</section>
-						<section class="post">
-							<br>
-							<iframe src="https://plot.ly/~vetronz1992/1/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<br>
-							<iframe src="https://plot.ly/~vetronz1992/3/.embed"
-								height="700" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-						</section>
-						<section class="post">
-							<br>
-							<iframe src="https://plot.ly/~vetronz1992/27/#/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<br>
-							<iframe src="https://plot.ly/~vetronz1992/29/#/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<iframe src="https://plot.ly/~vetronz1992/33/#/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<br>
-							<iframe src="https://plot.ly/~vetronz1992/31/#/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<iframe src="https://plot.ly/~vetronz1992/35/#/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-							<iframe src="https://plot.ly/~vetronz1992/37/#/.embed"
-								height="600" width="90%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-						</section>
-						
-
-						<!-- <section class="post">
-							<iframe src="https://plot.ly/~vetronz1992/7/.embed"
-								height="600" width="80%"
-								scrolling="no" seamless="seamless"
-								frameBorder="0">
-							</iframe>
-						</section> -->
-					</div>
-
-			
 				<!-- Footer -->
 					<footer id="footer">
-						<section>
-							<form method="post" action="#">
-								<div class="fields">
-									<div class="field">
-										<label for="name">Name</label>
-										<input type="text" name="name" id="name" />
-									</div>
-									<div class="field">
-										<label for="email">Email</label>
-										<input type="text" name="email" id="email" />
-									</div>
-									<div class="field">
-										<label for="message">Message</label>
-										<textarea name="message" id="message" rows="3"></textarea>
-									</div>
-								</div>
-								<ul class="actions">
-									<li><input type="submit" value="Send Message" /></li>
-								</ul>
-							</form>
-						</section>
+					
 						<section class="split contact">
-							<section class="alt">
-								<h3>Address</h3>
-								<p>1234 Somewhere Road #87257<br />
-								Nashville, TN 00000-0000</p>
-							</section>
-							<section>
-								<h3>Phone</h3>
-								<p><a href="#">(000) 000-0000</a></p>
-							</section>
-							<section>
-								<h3>Email</h3>
-								<p><a href="#">info@untitled.tld</a></p>
-							</section>
 							<section>
 								<h3>Social</h3>
 								<ul class="icons alt">
-									<li><a href="#" class="icon alt fa-twitter"><span class="label">Twitter</span></a></li>
+									<!-- <li><a href="#" class="icon alt fa-twitter"><span class="label">Twitter</span></a></li>
 									<li><a href="#" class="icon alt fa-facebook"><span class="label">Facebook</span></a></li>
-									<li><a href="#" class="icon alt fa-instagram"><span class="label">Instagram</span></a></li>
+									<li><a href="#" class="icon alt fa-instagram"><span class="label">Instagram</span></a></li> -->
 									<li><a href="#" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
 								</ul>
 							</section>

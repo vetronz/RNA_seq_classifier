@@ -131,29 +131,30 @@ p<- plot_ly(df.3, x = ~dx, y = ~F, type = 'bar', name = 'Female', marker = list(
 #   labs(title = "Barplot of Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
 # ggplotly(p)
 
-table(status[idx,]$Sex)
-chisq.test(table(status[idx,]$Sex))
+table(status.idx$Sex)
+chisq.test(table(status.idx$Sex))
+chisq.test(table(status.idx$most_general, status.idx$Sex))
 
-addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
-chisq.test(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
 
 ### Age Breakdown
 p <- ggplot(status.idx, aes(x = most_general, y=Age..months., fill=most_general))+
   labs(title = "Box and Whisker Plot of Age Distributions by Diagnostic Group", x = "", y = "Age (months)")+
   scale_fill_manual(values=cols, 'Diagnostic Group')+
-  geom_boxplot()
+  geom_boxplot(outlier.shape = NA)
 ggplotly(p)
-api_create(p, filename = "box_whisker_age")
+# api_create(p, filename = "box_whisker_age")
 
 
 # stats
-ddply(status[idx,], ~most_general, summarise, mean=mean(Age..months.))
-a <- as.data.frame(droplevels(status[idx,]$most_general))
+ddply(status.idx, ~most_general, summarise, mean=median(Age..months.))
+a <- as.data.frame(status.idx$most_general)
+a
 colnames(a) <- 'dx'
-a$age <-status[idx,]$Age..months.
+a$age <-status.idx$Age..months.
 head(a)
 summary(a)
-b <- ddply(a,~dx)
+b <- ddply(a, ~dx)
+b
 anova.res <- aov(age ~ dx, data = b)
 summary(anova.res)
 
@@ -186,6 +187,7 @@ p <- ggplot(status.idx, aes(x = most_general, y=array.contemporary.CRP, fill=mos
   geom_boxplot()
 ggplotly(p)
 # api_create(p, filename = "box_whisker_crp")
+
 
 t.test(crp[status[idx,][clean.idx,]$Sex=='M' & status[idx,][clean.idx,]$most_general == 'bacterial'],
        crp[status[idx,][clean.idx,]$Sex=='F' & status[idx,][clean.idx,]$most_general == 'bacterial'])
@@ -240,6 +242,8 @@ chisq.test(table(droplevels(status[idx,]$most_general), droplevels(status[idx,]$
 
 ####### PCA #######
 # full pca
+dim(e.set[,idx])
+
 full.pca <- prcomp(t(e.set[,idx]), scale=TRUE)
 
 # filter pca
@@ -295,15 +299,23 @@ p
 # api_create(p, filename = "2d_pca")
 
 # most_gen 3D
-p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~droplevels(status[idx,]$most_general), size = status[idx,]$Age..months.,
-             colors=c(dx.cols), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
+             # symbol = ~status.idx$my_category_2 == 'bacterialgpos_19_SMH', symbols = c('circle','x'),
+             colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>Sex: ', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', as.numeric(as.character(status.idx$array.contemporary.CRP)), '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
   add_markers() %>%
   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 p
-# api_create(p, filename = "3d_pca")
+
+# status.idx$my_category_2
+
+# which(status.idx$my_category_2 == 'bacterialgpos_19_SMH')
+
+  
+# symbol = ~ifelse(k2.df$micro == 'meningococcal', 'meningococcal', 'other'), symbols = c('x','circle')
+# api_create(p, filename = "3d_pca_unfiltered")
 
 # # category
 # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,

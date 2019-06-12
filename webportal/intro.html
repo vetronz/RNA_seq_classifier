@@ -43,7 +43,7 @@
                 <div id="main">
 					<section class="post">
 							<header class="major">
-								<h1>Exploratory <br>Data Analysis</h1>
+								<h1>The Dataset</h1>
 							</header>
 							<p>The dataset kindly provided by Dr Kaforou was composed of 302 children who had presented febrile (with a fever)to participating hospitals in the United Kingdom, Spain, the Netherlands, and the United States between 2009-2013. 
 							Clinical parameters were recorded for each of 23 variables which ranged from basic demographic data such as age and sex to results of blood tests.
@@ -63,60 +63,88 @@
 
 							<span class="image fit"><img src="images/diagnostic_groups.svg" alt="diagnostic groups" /></span>
 							<p style="font-size: small;"><b>Figure 1 - Classification of patients into diagnostic groups. Patients with a positive bacterial culture or positive viral swab in the context of a clinically consistent syndrome were assigned to definite bacterial or definite viral respectively. Intermediate cases were resolved using the inflamatory markers (CRP and neutrophil count). Patients with CRP > 60 were assigned to probable bacterial. Patients with CRP < 60 and neutrophil count < 12 were assigned probable viral. The remainder were allocated to the unknown group.</b></p>
+							
+					</section>
 
-							<br>
-
-							<div class="box alt">
-									<div class="row gtr-50 gtr-uniform">
-										<div class="col-6">
-											<span class="image fit">
-												<iframe src="https://plot.ly/~vetronz1992/49/.embed"
-													height="400" width="93%"
-													scrolling="yes" seamless="seamless"
-													frameBorder="0">
-												</iframe>
-											</span>
-										</div>
-										<div class="col-6">
-											<span class="image fit">
-												<iframe src="https://plot.ly/~vetronz1992/51/.embed"
-													height="400" width="100%"
-													scrolling="yes" seamless="seamless"
-													frameBorder="0">
-												</iframe>
-											</span>
-										</div>
-										<div class="col-6">
-											<span class="image fit">
-												<iframe src="https://plot.ly/~vetronz1992/55/.embed"
-													height="400" width="100%"
-													scrolling="yes" seamless="seamless"
-													frameBorder="0">
-												</iframe>
-											</span>
-										</div>
-										<div class="col-6">
-											<span class="image fit">
-												<iframe src="https://plot.ly/~vetronz1992/57/.embed"
-													height="400" width="100%"
-													scrolling="yes" seamless="seamless"
-													frameBorder="0">
-												</iframe>
-											</span>
-										</div>
-									
-										<!-- Break -->
-										<div class="col-12"><span class="image fit"><img src="images/pic04.jpg" alt="" /></span></div>
-										<!-- Break -->
-										<div class="col-4"><span class="image fit"><img src="images/pic03.jpg" alt="" /></span></div>
-										<div class="col-4"><span class="image fit"><img src="images/pic04.jpg" alt="" /></span></div>
-										<div class="col-4"><span class="image fit"><img src="images/pic02.jpg" alt="" /></span></div>
+					<section class="post">
+						<header class="major">
+							<h1>Exploratory <br>Data Analysis</h1>
+						</header>
+						<h3>Clinical Data</h3>
+						<p>The 302 patients were broken down into 52 definite bacterial cases, 42 probable bacterial cases, 49 unknown cases, 5 probable viral cases, 92 definite viral cases and 62 healthy controls as seen in Figure 2.1. Gender distributions between the 6 groups is seen in Figure 2.2 which shows an overal male predominance with 182 male cases against 120 female cases. Males outnumbered females in every groups with the exception of the definite bacterial cases which had 30 females and 22 males. This represents a deviation from the normal situation in which boys are at a slightly higher risk of bacterial infection. A Chi-squared test indicated that gender proportion differences were statistically significant with a p-value of 0.00036 and would need to be taken into account for downstream analysis.
+						</p>
+						<div class="box alt">
+								<div class="row gtr-50 gtr-uniform">
+									<div class="col-6">
+										<span class="image fit">
+											<iframe src="https://plot.ly/~vetronz1992/49/.embed" 
+												height="400" width="93%"
+												scrolling="yes" seamless="seamless"
+												frameBorder="0">
+											</iframe>
+										</span>
+									</div>
+									<div class="col-6">
+										<span class="image fit">
+											<iframe src="https://plot.ly/~vetronz1992/51/.embed"
+												height="400" width="100%"
+												scrolling="yes" seamless="seamless"
+												frameBorder="0">
+											</iframe>
+										</span>
+									</div>
+									<div class="col-12">
+										<span class="image fit">
+											<iframe src="https://plot.ly/~vetronz1992/53/.embed"
+												height="400" width="100%"
+												scrolling="yes" seamless="seamless"
+												frameBorder="0">
+											</iframe>
+										</span>
+									</div>									
+									<div class="col-6">
+										<span class="image fit">
+											<iframe src="https://plot.ly/~vetronz1992/55/.embed"
+												height="400" width="100%"
+												scrolling="yes" seamless="seamless"
+												frameBorder="0">
+											</iframe>
+										</span>
+									</div>
+									<div class="col-6">
+										<span class="image fit">
+											<iframe src="https://plot.ly/~vetronz1992/57/.embed"
+												height="400" width="100%"
+												scrolling="yes" seamless="seamless"
+												frameBorder="0">
+											</iframe>
+										</span>
+									</div>
+									<p>In Figure 2.3 we see the age distributions in months between the diagnostic groups. Analysis of variance showed a statistically significant difference in age between the diagnostic groups with a p-value of 0.0107 and similarly would need to be taken into accound when considering differentially expressed genes in downstream analysis.</p>
+						
+									<p>Figure 2.3 and 2.4 show the inflammatory marker breakdown by diagnostic group. Inflammatory such as WBC (white blood cell count) and CRP (C reactive protein) are elevated during an inflammatory process such as a bacterial infection. As expected higher levels are seen in the bacterial and probable bacterial cases relative to the other diagnostic groups. Since these biomarkers are reflecting the underlying pathalogical process I will not adjust for them when selecting differentially expressed genes in the analysis. It is worth noting that the distirbution of inflammatory markers between bacterial and probable bacterial infection is strikingly similar, confirming our initial suspicion that at significant majority of probable bacterial cases represented genuine bacterial infection.</p>
+									<br>
+									<h3>Micro Array Data</h3>
+									For each of the 302 patients included in the analysis gene expression data has been recorded using Illumina HumanHT-12 v4 Expression BeadChip resulting in the measurement of 47,323 transcripts after filtering and normalization.
+									In order to visualize how the microarray data partitioned the diagnostic groups I used PCA (Principal Component Analysis) to reduce the dimentionality of the transcript data.
+									Figure 3 below shows how the diagnostic groups separated on the 3 top prinicpal components. The majority of the variance is captured by the first principal component which explains 10.26% of the variability in the microarray data. Generally the bacterial and probable bacterial cases were separated from the healthy controls on the first principal component with the viral cases spread evenly througout the plot.
+									However one bacterial outlier is evident as the most extreme point on the first principal component at the opposite side to the other bacterial cases.
+									This 5 month old girl had just diagnosed with HLH (Hemophagocytic lymphohistiocytosis), a genetic disease which inactivates part of the bodys immune response. As such she would fail to mount a typical immune response to bacterial infection explaining the abnormal microarray expression. To prevent confounding the downstream analysis I removed her from the dataset leaving 301 patients in total.
+									<div class="col-12">
+										<span class="image fit">
+											<iframe src="https://plot.ly/~vetronz1992/60/#/.embed"
+												height="600" width="100%"
+												scrolling="yes" seamless="seamless"
+												frameBorder="0">
+											</iframe>
+										</span>
 									</div>
 								</div>
+							</div>						
 					</section>
                 </div>
                 
-                    
+
 				<!-- Footer -->
 					<footer id="footer">
 					
