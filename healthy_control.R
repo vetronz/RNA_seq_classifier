@@ -32,41 +32,38 @@ gg_color_hue <- function(n) {
 n = 5
 cols = gg_color_hue(n)
 
-n = 10
-cols.10 = gg_color_hue(n)
+n = 8
+cols.8 = gg_color_hue(n)
 
-dx.cols.2 <- c("#ed0404", "#165bfc")
-dx.cols <- cols[1:5]
-dx.cols.6 <- cols
+n = 14
+cols.14 = gg_color_hue(n)
 
-dx.cols.f <- c("#ed0404", "#fc5716", '#16fc31','#38bc9d', '#55f1fc', '#0934f4', '#ac04f9', "#bc38ab")
+dx.cols <- c('#D81D22', '#FF3A3A', '#AD4187' , '#776BB9' , '#4A8AC3', '#32A46A')
 sex.cols <- c('#fc1676', '#16acfc')
-k7.pal <- c("#ed0404", "#fc5716", '#16fc31', '#55f1fc', '#0452f9', '#7304f9', '#f904e9')
 
-positions <- c('bacterial', 'greyb', 'greyv', 'viral', 'greyu')
-positions.f <- c('bacterial', 'greyb', 'greyv', 'greyu', 'adeno', 'flu', 'RSV', 'viralother')
-
+clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
 
 
 
 # ### supervised
-# idx <- status['most_general'] == 'bacterial' |
-#   status['most_general'] == 'viral' |
-#   status['most_general'] == 'greyb' |
-#   status['most_general'] == 'greyv'|
-#   status['most_general'] == 'greyu' |
-#   status['most_general'] == 'HC'
-# sum(idx)
-# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
-
-### unsup
 idx <- status['most_general'] == 'bacterial' |
   status['most_general'] == 'viral' |
   status['most_general'] == 'greyb' |
   status['most_general'] == 'greyv'|
-  status['most_general'] == 'greyu'
+  status['most_general'] == 'greyu' |
+  status['most_general'] == 'HC'
 sum(idx)
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
+
+# ### unsup
+# idx <- status['most_general'] == 'bacterial' |
+#   status['most_general'] == 'viral' |
+#   status['most_general'] == 'greyb' |
+#   status['most_general'] == 'greyv'|
+#   status['most_general'] == 'greyu'
+# sum(idx)
+# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
+
 
 ### outlier
 which(status$my_category_2 == 'bacterialgpos_19_SMH')
@@ -77,11 +74,6 @@ idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
 
 status.idx <- status[idx,]
 status.idx$most_general
-# ### outlier
-# which(status.idx$my_category_2 == 'bacterialgpos_19_SMH')
-# status.idx <- status.idx[-c(which(status.idx$my_category_2 == 'bacterialgpos_19_SMH')),]
-# which(status.idx$my_category_2 == 'bacterialgpos_19_SMH')
-# dim(status.idx)
 
 
 # rename most_general
@@ -89,7 +81,7 @@ status.idx$most_general <- as.character(status.idx$most_general)
 status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
 status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
 status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
-# status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
+status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
 
 status.idx$most_general <- as.factor(status.idx$most_general)
 
@@ -100,13 +92,12 @@ levels(status.idx$most_general)
 
 status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
 
-
+dim(status.idx)
 # # ############ EDA ############
 p<-ggplot(status.idx, aes(most_general, fill = most_general)) +
-  scale_color_manual(values=dx.cols.6) +
+  scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
   labs(title="Barplot Diagnostics Groups",
-       x ="", y = "Count") +
-  scale_fill_discrete(name = "Diagnostic Group") +
+  x ="", y = "Count") +
   geom_bar()
 p
 p+theme(axis.text=element_text(size=12))
@@ -120,9 +111,10 @@ probable_bacterial <- c(table(status.idx$most_general, status.idx$Sex)[2,])
 unknown <- c(table(status.idx$most_general, status.idx$Sex)[3,])
 probable_viral <- c(table(status.idx$most_general, status.idx$Sex)[4,])
 viral <- c(table(status.idx$most_general, status.idx$Sex)[5,])
-healthy_control <- c(table(status.idx$most_general, status.idx$Sex)[6,])
+# healthy_control <- c(table(status.idx$most_general, status.idx$Sex)[6,])
 
-df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral, healthy_control)
+df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral)
+# df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral, healthy_control)
 df
 df.2 <- mutate(df, sex = factor(c('F','M')))
 df.2
@@ -139,10 +131,9 @@ p+theme(axis.text=element_text(size=12))
 
 # # age
 p<-ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$Age..months., fill = status.idx$most_general)) +
-  # scale_fill_manual(values=dx.cols)+
+  scale_fill_manual(values=dx.cols, name = "Diagnostic Group")+
   labs(title="Boxplot of Age (months) by Diagnostic Groups",
        x ="", y = "Age") +
-  scale_fill_discrete(name = "Diagnostic Group") +
   geom_boxplot()
 p+theme(axis.text=element_text(size=12))
 
@@ -158,7 +149,7 @@ p1<-ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$WBC, fill
   # scale_fill_manual(values=dx.cols)+
   labs(title="Boxplot WBC Distributions by Diagnostic Group",
        x ="", y = "WBC Count") +
-  scale_fill_discrete(name = "Diagnostic Groups") +
+  scale_fill_manual(values=dx.cols, name = "Diagnostic Groups") +
   guides(fill=FALSE)+
   geom_boxplot()
 p1 <- p1+theme(axis.text=element_text(size=11))
@@ -166,10 +157,12 @@ p2<-ggplot(status.idx, aes(x = status.idx$most_general, y = as.numeric(as.charac
   # scale_fill_manual(values=dx.cols)+
   labs(title="Boxplot CRP Distributions by Diagnostic Group",
        x ="", y = "CRP Count") +
-  scale_fill_discrete(name = "Diagnostic Groups") +
+  scale_fill_manual(values=dx.cols, name = "Diagnostic Groups") +
   geom_boxplot()
 p2<-p2+theme(axis.text=element_text(size=8))
 grid.arrange(p1, p2, ncol=2)
+
+
 
 ############ LIMMA ############
 e.set.f <- as.data.frame(e.set[,idx])
@@ -246,7 +239,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(1, 0.05)) # 6
 
 
-boot <- 1
+boot <- 6
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 lfc
@@ -282,7 +275,7 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
   geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
-  labs(title="Volcano Plot of Log Fold Change Against -log10 P Value",
+  labs(title="Volcano Plot of Log Fold Change Against -log10 P Value Boot=5",
        x ="Log Fold Change", y = "log10 P-value")
 p
 
@@ -307,7 +300,7 @@ dim(results)
 results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
 
 dim(X[results.tot,])
-
+dim(X.t)
 # # PCA
 full.pca <- prcomp(X.t, scale=TRUE) # unsupervised
 # full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
@@ -413,7 +406,7 @@ p
 
 
 
-### Clustering
+############ Clustering ############
 # p<-fviz_nbclust(X.t, kmeans, method = "wss")
 # p<-ggplotly(p)
 # api_create(p, filename = "opt_cluster_tss_boot1")
@@ -452,7 +445,11 @@ k2.df$Path_1 <- clin$Path_1
 k2.df$Path_2 <- clin$Path_2
 k2.df$Path_3 <- clin$Path_3
 
+k2.df$Path_1[is.na(k2.df$Path_1)] <- 'unknown'
+k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
 # View(k2.df)
+
+
 
 ### K2
 # n = 5
@@ -461,14 +458,6 @@ k2.pal <- c(cols[c(1,4)])
 set.seed(47)
 k2 <- kmeans(X.t, centers = 2, nstart = 50)
 k2$cluster <- as.factor(k2$cluster)
-
-# Construction: get the full demographics into dataframe
-# clin2 <- read.table('Mega_sub2_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = FALSE)
-# dim(clin2)
-# a <- c(1, 19, 27, 28, 33, 34, 84, 85) # barcode, Dx,  wbc, abs_neut, perc_neut, perc_lymp, dx_1, dx_2
-# clin2[clin2$V1 == '9423641116_B', a] # search clin2 using barcode
-# View(clin)
-
 
 clus.boot <-paste0('clus.', boot, '.2')
 clus.boot
@@ -482,18 +471,23 @@ colnames(k2.df)
 dx_clus.1.2 <- addmargins(table(k2.df[[clus.boot]], k2.df$most_general))
 # write.csv(dx_clus.1.2, file = "dx_clus.1.2.csv", row.names=TRUE)
 
+dim(k2.df)
+
+p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
+  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+  scale_fill_manual(values=dx.cols)+
+  geom_bar()
+p + guides(fill=guide_legend(title="Diagnostic Groups"))
+
 cluster <- c(1, 2)
 clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
 clus2<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[2,]
-
 df.1 <- data.frame(clus1, clus2)
 df.1
-
 df.2 <- mutate(df.1, Diagnostic_Group=factor(levels(k2.df$most_general)))
 df.2
 df.3 <- gather(df.2, cluster, count, -Diagnostic_Group)
 df.3
-
 p<-ggplot(df.3, aes(x = cluster, y = count, fill = Diagnostic_Group)) +
   geom_bar(position = "fill",stat = "identity")+
   labs(title = "Barplot of Diagnostic Group Proportions by Cluster", x = "Cluster", y = "Proportion")
@@ -525,18 +519,20 @@ grid.arrange(p1, p2, ncol=2)
 # api_create(p1, filename = "boxplot_wbc_clus.1.2")
 # api_create(p2, filename = "barplot_crp_clus.1.2")
 
-# ggplot inflam
-p1<-ggplot(k2.df, aes(x = k2.df[[clus.boot]], y = k2.df$WBC, fill=most_general)) +
-  scale_fill_manual(values=cols, name = 'Diagnostic Group')+
-  labs(title="Boxplot of WBC Counts by Diagnostic Groups",
+
+k2.df$more_general[k2.df$more_general == 'bacterial']
+p1<-ggplot(k2.df[k2.df$more_general == 'bacterial',], aes(x = k2.df[[clus.boot]][k2.df$more_general == 'bacterial'], y = k2.df$WBC[k2.df$more_general == 'bacterial'], fill=k2.df$more_general[k2.df$more_general == 'bacterial'])) +
+  scale_fill_manual(values=dx.cols, name = 'Diagnostic Group')+
+  labs(title="Boxplot of WBC Counts in Bacterial Cases",
        x ="Cluster", y = "WBC Count") +
+  guides(fill=FALSE)+
   geom_boxplot()
-p2<-ggplot(k2.df, aes(x = k2.df[[clus.boot]], y = k2.df$array.contemporary.CRP, fill=most_general)) +
-  scale_fill_manual(values=cols, name = 'Diagnostic Group')+
-  labs(title="Boxplot of CRP Counts by Diagnostic Groups",
+p2<-ggplot(k2.df[k2.df$more_general == 'bacterial',], aes(x = k2.df[[clus.boot]][k2.df$more_general == 'bacterial'], y = k2.df$array.contemporary.CRP[k2.df$more_general == 'bacterial'], fill=k2.df$more_general[k2.df$more_general == 'bacterial'])) +
+  scale_fill_manual(values=dx.cols, name = 'Diagnostic Group')+
+  labs(title="Boxplot of CRP Counts in Bacterial Cases",
        x ="Cluster", y = "CRP Count") +
   geom_boxplot()
-grid.arrange(p1, p2, nrow=2)
+grid.arrange(p1, p2, ncol=2)
 
 # p1<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(x = k2.df[[clus.boot]][k2.df$most_general == 'bacterial'],
 #                                                           y = k2.df[k2.df$most_general == 'bacterial',]$WBC, fill = k2.df[[clus.boot]][k2.df$most_general == 'bacterial'])) +
@@ -598,18 +594,14 @@ p
 # p
 
 
-# K2 analysis
-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))
-table(k2.df[[clus.boot]], k2.df$system)
-table(k2.df[[clus.boot]], k2.df$system.spec)
-table(k2.df[[clus.boot]], k2.df$micro)
-table(k2.df[[clus.boot]], k2.df$sepsis)
-
-# system
+### system
 p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=system)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+  labs(title = "Barplot of Infection System by Cluster in Bacterial Cases K=2", x = "", y = "Counts")+
+  scale_fill_manual(values = cols.10[c(4:10)])+
   geom_bar()
-ggplotly(p)
+p
+
+# ggplotly(p)
 
 cluster <- c(1, 2)
 clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[1,]
@@ -624,7 +616,7 @@ df.3
 p<-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
   geom_bar(position = "fill",stat = "identity")+
   # scale_fill_manual(values=dx.cols.f)+
-  labs(title = "Barplot of Organ System Infection Proportions by Cluster", x = "Cluster", y = "Proportion")
+  labs(title = "Barplot of Infection System in Bacterial Cases K=2", x = "Cluster", y = "Proportion")
 p
 ggplotly(p)
 # api_create(p, filename = "barplot_system_prop_clus.1.2")
@@ -635,8 +627,10 @@ ggplotly(p)
 
 # micro
 p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=Path_1)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+  labs(title = "Barplot of Microbioloty by Cluster in Bacterial Cases K=2", x = "", y = "Counts")+
+  scale_fill_manual(values = cols.14[c(2:14)], name = "Microbe")+
   geom_bar()
+p
 ggplotly(p)
 
 cluster <- c(1, 2)
@@ -743,18 +737,18 @@ table(k4$cluster, droplevels(k2.df$most_general)) # sanity check
 table(k2.df[[clus.boot]], droplevels(k2.df$most_general)) # sanity check
 
 dx_clus.1.4 <- addmargins(table(k2.df[[clus.boot]], droplevels(k2.df$most_general)))
-write.csv(dx_clus.1.4, file = "dx_clus.1.4.csv", row.names=TRUE)
+# write.csv(dx_clus.1.4, file = "dx_clus.1.4.csv", row.names=TRUE)
 
 View(k2.df)
 # getwd()
 # setwd('/home/patrick/Documents/RNA_seq_classifier/Data')
 
-# system
 p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+  labs(title = "Barplot of Diagnostic Groups by Cluster K=4", x = "", y = "Counts")+
+  scale_fill_manual(values = dx.cols, name = 'Diagnostic_Groups')+
   geom_bar()
-ggplotly(p)
-
+p
+# ggplotly(p)
 cluster <- c(1, 2, 3, 4)
 clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
 clus2<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[2,]
@@ -784,13 +778,13 @@ ggplot(k2.df, aes(k2.df[[clus.boot]], k2.df$Age..months., fill=k2.df[[clus.boot]
 
 #inflam
 p1<-ggplot(k2.df, aes(x = k2.df[[clus.boot]], y = k2.df$WBC, fill = k2.df[[clus.boot]])) +
-  scale_fill_manual(values=cols)+
+  scale_fill_manual(values=cols.10[c(6,9,3,7)])+
   labs(title="Boxplot WBC Distributions by Cluster",
        x ="Cluster", y = "WBC Count") +
   guides(fill=FALSE)+
   geom_boxplot()
 p2<-ggplot(k2.df, aes(x = k2.df[[clus.boot]], y = as.numeric(as.character(k2.df$array.contemporary.CRP)), fill = k2.df[[clus.boot]])) +
-  scale_fill_manual(values=cols, name = 'Cluster')+
+  scale_fill_manual(values=cols.10[c(6,9,3,7)])+
   labs(title="Boxplot CRP Distributions by Cluster",
        x ="Cluster", y = "CRP Count") +
   geom_boxplot()
@@ -868,7 +862,8 @@ table(k2.df[[clus.boot]], k2.df$sepsis)
 
 # system
 ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=system)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+  labs(title = "Barplot of Infection System by Cluster in Bacterial Cases K=4", x = "", y = "Counts")+
+  scale_fill_manual(values = cols.10[c(4:10)])+
   geom_bar()
 
 ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=ifelse(k2.df[k2.df$most_general == 'bacterial',]$sepsis, 'septic', 'non-septic'))) +
@@ -897,13 +892,16 @@ ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
 
 # micro
 ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=ifelse(k2.df[k2.df$most_general == 'bacterial',]$category == 'E', 'Gram +ve', 'Gram -ve'))) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
-  scale_fill_manual(values=cols[c(5,4)], name = 'Micro')+
+  labs(title = "Barplot of Microbioloty by Cluster in Bacterial Cases K=4", x = "", y = "Counts")+
+  scale_fill_manual(values = cols.14[c(2,10)], name = "Microbe")+
   geom_bar()
 
-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=micro)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=Path_1)) +
+  labs(title = "Barplot of Microbioloty by Cluster in Bacterial Cases K=4", x = "", y = "Counts")+
+  scale_fill_manual(values = cols.14[c(2:14)], name = "Microbe")+
   geom_bar()
+p
+
 
 clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$micro[k2.df$most_general == 'bacterial'])[1,]
 clus2 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$micro[k2.df$most_general == 'bacterial'])[2,]
@@ -930,7 +928,7 @@ plot_ly(pair1, x = ~PC1, y = ~PC2, color = ~k2.df[[clus.boot]], size = ~k2.df$ar
         colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', k2.df$WBC, '<br>CRP: ', as.numeric(as.character(k2.df$array.contemporary.CRP)), '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
         symbol = ~ifelse(k2.df$micro == 'meningococcal', 'meningococcal', 'other'), symbols = c('x','circle')) %>%
   add_markers() %>%
-  layout(title = 'PC 1of Diagnostic Groups',
+  layout(title = 'PC 1-2 Meningococcal Cluster Assignment',
          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
 
@@ -944,10 +942,10 @@ plot_ly(pair2, x = ~PC3, y = ~PC4, color = ~k2.df[[clus.boot]], size = ~k2.df$ar
 
 
 ### TABLES FOR PRES ###
-View(k2.df[k2.df$micro == 'meningococcal',])
-clus.1.4 <- k2.df[k2.df$micro == 'meningococcal',][c('my_category_2', 'Diagnosis', 'system', 'Path_1', 'Path_2', 'clus.1.2', 'clus.1.4')]
+# View(k2.df[k2.df$micro == 'meningococcal',])
+clus.1.4 <- k2.df[k2.df$micro == 'meningococcal',][c('Age', 'Sex', 'WBC', 'array.contemporary.CRP', 'Path_1', 'Path_2', 'clus.1.2')]
 clus.1.4 <- clus.1.4[order(clus.1.4$clus.1.2),]
-View(clus.1.4)
+# View(clus.1.4)
 # write.csv(clus.1.4, file = "mening_clus.1.4.csv", row.names=TRUE)
 
 
@@ -955,34 +953,38 @@ View(clus.1.4)
 
 ############ bootstraping ############
 # write.csv(k2.df, file = "k2.df_bootstrapping.csv", row.names=TRUE) # original bootstrap sample file
+
+bs <- read.table('k2.df_bootstrapping.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = TRUE)
+View(bs)
 # constructed conversion between clusters manually
-k2.df$clus.3.4_con <- ifelse(k2.df$clus.3.4 == 1, 4, ifelse(k2.df$clus.3.4 == 2, 3, ifelse(k2.df$clus.3.4 == 3, 2, ifelse(k2.df$clus.3.4 == 4, 1, 0))))
-k2.df$clus.4.4_con <- ifelse(k2.df$clus.4.4 == 1, 3, ifelse(k2.df$clus.4.4 == 2, 4, ifelse(k2.df$clus.4.4 == 3, 1, ifelse(k2.df$clus.4.4 == 4, 2, 0))))
-k2.df$clus.5.4_con <- ifelse(k2.df$clus.5.4 == 1, 3, ifelse(k2.df$clus.5.4 == 2, 2, ifelse(k2.df$clus.5.4 == 3, 4, ifelse(k2.df$clus.5.4 == 4, 1, 0))))
-k2.df$clus.6.4_con <- ifelse(k2.df$clus.6.4 == 1, 2, ifelse(k2.df$clus.6.4 == 2, 3, ifelse(k2.df$clus.6.4 == 3, 4, ifelse(k2.df$clus.6.4 == 4, 1, 0))))
+
+bs$clus.3.4_con <- ifelse(bs$clus.3.4 == 1, 4, ifelse(bs$clus.3.4 == 2, 3, ifelse(bs$clus.3.4 == 3, 2, ifelse(bs$clus.3.4 == 4, 1, 0))))
+bs$clus.4.4_con <- ifelse(bs$clus.4.4 == 1, 3, ifelse(bs$clus.4.4 == 2, 4, ifelse(bs$clus.4.4 == 3, 1, ifelse(bs$clus.4.4 == 4, 2, 0))))
+bs$clus.5.4_con <- ifelse(bs$clus.5.4 == 1, 3, ifelse(bs$clus.5.4 == 2, 2, ifelse(bs$clus.5.4 == 3, 4, ifelse(bs$clus.5.4 == 4, 1, 0))))
+bs$clus.6.4_con <- ifelse(bs$clus.6.4 == 1, 2, ifelse(bs$clus.6.4 == 2, 3, ifelse(bs$clus.6.4 == 3, 4, ifelse(bs$clus.6.4 == 4, 1, 0))))
 
 tot <- 239
-sum(k2.df$clus.1.4 == k2.df$clus.2.4)
-tot - sum(k2.df$clus.1.4 == k2.df$clus.2.4)
+sum(bs$clus.1.4 == bs$clus.2.4)
+tot - sum(bs$clus.1.4 == bs$clus.2.4)
 
-sum(k2.df$clus.1.4 == k2.df$clus.3.4_con)
-tot - sum(k2.df$clus.1.4 == k2.df$clus.3.4_con)
+sum(bs$clus.1.4 == bs$clus.3.4_con)
+tot - sum(bs$clus.1.4 == bs$clus.3.4_con)
 
-sum(k2.df$clus.1.4 == k2.df$clus.4.4_con)
-tot - sum(k2.df$clus.1.4 == k2.df$clus.4.4_con)
+sum(bs$clus.1.4 == bs$clus.4.4_con)
+tot - sum(bs$clus.1.4 == bs$clus.4.4_con)
 
-sum(k2.df$clus.1.4 == k2.df$clus.5.4_con)
-tot - sum(k2.df$clus.1.4 == k2.df$clus.5.4_con)
+sum(bs$clus.1.4 == bs$clus.5.4_con)
+tot - sum(bs$clus.1.4 == bs$clus.5.4_con)
 
-sum(k2.df$clus.1.4 == k2.df$clus.6.4_con)
-tot - sum(k2.df$clus.1.4 == k2.df$clus.6.4_con)
+sum(bs$clus.1.4 == bs$clus.6.4_con)
+tot - sum(bs$clus.1.4 == bs$clus.6.4_con)
 
-b2 <- c(198, 41)
-b3 <- c(176, 63)
-b4 <- c(178, 61)
-b5 <- c(161, 78)
-b6 <- c(155, 84)
-df.1 <- data.frame(b2, b3, b4, b5, b6)
+b1 <- c(198, 41)
+b2 <- c(176, 63)
+b3 <- c(178, 61)
+b4 <- c(161, 78)
+b5 <- c(155, 84)
+df.1 <- data.frame(b1, b2, b3, b4, b5)
 df.1
 df.2 <- gather(df.1, boot, count)
 df.2
@@ -991,8 +993,8 @@ df.3 <- mutate(df.2, cluster.assigned=rep(c('same', 'different'), times = 5))
 
 ggplot(df.3, aes(x = boot, y = count, fill = cluster.assigned)) +
   geom_bar(position = "fill",stat = "identity")+
-  scale_fill_manual(values=cols[c(1,4)])+
-  labs(title = "Barplot Proportions of Bootstrap Samples with Same Cluster Assignment", x = "Bootstrap Sample", y = "Proportion")
+  scale_fill_manual(values=c('#0CE60C','#E10BA0'), name='Assignment')+
+  labs(title = "Barplot of Bootstrap Samples Assigned to Same Cluster", x = "Bootstrap Sample", y = "Proportion")
 
 
 
@@ -1001,154 +1003,6 @@ ggplot(df.3, aes(x = boot, y = count, fill = cluster.assigned)) +
 
 
 
-
-############ K9 ############
-set.seed(47)
-n = 9
-cols = gg_color_hue(n)
-
-k9 <- kmeans(X.t, centers = 9, nstart = 100)
-k9$cluster <- as.factor(k9$cluster)
-k2.df$clus.9 <- k9$cluster
-
-table(k2.df$clus.9, droplevels(status[idx,]$most_general))
-
-ggplot(status[idx,], aes(k9$cluster, fill=most_general)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=9", x = "", y = "Counts")+
-  scale_fill_manual(values=dx.cols, 'Dx')+
-  geom_bar()
-
-ggplot(status[idx,], aes(k9$cluster, Age..months., fill=k9$cluster)) + geom_boxplot()+
-  # scale_x_discrete(limits = positions)+
-  xlab('Diagnostic Group') +
-  ylab('Age') +
-  # scale_fill_manual(values=cols)+
-  ggtitle("Age (months) by Cluster")
-
-#inflam
-p1<-ggplot(status[idx,], aes(x = k9$cluster, y = status[idx,]$WBC, fill = k9$cluster)) +
-  scale_fill_manual(values=cols, name = 'Dx')+
-  labs(title="Boxplot WBC Distributions by Cluster",
-       x ="Cluster", y = "WBC Count") +
-  guides(fill=FALSE)+
-  geom_boxplot()
-p2<-ggplot(status[idx,], aes(x = k9$cluster, y = as.numeric(as.character(status[idx,]$array.contemporary.CRP)), fill = k9$cluster)) +
-  scale_fill_manual(values=cols, name = 'Dx')+
-  labs(title="Boxplot CRP Distributions by Cluster",
-       x ="Cluster", y = "CRP Count") +
-  geom_boxplot()
-grid.arrange(p1, p2, ncol=2)
-
-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(clus.9, as.numeric(k2.df[k2.df$most_general == 'bacterial',]$abs_neut), fill=clus.9)) +
-  scale_fill_manual(values=cols, name = 'Dx')+
-  labs(title="Boxplot Absolute Neutrophil Count Distributions of Definite Bacterials within Clusters",
-       x ="Cluster", y = "Absolute Neutrophil Count") +
-  geom_boxplot()
-
-p1<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(clus.9, as.numeric(k2.df[k2.df$most_general == 'bacterial',]$perc_neut), fill=clus.9)) +
-  scale_fill_manual(values=cols, name = 'Cluster')+
-  labs(title="Boxplot WBC Percent Neutrophil Distributions of Definite Bacterials within Clusters",
-       x ="Cluster", y = "Neutrophil Percentage") +
-  geom_boxplot()
-p2<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(clus.9, as.numeric(k2.df[k2.df$most_general == 'bacterial',]$perc_lymph), fill=clus.9)) +
-  scale_fill_manual(values=cols, name = 'Cluster')+
-  labs(title="Boxplot WBC Percent Lymphocyte Distributions of Definite Bacterials within Clusters",
-       x ="Cluster", y = "Lymphocyte Percent") +
-  geom_boxplot()
-grid.arrange(p1, p2, ncol=2)
-
-# system
-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(clus.9, fill=system)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
-  geom_bar()
-
-cluster <- c(1, 2, 3, 4, 5, 6, 7, 8, 9)
-clus1 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[1,]
-clus2 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[2,]
-clus3 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[3,]
-clus4 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[4,]
-clus5 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[5,]
-clus6 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[6,]
-clus7 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[7,]
-clus8 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[8,]
-clus9 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[9,]
-
-df.1 <- data.frame(clus1, clus2, clus3, clus4, clus5, clus6, clus7, clus8, clus9)
-df.1
-df.2 <- mutate(df.1, system=factor(rownames(df.1)))
-df.2
-df.3 <- gather(df.2, cluster, count, -system)
-df.3
-
-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
-  geom_bar(position = "fill",stat = "identity")+
-  # scale_fill_manual(values=dx.cols.f)+
-  labs(title = "Barplot of Infection System Proportions by Cluster", x = "Cluster", y = "Proportion")
-
-
-# micro
-p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(clus.9, fill=Path_1)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
-  geom_bar()
-ggplotly(p)
-
-clus1 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[1,]
-clus2 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[2,]
-clus3 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[3,]
-clus4 <- table(k2.df$clus.9[k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[4,]
-df.1 <- data.frame(clus1, clus2, clus3, clus4)
-df.1
-df.2 <- mutate(df.1, system=factor(rownames(df.1)))
-df.2
-df.3 <- gather(df.2, cluster, count, -system)
-df.3
-
-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
-  geom_bar(position = "fill",stat = "identity")+
-  # scale_fill_manual(values=dx.cols.f)+
-  labs(title = "Barplot of Microbiology Proportions by Cluster", x = "Diagnosis", y = "Proportion")
-
-
-
-# pca vis of clustering
-plot_ly(pair1, x = ~PC1, y = ~PC2, color = ~k2.df$clus.9,
-        colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
-        symbol = ~ifelse(k2.df$most_general == 'bacterial', 'bct', 'other'), symbols = c('x','circle')) %>%
-  add_markers() %>%
-  layout(title = 'PCA of Diagnostic Groups',
-         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-         yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-
-plot_ly(pair2, x = ~PC3, y = ~PC4, color = ~k2.df$clus.9,
-        colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
-        symbol = ~ifelse(k2.df$most_general == 'bacterial', 'bct', 'other'), symbols = c('x','circle')) %>%
-  add_markers() %>%
-  layout(title = 'PCA of Diagnostic Groups',
-         xaxis = list(title = paste0("PC1: (", round(pve[3],2), '%)')),
-         yaxis = list(title = paste0("PC2: (", round(pve[4],2), '%)')))
-
-
-plot_ly(pair1, x = ~PC1, y = ~PC2, color = ~k2.df$clus.9,
-        colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
-        symbol = ~k2.df$micro == 'meningococcal', symbols = c('circle','x')) %>%
-  add_markers() %>%
-  layout(title = 'PCA of Diagnostic Groups',
-         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-         yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-
-plot_ly(pair2, x = ~PC3, y = ~PC4, color = ~k2.df$clus.9,
-        colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
-        symbol = ~k2.df$micro == 'meningococcal', symbols = c('circle','x')) %>%
-  add_markers() %>%
-  layout(title = 'PCA of Diagnostic Groups',
-         xaxis = list(title = paste0("PC1: (", round(pve[3],2), '%)')),
-         yaxis = list(title = paste0("PC2: (", round(pve[4],2), '%)')))
-
-
-# lookup bacterial outliers
-sum(k2.df$most_general == 'bacterial' & k2.df$clus.4 == 1) # bacterials assigned clus.4 == 1
-# View(k2.df[k2.df$most_general == 'bacterial' & k2.df$clus.4 == 1,])
-View(k2.df[k2.df$most_general == 'bacterial',])
 
 
 
@@ -1184,7 +1038,12 @@ ggplot(data=df.4, aes(x=cluster, y=count, fill=Diagnosis)) +
 
 
 
-
+# Construction: get the full demographics into dataframe
+# clin2 <- read.table('Mega_sub2_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = FALSE)
+# dim(clin2)
+# a <- c(1, 19, 27, 28, 33, 34, 84, 85) # barcode, Dx,  wbc, abs_neut, perc_neut, perc_lymp, dx_1, dx_2
+# clin2[clin2$V1 == '9423641116_B', a] # search clin2 using barcode
+# View(clin)
 
 
 # end
