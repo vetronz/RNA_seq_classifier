@@ -45,7 +45,7 @@
                                 <h1>Unsupervised<br>Clustering</h1>
                             </header>
                             <h1>K=2</h1>
-                            
+                            <p>The results of K-means clustering with 2 clusters is showin in Figure XYZ below. Cluster one has a higher percentage of bacterial and probable bacterial cases with 32 of 51 bacterial cases and 23 of 42 probable bacterial cases. Unknown cases were split evenly between the 2 clusters. The majority of viral cases, 65 of 92, were assigned to cluster 2 wuth just 27 being assinged to cluster 1. Figure XYZ shows the inflamamatory marker breakdown by cluster. Cluster 1 had a higher median WBC count and a higher CRP relative to cluster 2. This is unsuprising given that we known from Figure previous XYZ that cluster one had a higher number of bacterial cases and bacterial cases tend to have higher inflamatory markers. However if we examine the inflammatory marker distributions exclusivly within the 51 bacterial cases seen in Figure XYZ we see that this effect is preserved. Bacterial cases assigned to cluster 1 had significantly higher WBC and CRP counts than bacterial cases assigned to cluster 2. This is interesting becuase it implies that not all bacterial infections behave similarly at a global transcriptomic level.</p>
                             <div class="box alt">
                                 <div class="row gtr-50 gtr-uniform">
                                     <span class="image fit">
@@ -67,7 +67,7 @@
                                     <div class="col-6">
                                         <span class="image fit">
                                             <iframe src="https://plot.ly/~vetronz1992/74/.embed"
-                                                height="400" width="100%"
+                                                height="400" width="93%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">
                                             </iframe>
@@ -91,6 +91,40 @@
                                             </iframe>
                                         </span>
                                     </div>
+                                    <p>In order to further investigate why the bacterial cases had been partioned into these groups I have plotted the organ system that the infection was affecting for each of the bacterial cases assigned to the 2 clusters in Figure XYZ below.</p>
+                                    <p>All 3 of the patients suffering with intra-abdominal infections were assinged to cluster 1. Of 16 bacteraemic patients (patients with a pathogen detected in the blood stream) 12 were assigned to cluster 1 compared to 4 to cluster 2. Infections affecting the central nervous system (CNS) such as meningitis and encephalitis were evenly split proportionally between the two clusters  with 9 assigned to cluster 1 and 6 assigned to cluster 2. Of 9 respiratory infections, such as pneumonia, 6 were assigned to cluster 1 and 3 to cluster 2. Of 6 soft tissue infections 2 were assigned to cluster 2 and 4 were assinged to cluster 2. There were 2 cases assinged to cluster 2 with no evident causative organ system involvement. Patients assinged to the bacterial diagnostic group, by definition, had to have a positive bacterial culture. This meant the pathogen causing the infection had been identified. Figure XYZ shows the cluster breakdowns by the causative pathogen. The pathogens were fairly evenly distributed between the two groups with the exception of infections caused by meningococcus 14 of which were assigned to cluster 1 and 3 to cluster 2. These account for the discrepancy in the bacteraemic patients between the two clusters as the majority of patients affected with meningococcus presented with bacteraemia.</p>
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz1992/107/#/.embed" 
+                                                height="400" width="93%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz1992/109/#/.embed"
+                                                height="400" width="93%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>
+                                    <p>Table XYZ shows a summary of the clinical data patients with bacterial infection. System indicates the primary organ system affected. Path_1 indicates the primary causative pathogen. Path_2 indicates if any co-infections were detected. 
+                                        We can see that of 14 meningococcal infections assigned to cluster 1 only 2 can co-infection with a virus. By contrast 2 of the 3 meningococcal cases assigned to cluster 2 had a viral co-infection. The third meningococcal case assigned to cluster 2 had G1* coded  as the Path_2 for which I could not find a key. However it is possible that this third case also was co-infected with an unknown pathogen. </p>
+
+                                    <div class="col-12">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz1992/70/#/.embed" 
+                                                height="400" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>
+                                    <p>Patients with bacterial infection will normally have higher neutrophil counts relative lymphocytes. By contrast patients with viral infections will normally have higher lymphocyte counts. Figure XYZ shows the neutrophil and lymphocyte percentages for bacterial cases assigned to each class. Note that other cell types not included here contrbute to the overall white blood cell count and therefore the sum of neutrophil and lymphocyte percentage need not equal 100%. We can see that bacterial cases assigned to cluster 1 had a higher neutrophil percentage in their white blood cells relative to lymphocytes. This tred was reversed for bacterial cases assigned to cluster 2.</p>
+
                                     <div class="col-6">
                                         <span class="image fit">
                                             <iframe src="https://plot.ly/~vetronz1992/80/.embed" 
@@ -103,6 +137,31 @@
                                     <div class="col-6">
                                         <span class="image fit">
                                             <iframe src="https://plot.ly/~vetronz1992/82/.embed"
+                                                height="400" width="93%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>                                      
+                                </div>
+                            </div>
+<!-- 
+                            <h1>K=4</h1>
+                            <p>The result of clustering with 4 clusters is shown below. Cluster 2 is predominantly composed of bacterial cases containing 28 of the 51 total and just 7 of the 92 viral cases. Clusters 1 and 3 are composed of 35 and 30 viral cases respectively each which account for roughly half of the patients in each cluster. Cluster 3 was is more heterogenious with relatively equal proportions of viral, unknown, and probable bacterial cases. As was the case with 2 clusters we see higher inflammatory markers in cluster 2 in which the majority of bacterial cases were assigned. If we look only at the 51 bacterial cases across the 4 clusters we see that the bacterial cases assigned to cluster had generally higher inflamatory markers. If we look at the organ system involved in these bacterial cases we that the patients assigned to cluster 2 who had higher inflammatory markers were predominantly suffering from CNS (Central Nervous System)</p>
+                            <div class="box alt">
+                                <div class="row gtr-50 gtr-uniform">
+                                    <div class="col-12">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/1.embed"
+                                                height="400" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>                           
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/3.embed"
                                                 height="400" width="100%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">
@@ -111,8 +170,8 @@
                                     </div>
                                     <div class="col-6">
                                         <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/84/.embed" 
-                                                height="400" width="93%"
+                                            <iframe src="https://plot.ly/~vetronz/5.embed"
+                                                height="400" width="100%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">
                                             </iframe>
@@ -120,7 +179,34 @@
                                     </div>
                                     <div class="col-6">
                                         <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/86/.embed"
+                                            <iframe src="https://plot.ly/~vetronz/19.embed"
+                                                height="400" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div> 
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/21.embed"
+                                                height="400" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div> 	                                    
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/7.embed"
+                                                height="400" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/9.embed"
                                                 height="400" width="100%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">
@@ -129,16 +215,35 @@
                                     </div>
                                     <div class="col-12">
                                         <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/70/.embed"
+                                            <iframe src="https://plot.ly/~vetronz/17.embed"
+                                                height="600" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div>                                    
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/15.embed"
                                                 height="400" width="100%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">
                                             </iframe>
                                         </span>
-                                    </div>                                                                                                                                            
+                                    </div>                                                                                               
+                                    <div class="col-6">
+                                        <span class="image fit">
+                                            <iframe src="https://plot.ly/~vetronz/11.embed"
+                                                height="400" width="100%"
+                                                scrolling="yes" seamless="seamless"
+                                                frameBorder="0">
+                                            </iframe>
+                                        </span>
+                                    </div> -->
                                 </div>
-                            </div>
-                            <h1>K=4</h1>
+                            </div>                            
+                              
+
                         </section>
                         <section class="post">
                             <header class="major">
