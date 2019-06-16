@@ -45,7 +45,7 @@
                                 <h1>Unsupervised<br>Clustering</h1>
                             </header>
                             <h1>K=2</h1>
-                            <p>The results of K-means clustering with 2 clusters is showin in Figure XYZ below. Cluster one has a higher percentage of bacterial and probable bacterial cases with 32 of 51 bacterial cases and 23 of 42 probable bacterial cases. Unknown cases were split evenly between the 2 clusters. The majority of viral cases, 65 of 92, were assigned to cluster 2 wuth just 27 being assinged to cluster 1. Figure XYZ shows the inflamamatory marker breakdown by cluster. Cluster 1 had a higher median WBC count and a higher CRP relative to cluster 2. This is unsuprising given that we known from Figure previous XYZ that cluster one had a higher number of bacterial cases and bacterial cases tend to have higher inflamatory markers. However if we examine the inflammatory marker distributions exclusivly within the 51 bacterial cases seen in Figure XYZ we see that this effect is preserved. Bacterial cases assigned to cluster 1 had significantly higher WBC and CRP counts than bacterial cases assigned to cluster 2. This is interesting becuase it implies that not all bacterial infections behave similarly at a global transcriptomic level.</p>
+                            <!-- <p>The results of K-means clustering with 2 clusters is showin in Figure XYZ below. Cluster one has a higher percentage of bacterial and probable bacterial cases with 32 of 51 bacterial cases and 23 of 42 probable bacterial cases. Unknown cases were split evenly between the 2 clusters. The majority of viral cases, 65 of 92, were assigned to cluster 2 wuth just 27 being assinged to cluster 1. Figure XYZ shows the inflamamatory marker breakdown by cluster. Cluster 1 had a higher median WBC count and a higher CRP relative to cluster 2. This is unsuprising given that we known from Figure previous XYZ that cluster one had a higher number of bacterial cases and bacterial cases tend to have higher inflamatory markers. However if we examine the inflammatory marker distributions exclusivly within the 51 bacterial cases seen in Figure XYZ we see that this effect is preserved. Bacterial cases assigned to cluster 1 had significantly higher WBC and CRP counts than bacterial cases assigned to cluster 2. This is interesting becuase it implies that not all bacterial infections behave similarly at a global transcriptomic level.</p>
                             <div class="box alt">
                                 <div class="row gtr-50 gtr-uniform">
                                     <span class="image fit">
@@ -144,10 +144,17 @@
                                         </span>
                                     </div>                                      
                                 </div>
-                            </div>
-<!-- 
+                            </div> -->
+
                             <h1>K=4</h1>
-                            <p>The result of clustering with 4 clusters is shown below. Cluster 2 is predominantly composed of bacterial cases containing 28 of the 51 total and just 7 of the 92 viral cases. Clusters 1 and 3 are composed of 35 and 30 viral cases respectively each which account for roughly half of the patients in each cluster. Cluster 3 was is more heterogenious with relatively equal proportions of viral, unknown, and probable bacterial cases. As was the case with 2 clusters we see higher inflammatory markers in cluster 2 in which the majority of bacterial cases were assigned. If we look only at the 51 bacterial cases across the 4 clusters we see that the bacterial cases assigned to cluster had generally higher inflamatory markers. If we look at the organ system involved in these bacterial cases we that the patients assigned to cluster 2 who had higher inflammatory markers were predominantly suffering from CNS (Central Nervous System)</p>
+                            <p>The result of clustering into 4 clusters is shown below in Figure XYZ. The majority of cases assigned to cluster 1 are viral accounting for 35 of 68 cases in that cluster. Cluster 2 was predominantly bacterial with 28 of the 51 bacterial cases and 10 of the 42 probable bacterial cases assigned to it. Cluster 3 was more heterogenious with 20 viral cases, 21 unknowns 14 probable bacterials and just 5 bacterials. Cluster 4 was predominatly viral 30 viral cases out of 58 total cases assigned to the cluster.</p>
+                            <p>
+
+                            In Figure XYZ we see the same pattern as we observed for the case with K=2 where by cluster 2 with a higher bacterial burden had higher inflammatory markers.
+                            To understand why the bacterial cases were separated between clusters I have plotted the inflammatory markers looking exclusively at the 51 bacterial cases in Figure XYZ.
+                            We can see from this that the bacterial cases appear to have been partitioned on the basis of the inflammatory markers with the more severe infections with higher inflamamatory markers being assigned to cluster 2.
+
+                            </p>
                             <div class="box alt">
                                 <div class="row gtr-50 gtr-uniform">
                                     <div class="col-12">
@@ -194,7 +201,11 @@
                                                 frameBorder="0">
                                             </iframe>
                                         </span>
-                                    </div> 	                                    
+                                    </div> 
+                                    <p>Figure XYZ.1 and .2 show the organ system involvement for each cluster and the pathogenic organism detected. We see the same effect as was present in the K=2 case where by a higher proportion of bacteraemic cases were assigned to cluster 2. The causative pathogen in the majority of these cases was meningococcus as seen in Figure XYZ.2.
+                                    However not all of the meningococcal cases were assigned to cluster 2. Clusters 1 and 4 both had a single meningococcal patient and cluster 3 had 2.
+                                    To better understand why these cases were  split from the main body of meningococcal cases who were assigned to cluster 2 I have presented Table XYZ below which details the clinical summary for all of the meningococcal patients.
+                                    The K2_Cluster and K4_Cluster columns detail the cluster assignement for the k=2 and k=4 cases respectively. It is interesting to note that the outlier meningococcal cases 15, 16 and 17 that were the only cases assigned to cluster 2 have also been isolated to distinct clusters in the K=4 case with 2 assigned to cluster 3 and 1 assigned to its own cluster 4. </p>	                                    
                                     <div class="col-6">
                                         <span class="image fit">
                                             <iframe src="https://plot.ly/~vetronz/7.embed"
@@ -221,19 +232,22 @@
                                                 frameBorder="0">
                                             </iframe>
                                         </span>
-                                    </div>                                    
-                                    <div class="col-6">
+                                    </div>
+                                    <p> 
+                                            To visualize why these cases have been partitioned from the bulk of the meningococcal cases I have plotted in Figure XYZ a 2 dimensional PCA plot. The 4 colours indicate the cluster assignment and the crosses are meningococcal cases. We can see the bulk of the cases are relatively closely clusterd and have been assigned to cluster 2. However zooming in over the 0, 0 coordinate we can see the 2 meningococcal cases assigned to cluster 3 and the case assigned to cluster 4. It is likely that co-infection with viral or other pathogens have distorted the characteristic meningococcal transcriptomic signature and pulled these cases into other clusters.
+                                    </p>                                   
+                                    <div class="col-12">
                                         <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/15.embed"
-                                                height="400" width="100%"
+                                            <iframe src="https://plot.ly/~vetronz/11.embed"
+                                                height="550" width="100%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">
                                             </iframe>
                                         </span>
                                     </div>                                                                                               
-                                    <div class="col-6">
+                                    <!-- <div class="col-6">
                                         <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/11.embed"
+                                            <iframe src="https://plot.ly/~vetronz/15.embed"
                                                 height="400" width="100%"
                                                 scrolling="yes" seamless="seamless"
                                                 frameBorder="0">

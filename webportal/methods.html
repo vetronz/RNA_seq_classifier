@@ -128,7 +128,21 @@
 					<section class="post">
 						<header class="major">
 							<h1>Semi-Supervised<br>Clustering</h1>
-						</header>							
+						</header>
+						A semi-supervised approach was then used in order to evaluate the robustness of the cluster assignments using the unsupervised approach.
+						In the supervised stream the K-means algorithm was passed genes that were significantly different between health and disease.
+						Clustering of the cases could then be compared to that produced by the unsupervised stream to check whether patients were assigned to the same or to different clusters.
+
+						I used the <a href='https://academic.oup.com/nar/article/43/7/e47/2414268'>limma</a> bioconductor package to select differentially expressed genes between disease and health. The limma package allows the user to fit a linear model to the expresseion of each gene based on custom design matrix. The advantage of using this system rather than a simple pairwise t-test are manyfold.
+						We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as co-variates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. This allows the selection disease agnostic differentially expressed genes as we can pass all 6 diagnostic groups into the matrix and set up a comparison between the healthy controls against a sumation of all of the other disease groups. 
+						Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown in Figure XYZ below where t is the test statistic, &Beta;, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance becuase of the sample variance over the square root of the sample size will be large. The empirical bayes method adjusts the gene specific variance by the global variance computed across all genes This has the effect of increasing the effective degrees of freedom with which gene specific variances are estimated.
+
+						
+						<div class="box alt">
+							<div class="row gtr-100 gtr-uniform">
+								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/t_stat.svg" alt="" /></span></div>
+							</div>
+						</div>											
 					</section>					
                 </div>
                 

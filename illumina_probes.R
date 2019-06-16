@@ -1,9 +1,7 @@
 library("illuminaHumanv4.db")
-
 getwd()
 setwd('~/Documents/RNA_seq_classifier/Data')
 illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
-
 head(illumina)
 nrow(illumina)
 
@@ -11,11 +9,12 @@ module.assign[module.assign == 2]
 # 5720482 2570300 2100196  990768 3360343
 trans <- c(5720482, 2570300, 2100196,  990768, 3360343)
 trans <- c(7650358, 5720482, 2570300, 3180392, 5090754)
-trans <- c(3180392)
+trans <- c(830440)
 which(illumina$Array_Address_Id %in% trans)
 
 probeID <- illumina$Probe_Id[which(illumina$Array_Address_Id %in% trans)]
 
+# 830440                     STAM binding protein like 1 ENSG00000138134
 
 x <- illuminaHumanv4CHR
 x <- illuminaHumanv4NUID

@@ -63,14 +63,14 @@ dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
 
 
 # # ### supervised
-# idx <- status['most_general'] == 'bacterial' |
-#   status['most_general'] == 'viral' |
-#   status['most_general'] == 'greyb' |
-#   status['most_general'] == 'greyv'|
-#   status['most_general'] == 'greyu' |
-#   status['most_general'] == 'HC'
-# sum(idx)
-# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
+idx <- status['most_general'] == 'bacterial' |
+  status['most_general'] == 'viral' |
+  status['most_general'] == 'greyb' |
+  status['most_general'] == 'greyv'|
+  status['most_general'] == 'greyu' |
+  status['most_general'] == 'HC'
+sum(idx)
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
 
 
 ### outlier
@@ -89,7 +89,7 @@ status.idx$most_general <- as.character(status.idx$most_general)
 status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
 status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
 status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
-# status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
+status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
 
 status.idx$most_general <- as.factor(status.idx$most_general)
 
@@ -260,7 +260,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(1, 0.05)) # 6
 
 
-boot <- 1
+boot <- 5
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 lfc
@@ -288,19 +288,72 @@ top.hits
 all.hits <- topTable(fit2, number=nrow(fit2))
 # dim(top.hits)
 dim(all.hits)
+all.hits[1:5,]
 
-# intersect(results.tot, rownames(top.hits))
+all.filt <- all.hits[abs(all.hits$logFC) > lfc & all.hits$P.Value < pval,]
+# all.filt <- all.hits
+dim(all.filt)
+
+# 
+# library("illuminaHumanv4.db")
+# getwd()
+# setwd('~/Documents/RNA_seq_classifier/Data')
+# illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+# head(illumina)
+# nrow(illumina)
+# x <- illuminaHumanv4GENENAME
+# 
+
+
+probeID <- illumina$Probe_Id[which(illumina$Array_Address_Id %in% rownames(all.filt))]
+length(probeID)
+probeID[1]
+all.filt[1:2,]
+
+x <- illuminaHumanv4GENENAME
+v <- unlist(mget(x = probeID, envir = x))
+
+all.filt$gene <- v
+
+x <- illuminaHumanv4ENSEMBL
+ensemb_list <- mget(x = probeID, envir = x)
+ensemb <- NULL
+for (i in 1:dim(all.filt)[1]){
+  first = ensemb_list[[i]][1]
+  ensemb[i] <- first
+}
+length(ensemb)
+ensemb
+v <- unlist(ensemb)
+all.filt$ensemb <- v
+all.filt[1:5,]
+all.filt$logThresh <- ifelse(all.filt$logFC > lfc, 1, ifelse(all.filt$logFC < -lfc, 2, 0))
+
+
+all.filt[20:25,]
+dim(all.filt)
+p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
+           text = ~paste("<br>Ensembl: ", ensemb , '<br>Gene: ', gene),
+           type='scatter', mode = "markers", color = ~logThresh) %>%
+  add_segments(x = lfc, xend = lfc, y = 0, yend = 25, name = paste0('lfc >:', lfc)) %>%
+  add_segments(x = -lfc, xend = -lfc, y = 0, yend = 25, name = paste0('lfc <:', -1*lfc))
+p
+# api_create(p, filename = "volcano")
+
+# 830440                     STAM binding protein like 1 ENSG00000138134
+
 
 p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   geom_point(size = 1, stroke = 0, shape = 16) +
+  # text = ~paste("<br>Ensembl: ", ensemb, '<br>Gene: ', gene)
   geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
   geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
   labs(title="Volcano Plot of Log Fold Change Against -log10 P Value Boot=5",
        x ="Log Fold Change", y = "log10 P-value")
 p
-
-dim(status.idx)
+ggplotly(p)
+# api_create(p, filename = "volcano")
 
 # idx <- status['most_general'] == 'bacterial' |
 #   status['most_general'] == 'probable bacterial' |
@@ -965,7 +1018,7 @@ p<-plot_ly(pair1, x = ~PC1, y = ~PC2, color = ~k2.df[[clus.boot]],
          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
 p
-api_create(p, filename = "2d_pca_mening_clus.1.4")
+# api_create(p, filename = "2d_pca_mening_clus.1.4")
 
 p<-plot_ly(pair2, x = ~PC3, y = ~PC4, color = ~k2.df[[clus.boot]],
         colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', k2.df$WBC, '<br>CRP: ', as.numeric(as.character(k2.df$array.contemporary.CRP)), '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
