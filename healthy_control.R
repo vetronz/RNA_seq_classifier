@@ -13,6 +13,7 @@ library(e1071)
 library(neuralnet)
 library(ROCR)
 library(tidyr)
+library("illuminaHumanv4.db")
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -260,9 +261,12 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(1, 0.05)) # 6
 
 
-boot <- 5
+
+
+boot <- 6
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
+# pval <- 5.e-5
 lfc
 pval
 
@@ -283,37 +287,33 @@ vennDiagram(results, include = 'both')
 # length(results.tot)
 
 top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc)
-top.hits
+top.hits[1:5,]
 
 all.hits <- topTable(fit2, number=nrow(fit2))
 # dim(top.hits)
 dim(all.hits)
 all.hits[1:5,]
 
-all.filt <- all.hits[abs(all.hits$logFC) > lfc & all.hits$P.Value < pval,]
+all.filt <- all.hits[abs(all.hits$logFC) > lfc & all.hits$adj.P.Val < pval,]
+# all.filt[1:5,]
 # all.filt <- all.hits
 dim(all.filt)
 
-# 
-# library("illuminaHumanv4.db")
-# getwd()
-# setwd('~/Documents/RNA_seq_classifier/Data')
-# illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
-# head(illumina)
-# nrow(illumina)
-# x <- illuminaHumanv4GENENAME
-# 
-
+setwd('~/Documents/RNA_seq_classifier/Data')
+illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+head(illumina)
+nrow(illumina)
+x <- illuminaHumanv4GENENAME
 
 probeID <- illumina$Probe_Id[which(illumina$Array_Address_Id %in% rownames(all.filt))]
 length(probeID)
-probeID[1]
-all.filt[1:2,]
+probeID[1:10]
 
 x <- illuminaHumanv4GENENAME
 v <- unlist(mget(x = probeID, envir = x))
 
 all.filt$gene <- v
+
 
 x <- illuminaHumanv4ENSEMBL
 ensemb_list <- mget(x = probeID, envir = x)
@@ -326,21 +326,21 @@ length(ensemb)
 ensemb
 v <- unlist(ensemb)
 all.filt$ensemb <- v
-all.filt[1:5,]
+# all.filt[1:5,]
 all.filt$logThresh <- ifelse(all.filt$logFC > lfc, 1, ifelse(all.filt$logFC < -lfc, 2, 0))
 
-
-all.filt[20:25,]
+all.filt[1:5,]
 dim(all.filt)
-p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
-           text = ~paste("<br>Ensembl: ", ensemb , '<br>Gene: ', gene),
-           type='scatter', mode = "markers", color = ~logThresh) %>%
-  add_segments(x = lfc, xend = lfc, y = 0, yend = 25, name = paste0('lfc >:', lfc)) %>%
-  add_segments(x = -lfc, xend = -lfc, y = 0, yend = 25, name = paste0('lfc <:', -1*lfc))
-p
-# api_create(p, filename = "volcano")
 
-# 830440                     STAM binding protein like 1 ENSG00000138134
+p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
+           text = ~paste('<br>Gene: ', gene, '<br>Ensembl: ', ensemb),
+           type='scatter', mode = "markers", color = ~logThresh)
+  # add_segments(x = lfc, xend = lfc, y = 0, yend = 25, name = paste0('lfc >:', lfc)) %>%
+  # add_segments(x = -lfc, xend = -lfc, y = 0, yend = 25, name = paste0('lfc <:', -1*lfc))
+p
+
+api_create(p, filename = "volcano_b5")
+
 
 
 p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
@@ -353,21 +353,7 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
        x ="Log Fold Change", y = "log10 P-value")
 p
 ggplotly(p)
-# api_create(p, filename = "volcano")
 
-# idx <- status['most_general'] == 'bacterial' |
-#   status['most_general'] == 'probable bacterial' |
-#   status['most_general'] == 'unknown' |
-#   status['most_general'] == 'probable viral'|
-#   status['most_general'] == 'viral'
-# sum(idx)
-
-# which(status$my_category_2 == 'bacterialgpos_19_SMH')
-# # outlier
-# idx[28] <- FALSE
-# idx[28]
-# sum(idx)
-# length(idx)
 
 dim(results)
 
@@ -1145,12 +1131,13 @@ df.2
 
 df.3 <- mutate(df.2, cluster.assigned=rep(c('same', 'different'), times = 5))
 
-ggplot(df.3, aes(x = boot, y = count, fill = cluster.assigned)) +
+p<-ggplot(df.3, aes(x = boot, y = count, fill = cluster.assigned)) +
   geom_bar(position = "fill",stat = "identity")+
   scale_fill_manual(values=c('#0CE60C','#E10BA0'), name='Assignment')+
   labs(title = "Barplot of Bootstrap Samples Assigned to Same Cluster", x = "Bootstrap Sample", y = "Proportion")
-
-
+p<-ggplotly(p)
+p
+api_create(p, filename = "barplot_bootstrap")
 
 
 

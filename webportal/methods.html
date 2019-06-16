@@ -130,19 +130,119 @@
 							<h1>Semi-Supervised<br>Clustering</h1>
 						</header>
 						A semi-supervised approach was then used in order to evaluate the robustness of the cluster assignments using the unsupervised approach.
-						In the supervised stream the K-means algorithm was passed genes that were significantly different between health and disease.
-						Clustering of the cases could then be compared to that produced by the unsupervised stream to check whether patients were assigned to the same or to different clusters.
+						In the unsupervised stream all 35000 transcripts were used. In the supervised stream transcripts were selected based of differential expression between disease and health.
+						Clustering of the cases could then be compared betwene the two methods to assess the reproducability of the findings in the unsupervised stream.
 
 						I used the <a href='https://academic.oup.com/nar/article/43/7/e47/2414268'>limma</a> bioconductor package to select differentially expressed genes between disease and health. The limma package allows the user to fit a linear model to the expresseion of each gene based on custom design matrix. The advantage of using this system rather than a simple pairwise t-test are manyfold.
 						We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as co-variates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. This allows the selection disease agnostic differentially expressed genes as we can pass all 6 diagnostic groups into the matrix and set up a comparison between the healthy controls against a sumation of all of the other disease groups. 
-						Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown in Figure XYZ below where t is the test statistic, &Beta;, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance becuase of the sample variance over the square root of the sample size will be large. The empirical bayes method adjusts the gene specific variance by the global variance computed across all genes This has the effect of increasing the effective degrees of freedom with which gene specific variances are estimated.
-
-						
+						Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown in Figure XYZ below where t is the test statistic, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance becuase of the denominator will be large. The empirical bayes method adjusts the gene specific variance by the global variance computed across all genes This has the effect of increasing the effective degrees of freedom with which gene specific variances are estimated.
 						<div class="box alt">
 							<div class="row gtr-100 gtr-uniform">
 								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/t_stat.svg" alt="" /></span></div>
 							</div>
-						</div>											
+						</div>
+						<p>Table XYZ shows the 5 bootstrap samples that I used to evauate the unsupervised clusters. The p-value and log fold change cutoffs become more conservative as the numer of samples increase. This results in a gradual reduction in the number of transcripts that still meet the significance and fold change criteria. </p>
+						<div class="table-wrapper">
+							<table>
+								<thead>
+									<tr>
+										<th>Bootstrap Sample</th>
+										<th>P-Value</th>
+										<th>Log Fold Change</th>
+										<th>Number Significant Transcripts</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr>
+										<td>Sample 1</td>
+										<td>0.1</td>
+										<td>0.25</td>
+										<td>7,141</td>
+									</tr>
+									<tr>
+										<td>Sample 2</td>
+										<td>0.1</td>
+										<td>0.375</td>
+										<td>4,060</td>
+									</tr>
+									<tr>
+										<td>Sample 3</td>
+										<td>0.1</td>
+										<td>0.5</td>
+										<td>2,295</td>
+									</tr>
+									<tr>
+										<td>Sample 4</td>
+										<td>0.05</td>
+										<td>0.75</td>
+										<td>823</td>
+									</tr>
+									<tr>
+										<td>Sample 5</td>
+										<td>0.05</td>
+										<td>1</td>
+										<td>330</td>
+									</tr>
+								</tbody>
+								<tfoot>
+									<tr>
+										<td colspan="2"></td>
+										<td>Table XYZ</td>
+									</tr>
+								</tfoot>
+							</table>
+						</div>	
+						<p>Figure XYZ below shows the volcano plots for the 5 bootstrap samples with log2 fold change on the X axis and -log10 adjusted P value on the Y axis. The significantly differentially expressed transcripts were then passed to the K-means algorithm. Clustering was then performed with K=4 for each of the bootstrap samples and then the proportion of cases assigned to the same cluster as the unsupervised stream was calculated.  
+						</p>
+						<div class="box alt">
+							<div class="row gtr-50 gtr-uniform">
+								<div class="col-6">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz/29/#/.embed"
+											height="400" width="95%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>								
+								<div class="col-6">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz/31/#/.embed"
+											height="400" width="95%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>
+								<div class="col-4">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz/33/#/.embed"
+											height="400" width="95%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>
+								<div class="col-4">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz/35/#/.embed"
+											height="400" width="95%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>
+								<div class="col-4">
+									<span class="image fit">
+										<iframe src="https://plot.ly/~vetronz/37/#/.embed"
+											height="400" width="95%"
+											scrolling="yes" seamless="seamless"
+											frameBorder="0">
+										</iframe>
+									</span>
+								</div>																
+							</div>
+						</div>						
 					</section>					
                 </div>
                 
