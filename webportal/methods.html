@@ -46,13 +46,13 @@
 							<h1>Data Preparation</h1>
 						</header>
 						<p>
-							I begin by filtering the microarray data based on mean expression. There is a risk when analysing microarray data that transcripts with low expression levels have a higher tendency to contribute noise rather than valid biological signal. Figure 4 below shows the relationship between log2 mean transcript expression on the X axis against log2 transcript variance on the y axis for the 47,323 genes in the dataset. The vertical line indicates a mean transcript expression of 5. The initial trend we see is that the transcript variance decreases as mean expression increases up until the threshold of 5.
-							This indicates there is higher variability in the transcript results and potentially greater uncertanty, for genes that had lower expression levels. Excluding transcripts from down stream analysis whos mean expression was below the threshold reduces the chance that patients will be clustered based on erroneous transcripts whos variance was a product of low expression rather than biology.
-							The cutoff of a mean expression of 5 was chosen based on domain knowledge and appears coherent with the trend seen in the Figure 4.
-							Additionally excluding genes with lower mean expression will mean an increased ability to detect differentially expressed genes when using a Semi-Supervised approach becuase of the reduced number of tests that need to be adjusted for in multiple test correction.
-							Following this procedure 35,970 genes remained for analysis.
+							I begin by filtering the micro-array data based on mean expression. Transcripts with lower expression tend to have higher variance. We can see this trend in Figure 6 below which shows the mean expression against the mean variance with a log2 transformation. Following recommendations based on domain knowledge I have filtered out transcripts with a mean expression below 5 indicated by the vertical line. This results in 35,959 transcripts with a mean expression above this threshold which I will use to cluster the patients.
+							An additional benefit of this filtering process is an increased statistical power to detect significantly differentially expressed genes when using the supervised methodology because we are making fewer comparisons.
 						</p>
 						<span class="image fit"><img src="images/mean_variance_scatter.png" alt="" /></span>
+						<p style="font-size: small;"><b>
+								Figure 6 - Mean variance scatter plot shows initialy that transcripts with a lower mean expression have a higher variance.
+						</b></p>
 					</section>					
 					<section class="post">
 						<header class="major">
@@ -60,9 +60,9 @@
 						</header>
 						<h2>K-Means Clustering</h2>
 						<p>
-							In the fully unsupervised stream I have used the K-means clustering algorithm to find the optimal cluster assignment for each patient based on the full 35,970 transcripts.
+							In the fully unsupervised stream I have used the K-means clustering algorithm cluster the patients based on the full 35,959 transcripts.
 							Healthy control cases have been removed in the fully unsupervised stream since they were included in order to establish the list of differentially expressed genes between health and disease. As I am clustering based on all transcripts there is no need to select differentially expressed genes and hence I can remove the controls leaving 239 patients in the sample.
-							I have chosen to use the Euclidian distance metric, defined in Figure XYZ below, to represent the (dis)similarity between pairs of observations x and y.
+							I have chosen to use the Euclidian distance metric, defined below, to represent the (dis)similarity between pairs of observations x and y.
 						</p>
 						<div class="box alt">
 							<div class="row gtr-100 gtr-uniform">
@@ -70,7 +70,7 @@
 							</div>
 						</div>
 
-						<p>The basic intuition of the K-means algorithm is to define clusters so that the within cluster variation is minimized. The within cluster variation is defined as the sum of squared Euclidian distances between items and the centroid to which they have been assigned:</p>
+						<p>The basic intuition of the K-means algorithm is to define clusters such that the within cluster variation is minimized. The within cluster variation is defined as the sum of squared Euclidian distances between items and the centroid to which they have been assigned:</p>
 						<div class="box alt">
 							<div class="row gtr-100 gtr-uniform">
 								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/sum_squares.svg" alt="" /></span></div>
@@ -82,16 +82,19 @@
 								<li>μ<sub>k</sub> is the mean value of the points assigned to the cluster C</li>
 							</ul>
 						</p>
-						<p>Each observation x<sub>i</sub> is assigned to a given cluster so that the sum of squared distances between the observation and their assigned cluster centers μ<sub>k</sub> is minimized.</p>
+						<p>Each observation x<sub>i</sub> is assigned to a cluster in order that the sum of squared distances between the observation and their assigned centroid μ<sub>k</sub> is minimized.</p>
 						<p>By summing over all the K clusters we compute the total sum squares.</p>
 						<div class="box alt">
 							<div class="row gtr-100 gtr-uniform">
 								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/tot_sum_squares.svg" alt="" /></span></div>
 							</div>
 						</div>
+						<br>
 						<h2>Optimal Number of Clusters</h2>
-						<p>The K-means algorithm requires that the number of clusters be predetermined by the user. Three different statistical methods for selecting the optimal number of clusters are shown in Figure XYZ below. Figure .1 shows the total within sum of squares computed for incrementing numbers of clusters. Visual inspection of the graph can then be used to identify an inflection point beyond which increasing the number of clusters provides only a marginal decrease in the total sum of squares. Figure .2 shows the optimal number of clusters as computed by the Average Silhouette score. The Silhouette score determines how well a data point suited to its cluster with higher values indicating a better cluster cohesion. Taking the average over all data points gives the Average Silhouette score which is maximised at 2 clusters in this case. Figure .3 shows the optimal number of clusters as computed using the gap statistic as described by <a href='http://web.stanford.edu/~hastie/Papers/gap.pdf'>R. Tibshirani, G. Walther, and T. Hastie</a> in 2001. The gap statistic compares total within cluster variation for different values of k with their expected value under a null reference distribution. The null reference distirbution is generated by Monte Carlo simulation by generating B coppies of the reference dataset and computing the total within cluster variation. The gap statistic measres the deviation between the observed total within cluster variation and that expected under the null hypothesis. The optimal number of clusters is the value that maximises the gap statistic. The greatest reduction in variance occurs when the patients are partitoned into 2 clusters and this is also the optimal number as suggested using the average silhouette method. However the gap statistic suggests 4 clusters is optimal and this appears to be supported in Figure .1. Therefore we will examine the clinical data following clustering with k=2 and k=4.</p>
-						<div class="box alt">
+						<p>
+							The K-means algorithm requires that the number of clusters be predetermined by the user. Three different statistical methods for selecting the optimal number of clusters are shown in Figure 7 below. Figure 7.1 shows the total within sum of squares computed for incriminating numbers of clusters. Visual inspection of the graph can then be used to identify an inflection point beyond which increasing the number of clusters provides only a marginal decrease in the total sum of squares. Figure 7.2 shows the optimal number of clusters as computed by the Average Silhouette score. The Silhouette score determines how well a data point is suited to its cluster with higher values indicating a better cluster cohesion. Taking the average over all data points gives the Average Silhouette score which is maximized at 2 clusters in this case. Figure 7.3 shows the optimal number of clusters as computed using the gap statistic as described by <a href='http://web.stanford.edu/~hastie/Papers/gap.pdf'>R. Tibshirani, G. Walther, and T. Hastie</a> in 2001. The gap statistic compares total within cluster variation for different values of k with their expected value under a null reference distribution. The null reference distribution is generated by Monte Carlo simulation by generating B coppies of the reference data set and computing the total within cluster variation. The gap statistic measures the deviation between the observed total within cluster variation and that expected under the null hypothesis. The optimal number of clusters is the value that maximizes the gap statistic. The greatest reduction in variance occurs when the patients are partitioned into 2 clusters and this is also the optimal number as suggested using the average silhouette method. However the gap statistic suggests 4 clusters is optimal and this appears to be supported in Figure 7.1. Therefore we will examine the clinical data following clustering with k=2 and k=4.
+						</p>
+						<!-- <div class="box alt">
 							<div class="row gtr-50 gtr-uniform">
 								<div class="col-12">
 									<span class="image fit">
@@ -121,27 +124,30 @@
 									</span>
 								</div>
 							</div>
-						</div>
+						</div> -->
+						<p style="font-size: small;"><b>
+								Figure 7 - Shows optimal number of clusters as computed using total sum of squares(7.1), Average silhouette score (7.2) and Gap statistic (7.3).
+						</b></p>
 
 					</section>
 
 					<section class="post">
 						<header class="major">
-							<h1>Semi-Supervised<br>Clustering</h1>
+							<h1>Supervised Clustering</h1>
 						</header>
-						A semi-supervised approach was then used in order to evaluate the robustness of the cluster assignments using the unsupervised approach.
-						In the unsupervised stream all 35000 transcripts were used. In the supervised stream transcripts were selected based of differential expression between disease and health.
-						Clustering of the cases could then be compared betwene the two methods to assess the reproducability of the findings in the unsupervised stream.
-
-						I used the <a href='https://academic.oup.com/nar/article/43/7/e47/2414268'>limma</a> bioconductor package to select differentially expressed genes between disease and health. The limma package allows the user to fit a linear model to the expresseion of each gene based on custom design matrix. The advantage of using this system rather than a simple pairwise t-test are manyfold.
-						We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as co-variates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. This allows the selection disease agnostic differentially expressed genes as we can pass all 6 diagnostic groups into the matrix and set up a comparison between the healthy controls against a sumation of all of the other disease groups. 
-						Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown in Figure XYZ below where t is the test statistic, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance becuase of the denominator will be large. The empirical bayes method adjusts the gene specific variance by the global variance computed across all genes This has the effect of increasing the effective degrees of freedom with which gene specific variances are estimated.
+						<p>
+							I used the <a href='https://academic.oup.com/nar/article/43/7/e47/2414268'>limma</a> bioconductor package to select differentially expressed genes between disease and health. The limma package allows the user to fit a linear model to the expression of each gene based on a custom design matrix. The advantage of using this system rather than a simple pairwise t-test are many-fold.
+							We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as covariates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. This allows the selection disease agnostic differentially expressed genes as we can pass all 6 diagnostic groups into the matrix and set up a comparison between the healthy controls against a summation of all of the other disease groups. 
+							Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown below where t is the test statistic, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance because of the denominator will be large. The empirical Bayes method adjusts the gene specific variance by the global variance computed across all genes This has the effect of increasing the effective degrees of freedom with which gene specific variances are estimated.
+						</p>
 						<div class="box alt">
 							<div class="row gtr-100 gtr-uniform">
 								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/t_stat.svg" alt="" /></span></div>
 							</div>
 						</div>
-						<p>Table XYZ shows the 5 bootstrap samples that I used to evauate the unsupervised clusters. The p-value and log fold change cutoffs become more conservative as the numer of samples increase. This results in a gradual reduction in the number of transcripts that still meet the significance and fold change criteria. </p>
+						<p>
+							In order to evaluate the reproducability of the cluster assignments found using the unsupervised stream I use 5 bootstrap samples with varying p-value and log fold change cut offs to select varying numbers of transcripts which I would then use to cluster the patients. Table 2 shows the 5 bootstrap samples with the associated p-value and log fold change thresholds. The p-value and log fold change cutoffs become more conservative as the number of bootstrap samples increase. This results in a gradual reduction in the number of transcripts that still meet the significance and fold change criteria.
+						</p>
 						<div class="table-wrapper">
 							<table>
 								<thead>
@@ -184,15 +190,13 @@
 										<td>330</td>
 									</tr>
 								</tbody>
-								<tfoot>
-									<tr>
-										<td colspan="2"></td>
-										<td>Table XYZ</td>
-									</tr>
-								</tfoot>
 							</table>
-						</div>	
-						<p>Figure XYZ below shows the volcano plots for the 5 bootstrap samples with log2 fold change on the X axis and -log10 adjusted P value on the Y axis. The significantly differentially expressed transcripts were then passed to the K-means algorithm. Clustering was then performed with K=4 for each of the bootstrap samples and then the proportion of cases assigned to the same cluster as the unsupervised stream was calculated.  
+						</div>
+						<p style="font-size: small;"><b>
+								Table 2 - Shows number of transcripts passed to the K-means algorithm for the 5 bootstrap samples with incrementing p-value and log fold change thresholds.
+						</b></p>
+
+						<p>Figure 8 below shows the volcano plots for the 5 bootstrap samples with log2 fold change on the X axis and -log10 adjusted P value on the Y axis. The significantly differentially expressed transcripts were then passed to the K-means algorithm. Clustering was then performed with K=4 for each of the bootstrap samples and then the proportion of cases assigned to the same cluster as the unsupervised stream was calculated.  
 						</p>
 						<div class="box alt">
 							<div class="row gtr-50 gtr-uniform">
@@ -242,7 +246,10 @@
 									</span>
 								</div>																
 							</div>
-						</div>						
+						</div>
+						<p style="font-size: small;"><b>
+								Figure 8 - Volcano Plots show the significantly differentially expressed transcripts which were used to cluster the patients in each of the 5 bootstrap samples.
+						</b></p>					
 					</section>					
                 </div>
                 

@@ -16,10 +16,7 @@
 
 				<!-- Intro -->
 					<div id="intro">
-						<h1>This bizz is<br />
-						Massively</h1>
-						<p>please dont kill ducks<a href="https://twitter.com/ajlkn">@ajlkn</a> for <a href="https://html5up.net">HTML5 UP</a><br />
-						and released for free under the <a href="https://html5up.net/license">Creative Commons license</a>.</p>
+						<h1>Clustering Microarray Data <br>for Class Discovery <br> in Febrile Children</h1>
 						<ul class="actions">
 							<li><a href="#header" class="button icon solo fa-arrow-down scrolly">Continue</a></li>
 						</ul>
@@ -27,7 +24,7 @@
 
 				<!-- Header -->
 					<header id="header">
-						<a href="index.html" class="logo">save the duckys</a>
+						<a href="intro.html" class="logo">Introduction</a>
 					</header>
 
 				<!-- Nav -->
@@ -55,147 +52,65 @@
 								<h2><a href="#">Lay Summary</a></h2>
 							</header>
 							<div class="box">
-								<p>The accurate diagnosis of unwell children still presents a major challenge to healthcare systems across the world. 
-
-										A principal concern of emergency doctors is to assess the likelihood of bacterial vs viral infections as they will necessitate different treatments.
-										Missed bacterial infections can lead to significant morbidity and even death. On the other hand overuse of antibiotics is a major concern because of the risk of development of multi-drug resistant pathogens.
-										This is a difficult issue to solve because clinical features do not reliable distinguish children suffering with bacterial vs viral infections.
-										
-										Recent work performed at the St Mary's research group has demonstrated the efficacy of using gene expression data from unwell patients to distinguish bacterial from viral infections.
-										A supervised machine learning model was trained using genes that were significantly different between the bacterial and viral cases.
-										
-										However bacterial and viral infections are both heterogeneous cohorts that are themselves composed of multiple different pathogens.
-										It is possible therefore that an unsupervised method could further subdivide the bacterial and viral cases into pathogen specific groups.
-										
-										This would be a useful finding because antibiotic therapy is most effective when targeted to a particular pathogen.</p>
+								<p>
+									The discrimination of bacterial from viral infection in children still represents a major challenge for healthcare systems across the world. This distinction has important implications for treatment since delaying antibiotic therapy in bacterial infection can be life threatening whereas overuse of antibiotics can lead to the development of multi-drug resustant pathogens.
+									Separating out these two diagnostic categories based on the patients symtpoms is difficult becuase children suffering from bacterial and viral infections will often have similar presentations.
+									Recent <a href='https://jamanetwork.com/journals/jama/fullarticle/2545687'>work done by Professor Levin's group</a> at Imperial has demonstrated that gene expression levels measured during infection can distinguish with high accuracy bacterial from viral infection. This was achieved using a supervised machine learning model which was trained on the genes that were most different between the bacterial and viral cases.
+									However bacterial and viral infections are both heterogeneous cohorts which are themselves composed of many different pathogens. The aim of this project has been to use a fully unsupervised methodology to group the patients based on the totality of there gene expression rather than genes that are most different between bacteria and viral infections.
+									The hope is that by looking in an unbiased way at the entire gene expression profile we may start to unpick characteristic signatures that distinguish particular bacteria or particular viruses. This would be clinically useful because antibiotic therapy is most effective when targeted to a particular pathogen.
+								</p>
 							</div>
 							<header>
-									<h2><a href="#">Abstract</a></h2>
+								<h2><a href="#">Abstract</a></h2>
+							</header>
+							<div class="box">
+									<dl>
+										<dt>Background:</dt>
+										<dd>
+											<p>
+												Transcriptomic signatures can be used to distinguish bacterial from viral infection with a high degree of accuracy. Clinicians can then use this information to guide theraputic decisions reducing the chance of missing bacterial infections and minimizing unnecessary use of antibiotics in patients with viral infections. However for the best treatment outcomes antibiotic therapy should be targeted to a particular pathogen.
+											</p>
+										</dd>
+										<dt>Objective:</dt>
+										<dd>
+											<p>
+												To use a fully unsupervised methodology to cluster patients based on the totality of their transcriptomic expression to identify subgroups which might have clinically relevant implications.
+											</p>
+										</dd>
+										<dt>Methods:</dt>
+										<dd>
+											<p>
+												I have used K-means clustering to optimally partition 35,959 transcripts from 239 febrile children and 62 health controls who presented to participating hospitals in the United Kingdom, Spain, the Netherlands, and the United States between 2009-2013.
+												I have then used a supervised methodology to cluster the patients based on significantly differentially expressed transcripts between health and disease.
+											</p>
+										</dd>
+										<dt>Results:</dt>
+										<dd>
+											<p>
+												Cluster assignment of patents to 4 clusters shows a statistically significant relationship between the the cluster assignment and the causative pathogen.
+												This is particularly evident with meningococcal disease with thirteen of seventeen cases assigned to cluster 2.
+												These class assignments are robust and are preserved when using a supervised methodology.
+											</p>
+										</dd>
+										<dt>Conclusion:</dt>
+										<dd>
+											<p>
+												Fully unsupervised clustering of transcriptomic data from febrile children is able to identify clinically meaningful subgroups that are driven by the causative pathogen.
+												The extent to which this clustering is determined by cell counts would require further de-convolution analysis.
+											</p>
+										</dd>																				
+									</dl>
+								<p>
+								</p>
+							</div>
+							<header id="header">
+									<a href="intro.html" class="logo">Introduction</a>
 								</header>
-								<div class="box">
-									<p>
-											Transcriptomic signatures can be used to distinguish bacterial from viral infection with a high degree of accuracy jama paper (https://jamanetwork.com/journals/jama/fullarticle/2545687)
-											
-											Clinicians can then use this information to guide theraputic decisions reducing the chance of missing bacterial infections and minimising unnecessery use of antibiotics in patients with viral infections.
-											
-											However antibiotic therapy is most effective when used to target a specific pathogen. 
-											It is possible that using a fully unsupervised approach distinct subclasses would emerge that would be characterized by the type of pathogen.
-											
-											objective
-											to subdivide that transcriptomic data from febrile children in order to identify biologically relevant subclasses that could be used to guide treatment.
-											
-											methods
-											I have used K means clustering to optimally partition 35,970 transcripts from 239 febrile children and 62 health controls who presented to participating hospitals in the United Kingdom, Spain, the Netherlands, and the United States between 2009-2013.
-											
-											results
-											Cluster assignment of patents to 4 clusters shows a statistically significant relationship between the the cluster assignment and the causative pathogen.
-											This is particularly eveident with meningococcal disease with X number assigned to cluster Y.
-											
-											Interestingly those 2/3 cases not assigned to the consensus cluster appeared to be suffering from co-infection which explained the transcriptomic deviation.
-											
-											conclusion
-											Fully unsupervised clustering of transcriptomic data from febrile children is able to identify clinically meaningful subgroups that are determined by the causative organism.
-											This implications of this are that in addition to discrimination bacterial from viral cases, trascriptomic signatures could be used to identify pathogen specific infections.
-											This would enable earlier initiation of microbial targeted antibiotic therapy with the potential to improve clinical outcome.</p>
-								</div>
 						</section>
-						
-						<!-- Featured Post -->
-							<article class="post featured">
-								<header class="major">
-									<span class="date">April 25, 2017</span>
-									<h2><a href="#">And this is a<br />
-									massive headline</a></h2>
-									<p>Aenean ornare velit lacus varius enim ullamcorper proin aliquam<br />
-									facilisis ante sed etiam magna interdum congue. Lorem ipsum dolor<br />
-									amet nullam sed etiam veroeros.</p>
-								</header>
-								<a href="#" class="image main"><img src="images/pic01.jpg" alt="" /></a>
-								<ul class="actions special">
-									<li><a href="#" class="button large">Full Story</a></li>
-								</ul>
-							</article>
-
-						<!-- Posts -->
-							<section class="posts">
-								<article>
-									<header>
-										<span class="date">April 24, 2017</span>
-										<h2><a href="#">Sed magna<br />
-										ipsum faucibus</a></h2>
-									</header>
-									<a href="#" class="image fit"><img src="images/pic02.jpg" alt="" /></a>
-									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
-									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
-									</ul>
-								</article>
-								<article>
-									<header>
-										<span class="date">April 22, 2017</span>
-										<h2><a href="#">Primis eget<br />
-										imperdiet lorem</a></h2>
-									</header>
-									<a href="#" class="image fit"><img src="images/pic03.jpg" alt="" /></a>
-									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
-									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
-									</ul>
-								</article>
-								<article>
-									<header>
-										<span class="date">April 18, 2017</span>
-										<h2><a href="#">Ante mattis<br />
-										interdum dolor</a></h2>
-									</header>
-									<a href="#" class="image fit"><img src="images/pic04.jpg" alt="" /></a>
-									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
-									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
-									</ul>
-								</article>
-								<article>
-									<header>
-										<span class="date">April 14, 2017</span>
-										<h2><a href="#">Tempus sed<br />
-										nulla imperdiet</a></h2>
-									</header>
-									<a href="#" class="image fit"><img src="images/pic05.jpg" alt="" /></a>
-									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
-									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
-									</ul>
-								</article>
-								<article>
-									<header>
-										<span class="date">April 11, 2017</span>
-										<h2><a href="#">Odio magna<br />
-										sed consectetur</a></h2>
-									</header>
-									<a href="#" class="image fit"><img src="images/pic06.jpg" alt="" /></a>
-									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
-									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
-									</ul>
-								</article>
-								<article>
-									<header>
-										<span class="date">April 7, 2017</span>
-										<h2><a href="#">Augue lorem<br />
-										primis vestibulum</a></h2>
-									</header>
-									<a href="#" class="image fit"><img src="images/pic07.jpg" alt="" /></a>
-									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
-									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
-									</ul>
-								</article>
-							</section>
-
 						<!-- Footer -->
-							<footer>
+							<!-- <footer>
 								<div class="pagination">
-									<!--<a href="#" class="previous">Prev</a>-->
+									<a href="#" class="previous">Prev</a>
 									<a href="#" class="page active">1</a>
 									<a href="#" class="page">2</a>
 									<a href="#" class="page">3</a>
@@ -205,62 +120,11 @@
 									<a href="#" class="page">10</a>
 									<a href="#" class="next">Next</a>
 								</div>
-							</footer>
-
+							</footer> -->
 					</div>
 
-				<!-- Footer -->
-					<footer id="footer">
-						<section>
-							<form method="post" action="#">
-								<div class="fields">
-									<div class="field">
-										<label for="name">Name</label>
-										<input type="text" name="name" id="name" />
-									</div>
-									<div class="field">
-										<label for="email">Email</label>
-										<input type="text" name="email" id="email" />
-									</div>
-									<div class="field">
-										<label for="message">Message</label>
-										<textarea name="message" id="message" rows="3"></textarea>
-									</div>
-								</div>
-								<ul class="actions">
-									<li><input type="submit" value="Send Message" /></li>
-								</ul>
-							</form>
-						</section>
-						<section class="split contact">
-							<section class="alt">
-								<h3>Address</h3>
-								<p>1234 Somewhere Road #87257<br />
-								Nashville, TN 00000-0000</p>
-							</section>
-							<section>
-								<h3>Phone</h3>
-								<p><a href="#">(000) 000-0000</a></p>
-							</section>
-							<section>
-								<h3>Email</h3>
-								<p><a href="#">info@untitled.tld</a></p>
-							</section>
-							<section>
-								<h3>Social</h3>
-								<ul class="icons alt">
-									<li><a href="#" class="icon alt fa-twitter"><span class="label">Twitter</span></a></li>
-									<li><a href="#" class="icon alt fa-facebook"><span class="label">Facebook</span></a></li>
-									<li><a href="#" class="icon alt fa-instagram"><span class="label">Instagram</span></a></li>
-									<li><a href="#" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
-								</ul>
-							</section>
-						</section>
-					</footer>
-
-				<!-- Copyright -->
 					<div id="copyright">
-						<ul><li>&copy; Untitled</li><li>Design: <a href="https://html5up.net">HTML5 UP</a></li></ul>
+						<ul><li>Patrick Hedley-Miller</li><li>Myrsini Kaforou</li></ul>
 					</div>
 
 			</div>
