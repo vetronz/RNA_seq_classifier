@@ -31,7 +31,7 @@
 
 						</ul>
 						<ul class="icons">
-							<li><a href="#" class="icon fa-github"><span class="label">GitHub</span></a></li>
+                            <li><a href="https://github.com/vetronz/RNA_seq_classifier" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
 						</ul>
 					</nav>
 
@@ -43,7 +43,7 @@
                             </header>
                             <h2>K=2</h2>
                             <p>
-                                The results of K-means clustering with 2 clusters is show in in Figure 9 below. Cluster 1 has a higher percentage of bacterial and probable bacterial cases with 32 of 51 bacterial cases and 23 of 42 probable bacterial cases. Unknown cases were split evenly between the two clusters. The majority of viral cases, 65 of 92, were assigned to cluster 2 with just 27 being as singed to cluster 1. Figure 10 shows the inflammatory marker breakdown by cluster. Cluster 1 had a higher median WBC (Figure 10.1) and CRP (Figure 10.2) count relative to cluster 2. This is unsuprising given that we known cluster 1 had a higher number of bacterial cases. However if we examine the inflammatory marker distributions exclusively within the 51 bacterial cases seen in Figure 11 we see that this effect is preserved. Bacterial cases assigned to cluster 1 had significantly higher WBC and CRP counts than bacterial cases assigned to cluster 2. This is interesting because it implies that not all bacterial infections behave similarly at a global transcriptomic level.
+                                The results of K-means clustering with 2 clusters is show in Figure 9 below. Cluster 1 has a higher percentage of bacterial and probable bacterial cases with 32 of 51 bacterial cases and 23 of 42 probable bacterial cases. Unknown cases were split evenly between the two clusters. The majority of viral cases, 65 of 92, were assigned to cluster 2 with just 27 being assigned to cluster 1. Figure 10 shows the inflammatory marker breakdown by cluster. Cluster 1 had a higher median WBC (Figure 10.1) and CRP (Figure 10.2) count relative to cluster 2. This is unsuprising given that we know that cluster 1 had a higher number of bacterial cases. However if we examine the inflammatory marker distributions exclusively within the 51 bacterial cases seen in Figure 11 we see that this effect is preserved. Bacterial cases assigned to cluster 1 had significantly higher WBC and CRP counts than bacterial cases assigned to cluster 2. This is interesting because it implies that not all bacterial infections behave similarly at a global transcriptomic level.
                             </p>
                             <div class="box alt">
                                 <div class="row gtr-50 gtr-uniform">
@@ -56,9 +56,6 @@
                                             </iframe>
                                         </span>
                                     </div>
-                                    <!-- <p style="font-size: small;"><b>
-                                            Figure 9 - Barplot of diagnostic groups by Cluster
-                                    </b></p> -->
 
                                     <div class="col-6">
                                         <span class="image fit">
@@ -78,9 +75,11 @@
                                             </iframe>
                                         </span>
                                     </div>
+
                                     <p style="font-size: small;"><b>
                                             Figure 10 - Boxplot of WBC count (10.1) and CRP count (10.2) by cluster assignment.
                                     </b></p>
+<h6 style='color: white;'>newline</h6>
                                     <div class="col-6">
                                         <span class="image fit">
                                             <iframe src="https://plot.ly/~vetronz1992/76/.embed" 
@@ -102,192 +101,193 @@
                                     <p style="font-size: small;"><b>
                                             Figure 11 - Boxplot of WBC count (11.1) and CRP count (11.2) in Bacterial cases by cluster assignment.
                                     </b></p>
-                                    <p>
-                                        In order to further investigate why the bacterial cases had been partitioned into these groups I have plotted the organ system that the infection was affecting for each of the bacterial cases assigned to the 2 clusters in Figure 12.1 below. All 3 of the patients suffering with intra-abdominal infections were assigned to cluster 1. Of 16 bacteraemic patients (patients with a pathogen detected in the blood stream) 12 were assigned to cluster 1 compared to 4 to cluster 2. Infections affecting the central nervous system (CNS) such as meningitis and encephalitis were evenly split proportionally between the two clusters  with 9 assigned to cluster 1 and 6 assigned to cluster 2. Of 9 respiratory infections, such as pneumonia, 6 were assigned to cluster 1 and 3 to cluster 2. Of 6 soft tissue infections 2 were assigned to cluster 1 and 4 were assinged to cluster 2. There were 2 cases assigned to cluster 2 with no evident causative organ system involvement. Patients assigned to the bacterial diagnostic group, by definition, had to have a positive bacterial culture. This meant the pathogen causing the infection had been identified. Figure 12.2 shows the cluster breakdowns by the causative pathogen. The pathogens were fairly evenly distributed between the two groups with the exception of infections caused by meningococcus, 14 of which were assigned to cluster 1 and 3 to cluster 2.
-                                    </p>
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/107/#/.embed" 
-                                                height="400" width="93%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
+                                        <p>
+                                            In order to investigate why the bacterial cases had been partitioned into these groups I plotted the organ system that the infection was affecting for each of the bacterial cases assigned to the 2 clusters in Figure 12.1 below. All 3 of the patients suffering with intra-abdominal infections were assigned to cluster 1. Of 16 bacteraemic patients (patients with a pathogen detected in the blood stream) 12 were assigned to cluster 1 compared with 4 to cluster 2. Infections affecting the central nervous system (CNS) such as meningitis and encephalitis were evenly split proportionally between the two clusters  with 9 assigned to cluster 1 and 6 assigned to cluster 2. Of 9 respiratory infections, such as pneumonia, 6 were assigned to cluster 1 and 3 to cluster 2. Of 6 soft tissue infections 2 were assigned to cluster 1 and 4 were assigned to cluster 2. There were 2 cases assigned to cluster 2 with no evident causative organ system involvement. Patients assigned to the bacterial diagnostic group, by definition, had to have a positive bacterial culture. This meant the pathogen causing the infection had been identified. Figure 12.2 shows the cluster breakdowns by the causative pathogen. The pathogens were fairly evenly distributed between the two groups with the exception of infections caused by meningococcus, 14 of which were assigned to cluster 1 and 3 to cluster 2.
+                                        </p>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz1992/107/#/.embed" 
+                                                    height="550" width="93%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz1992/109/#/.embed"
+                                                    height="550" width="93%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Figure 12 - Barplot of system of infection (12.1) and pathogen of infection (12.2) in bacterial cases by cluster assignment.
+                                        </b></p>
+                                        <p>
+                                            Table 3 shows a summary of the clinical data for patients with bacterial infection. We can see that of 14 meningococcal infections assigned to cluster 1 only 2 had co-infection with a virus. By contrast 2 of the 3 meningococcal cases assigned to cluster 2 had a viral co-infection. The third meningococcal case assigned to cluster 2 had G1* coded  as the Path_2 (see table footer) for which I could not find a key. However it is possible that this third case also was co-infected with an unknown pathogen.
+                                        </p>
+    
+                                        <div class="col-12">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz1992/70/#/.embed" 
+                                                    height="600" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Table 3 - Shows the key demographic data for patients assigned to each cluster. System indicates the primary organ system affected. Path_1 indicates the primary causative pathogen. Path_2 indicates if any co-infections were detected. 
+                                        </b></p>
+    
+                                        <p>
+                                            Patients with bacterial infection will normally have a higher neutrophil percentage in their WCC relative to lymphocytes. Figure 13.1 shows the neutrophil and lymphocyte percentages for bacterial cases assigned to each cluster. We can see that bacterial cases assigned to cluster 1 had a higher neutrophil percentage in their white blood cells relative to lymphocytes. This trend was reversed for bacterial cases assigned to cluster 2 as seen in Figure 13.2.
+                                        </p>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz1992/80/.embed" 
+                                                    height="400" width="93%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz1992/82/.embed"
+                                                    height="400" width="93%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Figure 13 - Boxplot of neutrophil percentage (13.1) and CRP percentage (13.2) in bacterial cases by cluster assignment.
+                                        </b></p>                                   
                                     </div>
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/109/#/.embed"
-                                                height="600" width="93%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Figure 12 - Barplot of System of infection (12.1) and Pathogen of infection (12.2) in Bacterial cases by cluster assignment.
-                                    </b></p>
-                                    <p>
-                                        Table 4 shows a summary of the clinical data patients with bacterial infection. We can see that of 14 meningococcal infections assigned to cluster 1 only 2 can co-infection with a virus. By contrast 2 of the 3 meningococcal cases assigned to cluster 2 had a viral co-infection. The third meningococcal case assigned to cluster 2 had G1* coded  as the Path_2 for which I could not find a key. However it is possible that this third case also was co-infected with an unknown pathogen.
-                                    </p>
-
-                                    <div class="col-12">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/70/#/.embed" 
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Table 4 - Shows the key demographic data for patients assigned to each cluster. System indicates the primary organ system affected. Path_1 indicates the primary causative pathogen. Path_2 indicates if any co-infections that were detected. 
-                                    </b></p>
-
-                                    <p>
-                                        Patients with bacterial infection will normally have a higher neurphil percentage in their WCC relative to lymphocytes. Figure 13.1 shows the neutrophil and lymphocyte percentages for bacterial cases assigned to each class. We can see that bacterial cases assigned to cluster 1 had a higher neutrophil percentage in their white blood cells relative to lymphocytes. This trend was reversed for bacterial cases assigned to cluster 2 as seen in Figure 13.2.
-                                    </p>
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/80/.embed" 
-                                                height="400" width="93%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz1992/82/.embed"
-                                                height="400" width="93%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Figure 13 - Boxplot of neutrophil percentage (13.1) and CRP percentage (13.2) in Bacterial cases by cluster assignment.
-                                    </b></p>                                   
                                 </div>
-                            </div>
+    
+                                <h1>K=4</h1>
+                                <p>
+                                    The result of clustering into 4 clusters is shown below in Figure 14. The bare majority of cases assigned to cluster 1 are viral accounting for 35 of 68 cases in that cluster. Cluster 2 was predominantly bacterial with 28 of the 51 bacterial cases and 10 of the 42 probable bacterial cases assigned to it. Cluster 3 was more heterogeneous with 20 viral cases, 21 unknowns 14 probable bacterials and just 5 bacterials. Cluster 4 was predominantly viral with 30 viral cases out of 58 total cases assigned to the cluster
+    
+                                    In Figure 15 we see the same pattern as we observed for the case with K=2 whereby cluster 2 with a higher bacterial burden has higher inflammatory markers.
+                                    To understand why the bacterial cases were separated between clusters I have plotted the inflammatory markers looking exclusively at the 51 bacterial cases in Figure 16.
+                                    We can see from this that the bacterial cases appear to have been partitioned on the basis of the inflammatory markers with the more severe infections with higher inflammatory markers being assigned to cluster 2.
+                                </p>
+                                <div class="box alt">
+                                    <div class="row gtr-50 gtr-uniform">
+                                        <div class="col-12">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/1.embed"
+                                                    height="600" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>                         
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/3.embed"
+                                                    height="400" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/5.embed"
+                                                    height="400" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                            Figure 15 - Boxplot of WCC (15.1) and CRP (15.2) by cluster assignment.
+                                        </b></p>
+<h6 style='color: white;'>newline</h6><br>
 
-                            <h1>K=4</h1>
-                            <p>
-                                The result of clustering into 4 clusters is shown below in Figure 14. The majority of cases assigned to cluster 1 are viral accounting for 35 of 68 cases in that cluster. Cluster 2 was predominantly bacterial with 28 of the 51 bacterial cases and 10 of the 42 probable bacterial cases assigned to it. Cluster 3 was more heterogeneous with 20 viral cases, 21 unknowns 14 probable bacterials and just 5 bacterials. Cluster 4 was predominantly viral with 30 viral cases out of 58 total cases assigned to the cluster
-
-                                In Figure 15 we see the same pattern as we observed for the case with K=2 where by cluster 2 with a higher bacterial burden has higher inflammatory markers.
-                                To understand why the bacterial cases were separated between clusters I have plotted the inflammatory markers looking exclusively at the 51 bacterial cases in Figure 16.
-                                We can see from this that the bacterial cases appear to have been partitioned on the basis of the inflammatory markers with the more severe infections with higher inflammatory markers being assigned to cluster 2.
-                            </p>
-                            <div class="box alt">
-                                <div class="row gtr-50 gtr-uniform">
-                                    <div class="col-12">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/1.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>                         
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/3.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/19.embed"
+                                                    height="400" width="95%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div> 
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/21.embed"
+                                                    height="400" width="95%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Figure 16 - Boxplot of WCC (16.1) and CRP (16.2) in Bacterial cases by cluster assignment.
+                                        </b></p>
+                                        <p>
+                                            Figure 17.1 and 17.2 show the organ system involvement and the pathogenic organism detected for each cluster. We see the same effect as was present in the K=2 case whereby a higher proportion of bacteraemic cases were assigned to cluster 2. The causative pathogen in the majority of these cases was meningococcus as seen in Figure 17.2.
+                                            However not all of the meningococcal cases were assigned to cluster 2. Clusters 1 and 4 both had a single meningococcal patient and cluster 3 had 2.
+                                            To understand why these cases were split from the main body of meningococcal cases who were assigned to cluster 2 I have presented Table 4 below which details the clinical summary for all of the meningococcal patients.
+                                            It is interesting to note that the outlier meningococcal cases 15, 16 and 17 that were the only cases assigned to cluster 2 have also been isolated to distinct clusters in the K=4 case with 2 assigned to cluster 3 and 1 assigned to its own cluster 4. 
+                                        </p>	                                    
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/7.embed"
+                                                    height="400" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/9.embed"
+                                                    height="400" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Figure 17 - Barplot of system of infection (17.1) and detected pathogen (17.2) in bacterial cases by cluster assignment.
+                                        </b></p>
+                                        <div class="col-12">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/17.embed"
+                                                    height="600" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Table 4 - The K2_Cluster and K4_Cluster columns detail the cluster assignment for the k=2 and k=4 cases respectively.  
+                                        </b></p>
+                                        <p> 
+                                            To visualize why these cases have been partitioned from the bulk of the meningococcal cases I have plotted in Figure 18 a 2 dimensional PCA plot. The 4 colours indicate the cluster assignment and the crosses are meningococcal cases. We can see the bulk of the cases are relatively closely clustered and have been assigned to cluster 2. However zooming in over the 0, 0 coordinate we can see the 2 meningococcal cases assigned to cluster 3 and the case assigned to cluster 4. It is likely that co-infection with viral or other pathogens have distorted the characteristic meningococcal transcriptomic signature and pulled these cases into other clusters.
+                                        </p>                                   
+                                        <div class="col-12">
+                                            <span class="image fit">
+                                                <iframe src="https://plot.ly/~vetronz/11.embed"
+                                                    height="550" width="100%"
+                                                    scrolling="yes" seamless="seamless"
+                                                    frameBorder="0">
+                                                </iframe>
+                                            </span>
+                                        </div>
+                                        <p style="font-size: small;"><b>
+                                                Figure 18 - 2 dimensional PCA showing 4 cluster assignments with crosses as meningococcal cases and circles as other disease.  
+                                        </b></p>                                                                                              
                                     </div>
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/5.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                        Figure 15 - Boxplot of WCC (15.1) and CRP (15.2) by cluster assignment.
-                                    </b></p>                                    
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/19.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div> 
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/21.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Figure 16 - Boxplot of WCC (16.1) and CRP (16.2) in Bacterial cases by cluster assignment.
-                                    </b></p>
-                                    <p>
-                                        Figure 17.1 and 17.2 show the organ system involvement and the pathogenic organism detected for each cluster. We see the same effect as was present in the K=2 case where by a higher proportion of bacteraemic cases were assigned to cluster 2. The causative pathogen in the majority of these cases was meningococcus as seen in Figure 17.2.
-                                        However not all of the meningococcal cases were assigned to cluster 2. Clusters 1 and 4 both had a single meningococcal patient and cluster 3 had 2.
-                                        To better understand why these cases were  split from the main body of meningococcal cases who were assigned to cluster 2 I have presented Table 6 below which details the clinical summary for all of the meningococcal patients.
-                                        It is interesting to note that the outlier meningococcal cases 15, 16 and 17 that were the only cases assigned to cluster 2 have also been isolated to distinct clusters in the K=4 case with 2 assigned to cluster 3 and 1 assigned to its own cluster 4. 
-                                    </p>	                                    
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/7.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <div class="col-6">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/9.embed"
-                                                height="400" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Figure 17 - Barplot of system of infection (17.1) and detected pathogen (17.2) in Bacterial cases by cluster assignment.
-                                    </b></p>
-                                    <div class="col-12">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/17.embed"
-                                                height="600" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Table 6 - The K2_Cluster and K4_Cluster columns detail the cluster assignment for the k=2 and k=4 cases respectively.  
-                                    </b></p>
-                                    <p> 
-                                        To visualize why these cases have been partitioned from the bulk of the meningococcal cases I have plotted in Figure 18 a 2 dimensional PCA plot. The 4 colours indicate the cluster assignment and the crosses are meningococcal cases. We can see the bulk of the cases are relatively closely clustered and have been assigned to cluster 2. However zooming in over the 0, 0 coordinate we can see the 2 meningococcal cases assigned to cluster 3 and the case assigned to cluster 4. It is likely that co-infection with viral or other pathogens have distorted the characteristic meningococcal transcriptomic signature and pulled these cases into other clusters.
-                                    </p>                                   
-                                    <div class="col-12">
-                                        <span class="image fit">
-                                            <iframe src="https://plot.ly/~vetronz/11.embed"
-                                                height="550" width="100%"
-                                                scrolling="yes" seamless="seamless"
-                                                frameBorder="0">
-                                            </iframe>
-                                        </span>
-                                    </div>
-                                    <p style="font-size: small;"><b>
-                                            Figure 18 - 2 dimensional PCA showing 4 cluster assignments with crosses as meningococcal cases and circles as other disease.  
-                                    </b></p>                                                                                              
                                 </div>
-                            </div>                            
-                              
 
                         </section>
                         <section class="post">
@@ -295,7 +295,7 @@
                                 <h1>Semi-supervised<br>Clustering</h1>
                             </header>
                             <p>
-                                Figure 19 below shows the proportions of cases assigned to the same class using both unsupervised and supervised methods. The K=4 case was used as this was the optimal number of clusters in the unsupervised stream but also represented a fair approximation of the optimal number of clusters using supervised methods. As expected there is highest concordance between the two streams when the number of transcripts used to cluster the patients is similar. The first bootstrap sample used 7,141 transcripts compared to the fully unsupervised method which used 35,959. As the p-value and log fold change thresholds were made more stringent the number of significant transcripts decreased and we see a tail off in the concordance of cases assigned to the same cluster, from 83% in the b1 sample down to 65% in the b5 sample.
+                                Figure 19 below shows the proportion of cases assigned to the same cluster using both unsupervised and semi-supervised methods. The K=4 case was used as this was the optimal number of clusters in the unsupervised stream but also represented a fair approximation of the optimal number of clusters using semi-supervised methods. As expected there is highest concordance between the two streams when the number of transcripts used to cluster the patients is similar. The first bootstrap sample used 7,141 transcripts compared with the fully unsupervised method, which used 35,959. As the p-value and log fold change thresholds were made more stringent the number of significant transcripts decreased and we see a tail off in the concordance of cases assigned to the same cluster, from 83% in the b1 sample down to 65% in the b5 sample.
                             </p>
                             <div class="box alt">
                                 <div class="row gtr-50 gtr-uniform">
@@ -309,7 +309,7 @@
                                         </span>
                                     </div> 
                                     <p style="font-size: small;"><b>
-                                            Figure 19 - Shows the proportion of patients assigned to the same cluster using both unsupervised and supervised methods over the 5 bootstrap samples.
+                                            Figure 19 - Shows the proportion of patients assigned to the same cluster using both unsupervised and semi-supervised methods over the 5 bootstrap samples.
                                     </b></p>								
                                 </div>
                             </div>

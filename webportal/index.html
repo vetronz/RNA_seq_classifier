@@ -6,7 +6,6 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 		<link rel="stylesheet" href="assets/css/main.css" />
-		<!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous"> -->
 		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
 	</head>
 	<body class="is-preload">
@@ -39,7 +38,7 @@
 							<!-- <li><a href="elements.html">elements</a></li> -->
 						</ul>
 						<ul class="icons">
-							<li><a href="#" class="icon fa-github"><span class="label">GitHub</span></a></li>
+							<li><a href="https://github.com/vetronz/RNA_seq_classifier" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
 						</ul>
 					</nav>
 
@@ -50,10 +49,10 @@
 							</header>
 							<div class="box">
 								<p>
-									The discrimination of bacterial from viral infection in children still represents a major challenge for healthcare systems across the world. This distinction has important implications for treatment since delaying antibiotic therapy in bacterial infection can be life threatening whereas overuse of antibiotics can lead to the development of multi-drug resustant pathogens.
-									Separating out these two diagnostic categories based on the patients symtpoms is difficult becuase children suffering from bacterial and viral infections will often have similar presentations.
-									Recent <a href='https://jamanetwork.com/journals/jama/fullarticle/2545687'>work done by Professor Levin's group</a> at Imperial has demonstrated that gene expression levels measured during infection can distinguish with high accuracy bacterial from viral infection. This was achieved using a supervised machine learning model which was trained on the genes that were most different between the bacterial and viral cases.
-									However bacterial and viral infections are both heterogeneous cohorts which are themselves composed of many different pathogens. The aim of this project has been to use a fully unsupervised methodology to group the patients based on the totality of there gene expression rather than genes that are most different between bacteria and viral infections.
+									Distinguishing between bacterial and viral infection in children still represents a major challenge for healthcare systems across the world. This distinction has important implications for treatment since delaying antibiotic therapy in bacterial infection can be life threatening whereas the inappropriate prescription of antibiotics can lead to the development of multi-drug resistant pathogens.
+									Separating out these two diagnostic categories based on the patient's symtpoms is difficult because children suffering from bacterial or viral infections will often have similar presentations.
+									Recent <a href='https://jamanetwork.com/journals/jama/fullarticle/2545687'>work done by Professor Levin's group</a> at Imperial has demonstrated that gene expression levels measured during infection can distinguish with high accuracy bacterial from viral infection. This was achieved using a supervised machine learning model which was trained on the genes that differed the most between bacterial and viral cases.
+									However, bacterial and viral infections are both heterogeneous cohorts which are themselves composed of many different pathogens. The aim of this project has been to use a fully unsupervised methodology to group the patients based on the totality of their gene expression rather than genes that are most different as between bacterial and viral infections.
 									The hope is that by looking in an unbiased way at the entire gene expression profile we may start to unpick characteristic signatures that distinguish particular bacteria or particular viruses. This would be clinically useful because antibiotic therapy is most effective when targeted to a particular pathogen.
 								</p>
 							</div>
@@ -65,7 +64,7 @@
 										<dt>Background:</dt>
 										<dd>
 											<p>
-												Transcriptomic signatures can be used to distinguish bacterial from viral infection with a high degree of accuracy. Clinicians can then use this information to guide theraputic decisions reducing the chance of missing bacterial infections and minimizing unnecessary use of antibiotics in patients with viral infections. However for the best treatment outcomes antibiotic therapy should be targeted to a particular pathogen.
+												Transcriptomic signatures can be used to distinguish bacterial from viral infection with a high degree of accuracy. Clinicians can then use this information to guide therapeutic decisions, reducing the chance of missing bacterial infections and minimizing unnecessary use of antibiotics in patients with viral infections. However, for the best treatment outcomes antibiotic therapy should be targeted at a particular pathogen.
 											</p>
 										</dd>
 										<dt>Objective:</dt>
@@ -77,23 +76,22 @@
 										<dt>Methods:</dt>
 										<dd>
 											<p>
-												I have used K-means clustering to optimally partition 35,959 transcripts from 239 febrile children and 62 health controls who presented to participating hospitals in the United Kingdom, Spain, the Netherlands, and the United States between 2009-2013.
-												I have then used a supervised methodology to cluster the patients based on significantly differentially expressed transcripts between health and disease.
+												I have used K-means clustering to partition 239 febrile children who presented to participating hospitals in the United Kingdom, Spain, the Netherlands, and the United States between 2009-2013, based on 35,959 transcripts.
+												I have then used a semi-supervised methodology to cluster the patients based on significantly differentially expressed transcripts between health and disease.
 											</p>
 										</dd>
 										<dt>Results:</dt>
 										<dd>
 											<p>
-												Cluster assignment of patents to 4 clusters shows a statistically significant relationship between the the cluster assignment and the causative pathogen.
-												This is particularly evident with meningococcal disease with thirteen of seventeen cases assigned to cluster 2.
-												These class assignments are robust and are preserved when using a supervised methodology.
+												Cluster assignment of patents to 4 clusters shows a statistically significant relationship between the cluster assignment and the causative pathogen.
+												This is particularly evident with meningococcal disease, with thirteen of seventeen cases assigned to cluster 2.
+												These cluster assignments are robust and are preserved when using the semi-supervised methodology.
 											</p>
 										</dd>
 										<dt>Conclusion:</dt>
 										<dd>
 											<p>
-												Fully unsupervised clustering of transcriptomic data from febrile children is able to identify clinically meaningful subgroups that are driven by the causative pathogen.
-												The extent to which this clustering is determined by cell counts would require further de-convolution analysis.
+												Fully unsupervised clustering of transcriptomic data from febrile children is able to identify clinically meaningful subgroups that appear to be driven by an underlying pathogen.
 											</p>
 										</dd>																				
 									</dl>
