@@ -64,14 +64,14 @@ dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
 
 
 # # ### supervised
-idx <- status['most_general'] == 'bacterial' |
-  status['most_general'] == 'viral' |
-  status['most_general'] == 'greyb' |
-  status['most_general'] == 'greyv'|
-  status['most_general'] == 'greyu' |
-  status['most_general'] == 'HC'
-sum(idx)
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
+# idx <- status['most_general'] == 'bacterial' |
+#   status['most_general'] == 'viral' |
+#   status['most_general'] == 'greyb' |
+#   status['most_general'] == 'greyv'|
+#   status['most_general'] == 'greyu' |
+#   status['most_general'] == 'HC'
+# sum(idx)
+# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
 
 
 ### outlier
@@ -822,7 +822,7 @@ p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
   geom_bar()
 p<-ggplotly(p)
 p
-api_create(p, filename = "barplot_dx_clus.1.4")
+# api_create(p, filename = "barplot_dx_clus.1.4")
 
 # ggplotly(p)
 cluster <- c(1, 2, 3, 4)

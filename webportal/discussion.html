@@ -1,0 +1,99 @@
+<!DOCTYPE HTML>
+
+<html>
+	<head>
+		<title>Conclusion - Massively by HTML5 UP</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Header -->
+					<header id="header">
+						<a href="index.html" class="logo">Discussion</a>
+					</header>
+
+				<!-- Nav -->
+					<nav id="nav">
+						<ul class="links">
+							<li><a href="index.html">Home</a></li>
+							<li><a href="intro.html">Intro</a></li>
+							<li><a href="methods.html">Methods</a></li>
+							<li><a href="results.html">Results</a></li>
+							<li class='active'><a href="discussion.html">Discussion</a></li>
+							<li><a href="acknowledgements.html">Acknowledgements</a></li>
+							<!-- <li class="active"><a href="generic.html">Generic Page</a></li> -->
+
+							<!-- <li><a href="elements.html">Elements Reference</a></li> -->
+						</ul>
+						<ul class="icons">
+							<li><a href="#" class="icon fa-twitter"><span class="label">Twitter</span></a></li>
+							<li><a href="#" class="icon fa-facebook"><span class="label">Facebook</span></a></li>
+							<li><a href="#" class="icon fa-instagram"><span class="label">Instagram</span></a></li>
+							<li><a href="#" class="icon fa-github"><span class="label">GitHub</span></a></li>
+						</ul>
+					</nav>
+
+				<!-- Main -->
+					<div id="main">
+							<section class="post">
+								<h2>Achievements</h2>
+								<p>
+									Unsupervised clustering of patients based on full transcriptomic expression partitions cases into clinically meaningful subgroups. The subgroups appear to be driven by underlying pathogen causing the infection. These clusters are reproducible when using fewer transcripts as demonstrated by the preservation of patient cluster assignments when using the supervised methodology. This is an intriguing and clinically relevant finding given that detection of a causative organism would improve patient outcomes by allowing earlier targeting of antimicrobial therapy.
+								</p>
+								<h2>Limitations</h2>
+								<p>
+									An interesting question and one to which I have not had time to address in this short project is to what extent the clusters are determined by disease severity. Patients suffering with meningococcal infection formed a distinct and cohesive clustering. We know that patients with meningococcal infection have a severe illness with significant morbidity. This will drive up the WBC and CRP as an immune response is triggered. In order to unpick whether the clusters are determined by transcripts that are up-regulated in order to increase WBC count and produce neutrophils would require cell count deconvolution. This would adjust the transcripts by the WBC and neutrophil counts enabling us to see whether the clustering is principally determined by the patients immune response or whether there is another hidden process determining the clustering.
+								</p>
+								<h2>Future Work</h2>
+								<p>
+									Given more time I would have liked to examine the probable bacterial and unknown diagnostic groups using fuzzy clustering. This would have allowed a class probability estimation for each patient rather than an absolute assignment. The <a href='https://jamanetwork.com/journals/jama/fullarticle/2545687'> original research paper</a> used the definite bacterial cases and the definite viral cases only in order to establish a 2-transcriptomic diagnostic signature to discriminate the two classes. As a consequence the classifier was effective on clear cut cases but was more equivocal when applied to patients who might have been suffering from a less severe infections or were co-infected with a virus. With the fuzzy clustering class probability estimation for probable bacterial and unknown cases an iterative pseudo-labeling process could be performed. This would take the probable bacterial or unknown patient with the highest probability of bacterial cluster membership and label them as bacterial cases. A supervised agent could then be iterative re-trained on the new training data until test set accuracy started to decrease. This would be a valuable procedure because it would improve the supervised agents performance on the equivocal cases which by their nature are the patients that clinicians are likely to have difficulty treating.
+								</p>
+								<h2>Conclusion</h2>
+								<p>
+									In this work I have used unsupervised clustering to partition patients using 35,959 transcripts. Using k=2 a bacterial viral partition emerges with 32 bacterial and 27 viral cases assigned to cluster 1 and 19 bacterial and 65 viral cases assigned to cluster 2. Using k=4 there is preservation of the bacterial partition with 28 of 51 bacterial cases assigned to cluster 2. Of these 13 are meningococcal cases. Meningococcal cases assigned to alternate clusters had higher probability of suffering with viral co-infection.
+									The cluster assignment based on a fully unsupervised methodology appears to be robust to decreasing numbers of included transcripts indicating it represents the underlying biology.
+								</p>
+							</section>						
+					</div>
+
+			
+				<!-- Footer -->
+					<footer id="footer">
+					
+						<section class="split contact">
+							<section>
+								<h3>Social</h3>
+								<ul class="icons alt">
+									<!-- <li><a href="#" class="icon alt fa-twitter"><span class="label">Twitter</span></a></li>
+									<li><a href="#" class="icon alt fa-facebook"><span class="label">Facebook</span></a></li>
+									<li><a href="#" class="icon alt fa-instagram"><span class="label">Instagram</span></a></li> -->
+									<li><a href="#" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
+								</ul>
+							</section>
+						</section>
+					</footer>
+
+				<!-- Copyright -->
+					<div id="copyright">
+						<ul><li>&copy; Untitled</li><li>Design: <a href="https://html5up.net">HTML5 UP</a></li></ul>
+					</div>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
