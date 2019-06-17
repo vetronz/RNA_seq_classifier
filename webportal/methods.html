@@ -32,9 +32,6 @@
 							<!-- <li><a href="elements.html">Elements Reference</a></li> -->
 						</ul>
 						<ul class="icons">
-							<li><a href="#" class="icon fa-twitter"><span class="label">Twitter</span></a></li>
-							<li><a href="#" class="icon fa-facebook"><span class="label">Facebook</span></a></li>
-							<li><a href="#" class="icon fa-instagram"><span class="label">Instagram</span></a></li>
 							<li><a href="#" class="icon fa-github"><span class="label">GitHub</span></a></li>
 						</ul>
 					</nav>
@@ -43,11 +40,11 @@
                 <div id="main">
 				<section class="post">
 						<header class="major">
-							<h1>Data Preparation</h1>
+							<h1>Quality Control</h1>
 						</header>
 						<p>
 							I begin by filtering the micro-array data based on mean expression. Transcripts with lower expression tend to have higher variance. We can see this trend in Figure 6 below which shows the mean expression against the mean variance with a log2 transformation. Following recommendations based on domain knowledge I have filtered out transcripts with a mean expression below 5 indicated by the vertical line. This results in 35,959 transcripts with a mean expression above this threshold which I will use to cluster the patients.
-							An additional benefit of this filtering process is an increased statistical power to detect significantly differentially expressed genes when using the supervised methodology because we are making fewer comparisons.
+							An additional benefit of this filtering process is an increased statistical power to detect significantly differentially expressed genes when using the semi-supervised methodology because we are making fewer comparisons.
 						</p>
 						<span class="image fit"><img src="images/mean_variance_scatter.png" alt="" /></span>
 						<p style="font-size: small;"><b>
@@ -133,10 +130,13 @@
 
 					<section class="post">
 						<header class="major">
-							<h1>Supervised Clustering</h1>
+							<h1>Semi-supervised Clustering</h1>
 						</header>
 						<p>
-							I used the <a href='https://academic.oup.com/nar/article/43/7/e47/2414268'>limma</a> bioconductor package to select differentially expressed genes between disease and health. The limma package allows the user to fit a linear model to the expression of each gene based on a custom design matrix. The advantage of using this system rather than a simple pairwise t-test are many-fold.
+							In the semi-supervised methodology I have used the <a href='https://academic.oup.com/nar/article/43/7/e47/2414268'>limma</a> bioconductor package to select differentially expressed genes between disease and health. I have then reperformed the clustering using these transcripts rather than the full 35,595 transcripts.
+						</p>
+						<p>
+							The limma package allows the user to fit a linear model to the expression of each gene based on a custom design matrix. The advantage of using this system rather than a simple pairwise t-test are many-fold.
 							We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as covariates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. This allows the selection disease agnostic differentially expressed genes as we can pass all 6 diagnostic groups into the matrix and set up a comparison between the healthy controls against a summation of all of the other disease groups. 
 							Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown below where t is the test statistic, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance because of the denominator will be large. The empirical Bayes method adjusts the gene specific variance by the global variance computed across all genes This has the effect of increasing the effective degrees of freedom with which gene specific variances are estimated.
 						</p>
@@ -249,24 +249,19 @@
 						</div>
 						<p style="font-size: small;"><b>
 								Figure 8 - Volcano Plots show the significantly differentially expressed transcripts which were used to cluster the patients in each of the 5 bootstrap samples.
-						</b></p>					
+						</b></p>
+						<a href="results.html" style='display: block;' class="button">Results</a>							
 					</section>					
                 </div>
                 
 
 				<!-- Footer -->
 					<footer id="footer">
-						<header id="header">
-							<a href="results.html" class="logo">Results</a>
-						</header>
 						<section class="split contact">
 							<section>
 								<h3>Social</h3>
 								<ul class="icons alt">
-									<!-- <li><a href="#" class="icon alt fa-twitter"><span class="label">Twitter</span></a></li>
-									<li><a href="#" class="icon alt fa-facebook"><span class="label">Facebook</span></a></li>
-									<li><a href="#" class="icon alt fa-instagram"><span class="label">Instagram</span></a></li> -->
-									<li><a href="#" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
+									<li><a href="https://github.com/vetronz/RNA_seq_classifier" class="icon alt fa-github"><span class="label">GitHub</span></a></li>
 								</ul>
 							</section>
 						</section>
