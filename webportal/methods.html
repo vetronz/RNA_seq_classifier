@@ -138,7 +138,7 @@
 						</p>
 						<p>
 							The limma package allows the user to fit a linear model to the expression of each gene based on a custom design matrix. The advantage of using this system rather than a simple pairwise t-test is many-fold.
-							We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as covariates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. This allows the selection of genes that are differentially expressed between health and disease.
+							We saw in the clinical data analysis that diagnostic classes were not independent of patient gender and age. We can include these as covariates in addition to the diagnostic class when constructing the design matrix and hence we adjust for them when selecting differentially expressed genes. Limma also allows us to construct a contrast matrix in which we define the comparisons we would like to make. We can use the contrast matrix to define a disease cohort composed of the summation of our disease groups, namely the bacterial, probable bacterial, unknown, probable viral and viral cases. This allows the selection of genes that are differentially expressed between health and disease.
 							
 							Finally, limma also uses Empirical Bayes to calculate global parameters across the entire gene set. The gene specific linear models can then be adjusted based on information that is shared across the entire gene set. The formula for the test statistic is shown below where t is the test statistic, &beta; is the linear model coefficient, s is the sample variance and n is the sample size. Samples with lower numbers of replicates will often fail to show significance because the denominator will be large. The empirical Bayes method adjusts the gene specific variance by the global variance computed across all genes. This effectively increases the degrees of freedom with which gene specific variances are estimated.
 						</p>
@@ -147,8 +147,9 @@
 								<div style="display: block; margin: 0 auto;"><span class="image fit"><img src="images/Equations/t_stat.svg" alt="" /></span></div>
 							</div>
 						</div>
+						<h2>Assessment of Cluster Robustness using Bootstrap Re-sampling Methods</h2>
 						<p>
-							In order to evaluate the robustness of the cluster assignments found using the unsupervised stream I used 5 bootstrap samples with varying p-value and log fold change cut offs to select varying numbers of transcripts which I then used to cluster the patients. Table 2 shows the 5 bootstrap samples with the associated p-value and log fold change thresholds. The p-value and log fold change cutoffs become more conservative as the number of bootstrap samples increases. This results in a gradual reduction in the number of transcripts that still meet the significance and fold change criteria.
+							In order to evaluate the robustness of the cluster assignments found using the unsupervised stream I used 5 bootstrap samples with varying p-value and log fold change cut offs to select varying numbers of transcripts which I then used to cluster the patients. Table 2 shows the 5 bootstrap samples with the associated p-value and log fold change thresholds. The p-value and log fold change cut offs become more conservative as the number of bootstrap samples increases. This results in a gradual reduction in the number of transcripts that still meet the significance and fold change criteria.
 						</p>
 						<div class="table-wrapper">
 							<table>
