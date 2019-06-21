@@ -1,4 +1,5 @@
-library("illuminaHumanv4.db")
+library('biomaRt')
+
 getwd()
 setwd('~/Documents/RNA_seq_classifier/Data')
 illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
