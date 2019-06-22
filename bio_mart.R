@@ -51,7 +51,7 @@ dim(e.set.f)
 
 # rownames(e.set.f)[1:10]
 
-e.set.f$illumina_probe <- illumina$Probe_Id[match(rownames(e.set.f),illumina$Array_Address_Id)]
+e.set.f$Probe_Id <- illumina$Probe_Id[match(rownames(e.set.f),illumina$Array_Address_Id)]
 e.set.f[1:5,(ncol(e.set.f)-4):ncol(e.set.f)]
 
 
@@ -75,27 +75,33 @@ nuID2targetID('Ku8QhfS0n_hIOABXuE', lib.mapping='lumiHumanIDMapping')
 
 
 # real
-con <- IlluminaID2nuID(e.set.f$illumina_probe, lib.mapping='lumiHumanIDMapping', chipVersion = NULL)
+con <- IlluminaID2nuID(e.set.f$Probe_Id, lib.mapping='lumiHumanIDMapping', chipVersion = NULL)
 con.df <- as.data.frame(con)
 dim(con.df)
 head(con.df)
 
 # check the e.set.f probe id match that in the conversion df
-sum(con.df$Probe_Id == e.set.f$illumina_probe)
+sum(con.df$Probe_Id == e.set.f$Probe_Id)
 
 # check the conversion df if gene and symbol are equivalent = FALSE
 sum(as.character(con.df$ILMN_Gene) == as.character(con.df$Symbol))
 
-sum(mix2$Gene == as.character(con.df$ILMN_Gene))
-sum(mix2$Gene == as.character(con.df$Symbol))
+# reads in the mixture2 file used by Pre to check against
+mixture2 <- read.table('mixture2.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+dim(mixture2)
+
+sum(mixture2$Gene == as.character(con.df$ILMN_Gene))
+sum(mixture2$Gene == as.character(con.df$Symbol))
+
+length(intersect(mixture2$Gene, as.character(con.df$ILMN_Gene)))
+length(intersect(mixture2$Gene, as.character(con.df$Symbol)))
 # looks like the gene name is closer to that used by pre in the mixture2
 
-which(mix2$Gene != as.character(con.df$ILMN_Gene))
-mix2$Gene[which(mix2$Gene != as.character(con.df$ILMN_Gene))]
-con.df$ILMN_Gene[which(mix2$Gene != as.character(con.df$ILMN_Gene))]
+which(mixture2$Gene != as.character(con.df$ILMN_Gene))
+mixture2$Gene[which(mixture2$Gene != as.character(con.df$ILMN_Gene))]
+con.df$ILMN_Gene[which(mixture2$Gene != as.character(con.df$ILMN_Gene))]
 
-ill.probes <- e.set.f$illumina_probe[which(mix2$Gene != as.character(con.df$ILMN_Gene))]
-
+ill.probes <- e.set.f$Probe_Id[which(mixture2$Gene != as.character(con.df$ILMN_Gene))]
 ill.probes
 length(ill.probes)
 # ill.probes <- e.set.f$illumina_probe[1:15000]
@@ -105,6 +111,7 @@ df.1 <- getBM(attributes=c('illumina_humanht_12_v4', 'hgnc_symbol', 'ensembl_gen
               values = ill.probes, 
               mart = ensembl)
 View(df.1)
+
 
 # looks like when we do the biomaRt conversion that the hgnc gene names are capitalized just like our con.df ilmn_gene
 # however we have some emptyy rows in our biomaRt conversion
@@ -117,36 +124,101 @@ con.df[match(df.1$illumina_humanht_12_v4[df.1$hgnc_symbol == ''], con.df$Probe_I
 dim(e.set.f)
 dim(con.df)
 e.set.f$Gene <- con.df$ILMN_Gene
+View(cbind(Gene=con.df$ILMN_Gene, e.set.f))
+View(cbind(Gene=mixture2$Gene, e.set.f))
 
-# visual check that e.set.f array, probe and genes match con.df values
-con.df[1:5,]
-e.set.f[1:5,(ncol(e.set.f)-4):ncol(e.set.f)]
-
-e.set.f$illumina_probe <- NULL
-e.set.f$Gene
-colnames(e.set.f)
-View(e.set.f)
+# rip the gene column from the mixture2 and stick it on my version as col1
+e.set.f <- cbind(Gene=mixture2$Gene, e.set.f)
 dim(e.set.f)
+View(head(e.set.f))
 
-cols.names <- colnames(e.set.f)
-cols.names <-c('Gene', cols.names)
-cols.reorder <- cols.names[-length(cols.names)]
+# saving and reading 
+# setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/Ciber_sort')
+# write.table(mixture2, file = "mixture2_rep1.txt", sep='\t', row.names=FALSE) # FAILED RUN - no overlapping genes
+# write.table(mixture2, file = "mixture2_rep2.txt", sep='\t', row.names=TRUE) # 
+dim(mixture2[,idx])
+mixture2[,idx][1:5,1:5]
 
-setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/Ciber_sort')
-mix_one <- e.set.f[, cols.reorder]
+
+write.table(mixture2, file = "mixture2_rep2.txt", sep='\t', row.names=FALSE, quote = FALSE) # worked!
+write.table(e.set.f, file = "eset1.txt", sep='\t', row.names=FALSE, quote = FALSE) # worked!!!!!!!!!!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # check that mixture2 genes are contained in e.set.f genes
+# intersect(mixture2$Gene, e.set.f$Gene)
+# 
+# colnames(e.set.f)
+# col.names <- c('Gene', colnames(e.set.f))
+# # e.names <-c('Gene', cols.names)
+# cols.reorder <- col.names[-length(col.names)]
+# 
+mix <- e.set.f
+# # mix <- e.set.f[1:1000, cols.reorder]
+# dim(mix)
+# rownames(mix) <- NULL
+# View(mix)
+# 
+# intersect(mixture2$Gene, mix$Gene)
+
+
+
+
+mix_one <- read.table('mix_one.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+LM22 <- read.table('LM22.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+examp.mix <- read.table('ExampleMixtures-GEPs.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+mixture2 <- read.table('mixture2.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+
+
+dim(examp.mix)
+dim(mixture2)
 dim(mix_one)
-# write.table(mix_one, file = "mix_one.txt", ,sep='\t', row.names=TRUE)
-mix_test <- read.table('mix_one.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+dim(LM22)
 
-dim(mix_test)
-View(mix_test)
+LM22$Gene.symbol == examp.mix$GeneSymbol
+LM22$Gene.symbol
+examp.mix$GeneSymbol
 
+intersect(LM22$Gene.symbol, examp.mix$GeneSymbol)
+intersect(LM22$Gene.symbol, mixture2$Gene)
+intersect(LM22$Gene.symbol, mix_one$Gene)
+
+# its the same fucking list!
+View(cbind(mix_one$Gene, mixture2$Gene))
+
+mix_one$Gene <- mixture2$Gene
+
+# setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/Ciber_sort')
+# write.table(mix, file = "mix_one.txt", sep='\t', row.names=FALSE)
+
+
+
+# rownames(mix_test)
+# View(mix_test)
+
+
+
+intersect(examp.mix$GeneSymbol, mixture2$Gene)
 
 # pre mixture
-
 mix2 <- read.table('mixture2.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
 dim(mix2)
-View(mix2)
+rownames(mix2)
+View(mix2[1:100,])
 
 LM22.ref <- read.table('LM22-ref-sample.txt', sep = '\t', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
 dim(LM22.ref)
