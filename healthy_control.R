@@ -259,14 +259,14 @@ dim(X.t)
 ### DESIGN MATRIX
 # colnames(design)<- c("bct","greyb","greyv", 'HC', 'vrl', 'sexM', 'age', 'CHW', 'EUC', 'FED', 'FPIES', 'KEN', 'OXF','SMH','SOT','UCSD')
 
-design <- model.matrix(~label + sex + age + 0, data = e.set.f)
-colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age')
+# design <- model.matrix(~label + sex + age + 0, data = e.set.f)
+# colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age')
 
-# design <- model.matrix(~label + sex + age + round(Neutrophils, 3) +
-#                          round(Monocytes, 3) + round(NK.cells.resting, 3) +
-#                          round(NK.cells.activated, 3) + round(T.cells.CD8, 3) + 0,
-#                        data = e.set.f)
-# colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age', 'neut', 'mono', 'nk.rest', 'nk.act', 'CD8')
+design <- model.matrix(~label + sex + age + round(Neutrophils, 3) +
+                         round(Monocytes, 3) + round(NK.cells.resting, 3) +
+                         round(NK.cells.activated, 3) + round(T.cells.CD8, 3) + 0,
+                       data = e.set.f)
+colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age', 'neut', 'mono', 'nk.rest', 'nk.act', 'CD8')
 
 # double check design with status to ensure correct cibersort values in design
 design[1:5,]
@@ -348,7 +348,7 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   labs(title="Volcano Plot of Log Fold Change Against -log10 P Value Boot=5",
        x ="Log Fold Change", y = "log10 P-value")
 p
- 
+
 # p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
 #            text = ~paste('<br>Gene: ', gene, '<br>Ensembl: ', ensemb),
 #            type='scatter', mode = "markers", color = ~logThresh)
@@ -358,9 +358,9 @@ p
 # api_create(p, filename = "volcano_b5")
 
 dim(results)
-results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
-dim(X[results.tot,])
-dim(X.t)
+# results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
+# dim(X[results.tot,])
+# dim(X.t)
 
 ###### PCA ######
 full.pca <- prcomp(X.t, scale=TRUE) # unsupervised
@@ -461,19 +461,22 @@ p
 
 
 
-
+# load('esets.RData')
+# saveRDS(X.t, "X.t.rds")
+# rm(X.t)
+# X.t <- readRDS("X.t.rds")
 
 ############ Clustering ############
-# p<-fviz_nbclust(X.t, kmeans, method = "wss")
-# p<-ggplotly(p)
+p<-fviz_nbclust(X.t, kmeans, method = "wss")
+p<-ggplotly(p)
 # api_create(p, filename = "opt_cluster_tss_boot1")
 
-# p<-fviz_nbclust(X.t, kmeans, method = "silhouette")
-# p<-ggplotly(p)
+p<-fviz_nbclust(X.t, kmeans, method = "silhouette")
+p<-ggplotly(p)
 # api_create(p, filename = "opt_cluster_silhouette_boot1")
 
-# p<-fviz_nbclust(X.t, kmeans, method = "gap_stat", nboot = 10)
-# p<-ggplotly(p)
+p<-fviz_nbclust(X.t, kmeans, method = "gap_stat", nboot = 10)
+p<-ggplotly(p)
 # api_create(p, filename = "opt_cluster_gap_boot1")
 
 # fviz_nbclust(X.t, cluster::fanny, method = "wss")
