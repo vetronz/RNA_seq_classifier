@@ -17,17 +17,20 @@ library("illuminaHumanv4.db")
 
 getwd()
 setwd('/home/patrick/Code/R')
-# setwd('/Users/patrickhedley-miller/code/gitWorkspace/infxRNAseq')
-
 rm(list=setdiff(ls(), 'all'))
 load('esets.RData')
+
+setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/Ciber_sort')
+cyber.s <- read.table('CIBERSORT.Output_Job14.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
+setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data')
+clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = TRUE)
 
 
 # Sys.setenv("plotly_username"="vetronz1992")
 # Sys.setenv("plotly_api_key"="Wtx9CzYqbl9iC8EzXp2B")
 
-Sys.setenv("plotly_username"="vetronz")
-Sys.setenv("plotly_api_key"="OhacJkwCAaZOcC0wHPhp")
+# Sys.setenv("plotly_username"="vetronz")
+# Sys.setenv("plotly_api_key"="OhacJkwCAaZOcC0wHPhp")
 
 
 
@@ -53,26 +56,50 @@ sex.cols <- c('#fc1676', '#16acfc')
 clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
 
 
+###### Cyber Sort ######
+dim(status)
+dim(cyber.s)
+status[1:5,1:8]
+cyber.s[1:5,1:5]
+colnames(cyber.s)[1] <- 'my_category_2'
+
+# join the status and cibersort dataframes together on the common column
+# join rather than merge preserves the row order
+status <- join(status, cyber.s, by='my_category_2')
+dim(status)
+
+# select data from clin cases where we have neutrophil perc and compare to ciber sort pred
+df.2 <- clin[!is.na(clin$perc_neut),c('category', 'perc_neut')]
+colnames(df.2)[1] <- 'my_category_2'
+match(df.2$my_category_2, status$my_category_2)
+df.3 <- status[match(df.2$my_category_2, status$my_category_2),c('my_category_2', 'Neutrophils')]
+df.4 <- merge(df.3, df.2)
+
+ggplot(df.4, aes(x=Neutrophils, y=perc_neut)) + 
+  geom_point()+
+  geom_smooth(method=lm, level=0.95)
+
+cor(df.4$Neutrophils, df.4$perc_neut)
+
 # ### unsup
-idx <- status['most_general'] == 'bacterial' |
-  status['most_general'] == 'viral' |
-  status['most_general'] == 'greyb' |
-  status['most_general'] == 'greyv'|
-  status['most_general'] == 'greyu'
-sum(idx)
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
-
-
-# # ### supervised
 # idx <- status['most_general'] == 'bacterial' |
 #   status['most_general'] == 'viral' |
 #   status['most_general'] == 'greyb' |
 #   status['most_general'] == 'greyv'|
-#   status['most_general'] == 'greyu' |
-#   status['most_general'] == 'HC'
+#   status['most_general'] == 'greyu'
 # sum(idx)
-# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
+# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
 
+### supervised
+idx <- status$most_general == 'bacterial' |
+  status$most_general == 'viral' |
+  status$most_general == 'greyb' |
+  status$most_general == 'greyv'|
+  status$most_general == 'greyu' |
+  status$most_general == 'HC'
+sum(idx)
+class(idx)
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
 
 ### outlier
 which(status$my_category_2 == 'bacterialgpos_19_SMH')
@@ -80,10 +107,8 @@ idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
 idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
 idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
 
-
 status.idx <- status[idx,]
-status.idx$most_general
-
+status.idx$most_general[1:10]
 
 # rename most_general
 status.idx$most_general <- as.character(status.idx$most_general)
@@ -183,21 +208,31 @@ dim(status.idx)
 
 
 
-
-
 ############ LIMMA ############
-e.set.f <- as.data.frame(e.set[,idx])
+dim(e.set)
+# View(head(e.set))
+e.set.f <- e.set[,idx]
 e.set.f <- as.data.frame(t(e.set.f))
 dim(e.set.f)
-class(e.set.f)
 
-e.set.f$label <- as.character(status[idx, c('most_general')])
-e.set.f$sex <- status[idx,c('Sex')]
+# check that the patient order has not been changed by the join step
+# e.set.f defined using the raw idx whereas we are appending columns from status.idx which have been processed
+status[idx,]$my_category_2[1:10]
+status.idx$my_category_2[1:10]
+
+e.set.f$label <- status.idx$most_general
+e.set.f$sex <- status.idx$Sex
+e.set.f$age <- status.idx$Age..months.
+e.set.f$Neutrophils <- status.idx$Neutrophils
+e.set.f$Monocytes <- status.idx$Monocytes
+e.set.f$NK.cells.resting <- status.idx$NK.cells.resting
+e.set.f$NK.cells.activated <- status.idx$NK.cells.activated
+e.set.f$T.cells.CD8 <- status.idx$T.cells.CD8
 # e.set.f$site <- status[idx,c('site')]
-e.set.f$age <- status[idx,c('Age..months.')]
 
 dim(e.set.f)
-e.set.f[1:5, (ncol(e.set.f)-3):ncol(e.set.f)]
+
+e.set.f[1:10, (ncol(e.set.f)-9):ncol(e.set.f)]
 
 # mean/variance calculations
 x_var <- apply(e.set[,idx], 1, var)
@@ -222,14 +257,21 @@ X.t <- t(X)
 dim(X.t)
 
 ### DESIGN MATRIX
-# site
-# design <- model.matrix(~label + sex + age + site + 0, data = e.set.f)
 # colnames(design)<- c("bct","greyb","greyv", 'HC', 'vrl', 'sexM', 'age', 'CHW', 'EUC', 'FED', 'FPIES', 'KEN', 'OXF','SMH','SOT','UCSD')
 
 design <- model.matrix(~label + sex + age + 0, data = e.set.f)
-colnames(design)<- c("bct","greyb",'greyu', "greyv", 'HC', 'vrl', 'sexM', 'age')
+colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age')
 
+# design <- model.matrix(~label + sex + age + round(Neutrophils, 3) +
+#                          round(Monocytes, 3) + round(NK.cells.resting, 3) +
+#                          round(NK.cells.activated, 3) + round(T.cells.CD8, 3) + 0,
+#                        data = e.set.f)
+# colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age', 'neut', 'mono', 'nk.rest', 'nk.act', 'CD8')
+
+# double check design with status to ensure correct cibersort values in design
 design[1:5,]
+status.idx[1:5,c('Neutrophils', 'Monocytes')]
+
 dim(design)
 colSums(design)
 
@@ -259,8 +301,6 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(0.5, 0.1), # 4 gap stat 6 (9 with p val 0.05)
                    c(0.75, 0.05), # 5 gap stat of three
                    c(1, 0.05)) # 6
-
-
 
 
 boot <- 6
@@ -299,50 +339,6 @@ all.filt <- all.hits[abs(all.hits$logFC) > lfc & all.hits$adj.P.Val < pval,]
 # all.filt <- all.hits
 dim(all.filt)
 
-setwd('~/Documents/RNA_seq_classifier/Data')
-illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fill = FALSE, header = TRUE)
-head(illumina)
-nrow(illumina)
-x <- illuminaHumanv4GENENAME
-
-probeID <- illumina$Probe_Id[which(illumina$Array_Address_Id %in% rownames(all.filt))]
-length(probeID)
-probeID[1:10]
-
-x <- illuminaHumanv4GENENAME
-v <- unlist(mget(x = probeID, envir = x))
-
-all.filt$gene <- v
-
-
-x <- illuminaHumanv4ENSEMBL
-ensemb_list <- mget(x = probeID, envir = x)
-ensemb <- NULL
-for (i in 1:dim(all.filt)[1]){
-  first = ensemb_list[[i]][1]
-  ensemb[i] <- first
-}
-length(ensemb)
-ensemb
-v <- unlist(ensemb)
-all.filt$ensemb <- v
-# all.filt[1:5,]
-all.filt$logThresh <- ifelse(all.filt$logFC > lfc, 1, ifelse(all.filt$logFC < -lfc, 2, 0))
-
-all.filt[1:5,]
-dim(all.filt)
-
-p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
-           text = ~paste('<br>Gene: ', gene, '<br>Ensembl: ', ensemb),
-           type='scatter', mode = "markers", color = ~logThresh)
-  # add_segments(x = lfc, xend = lfc, y = 0, yend = 25, name = paste0('lfc >:', lfc)) %>%
-  # add_segments(x = -lfc, xend = -lfc, y = 0, yend = 25, name = paste0('lfc <:', -1*lfc))
-p
-
-api_create(p, filename = "volcano_b5")
-
-
-
 p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   geom_point(size = 1, stroke = 0, shape = 16) +
   # text = ~paste("<br>Ensembl: ", ensemb, '<br>Gene: ', gene)
@@ -352,16 +348,21 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
   labs(title="Volcano Plot of Log Fold Change Against -log10 P Value Boot=5",
        x ="Log Fold Change", y = "log10 P-value")
 p
-ggplotly(p)
-
+ 
+# p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
+#            text = ~paste('<br>Gene: ', gene, '<br>Ensembl: ', ensemb),
+#            type='scatter', mode = "markers", color = ~logThresh)
+# add_segments(x = lfc, xend = lfc, y = 0, yend = 25, name = paste0('lfc >:', lfc)) %>%
+# add_segments(x = -lfc, xend = -lfc, y = 0, yend = 25, name = paste0('lfc <:', -1*lfc))
+# p
+# api_create(p, filename = "volcano_b5")
 
 dim(results)
-
 results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
-
 dim(X[results.tot,])
 dim(X.t)
-# # PCA
+
+###### PCA ######
 full.pca <- prcomp(X.t, scale=TRUE) # unsupervised
 # full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
 
@@ -483,10 +484,6 @@ k2.df <- status.idx[c('barcode_megaexp', 'category', 'my_category_2', 'most_gene
                           'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
 
 # write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
-
-setwd('/home/patrick/Documents/RNA_seq_classifier/Data')
-clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = TRUE)
-
 
 k2.df$system <- clin$system
 k2.df$system.spec <- clin$system_spec
