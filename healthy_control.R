@@ -1,4 +1,4 @@
-# library(tidyverse)
+library(tidyverse)
 library(limma)
 library(cluster)
 library(factoextra)
@@ -296,14 +296,15 @@ dim(fit2)
 plotSA(fit2)
 
 bootstraps <- list(c(0, 1), # 1 full
-                   c(0.25, 0.1), # 2 7141
-                   c(0.375, 0.1), # 3
-                   c(0.5, 0.1), # 4 gap stat 6 (9 with p val 0.05)
-                   c(0.75, 0.05), # 5 gap stat of three
-                   c(1, 0.05)) # 6
+                   c(0.15, 0.2), # 2 6628
+                   c(0.25, 0.1), # 3 3054
+                   c(0.375, 0.1), # 4
+                   c(0.5, 0.1), # 5 gap stat 6 (9 with p val 0.05)
+                   c(0.75, 0.05), # 6 gap stat of three
+                   c(1, 0.05)) # 7
 
 
-boot <- 6
+boot <- 3
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 # pval <- 5.e-5
@@ -357,13 +358,29 @@ p
 # p
 # api_create(p, filename = "volcano_b5")
 
+
+####### filtering the e.set by the selected genes #######
+# load('esets.RData')
+# saveRDS(X.t, "X.t.rds")
+# rm(X.t)
+# X.t <- readRDS("X.t.rds")
+
 dim(results)
-# results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
-# dim(X[results.tot,])
-# dim(X.t)
+results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
+dim(X[results.tot,])
+X.diff <- X[results.tot,]
+
+# filter out the healthy controls
+sum(status.idx$most_general != 'healthy_control') + sum(status.idx$most_general == 'healthy_control')
+status.idx$most_general != 'healthy_control'
+dim(X.t[status.idx$most_general != 'healthy_control',])
+X.r <- t(X.diff)[status.idx$most_general != 'healthy_control',]
+
+dim(X.r)
+
 
 ###### PCA ######
-full.pca <- prcomp(X.t, scale=TRUE) # unsupervised
+full.pca <- prcomp(X.r, scale=TRUE) # unsupervised
 # full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
@@ -461,31 +478,64 @@ p
 
 
 
-# load('esets.RData')
-# saveRDS(X.t, "X.t.rds")
-# rm(X.t)
-# X.t <- readRDS("X.t.rds")
-
 ############ Clustering ############
-p<-fviz_nbclust(X.t, kmeans, method = "wss")
-p<-ggplotly(p)
-# api_create(p, filename = "opt_cluster_tss_boot1")
+# p<-fviz_nbclust(X.r, kmeans, method = "wss", k.max = 15)
+# p
+# # p<-ggplotly(p)
+# # api_create(p, filename = "opt_cluster_tss_boot1")
+# 
+# p<-fviz_nbclust(X.r, kmeans, method = "silhouette", k.max = 15)
+# p
+# # p<-ggplotly(p)
+# # api_create(p, filename = "opt_cluster_silhouette_boot1")
+# 
+# p<-fviz_nbclust(X.r, kmeans, method = "gap_stat", nboot = 10)
+# p
+# # p<-ggplotly(p)
+# # api_create(p, filename = "opt_cluster_gap_boot1")
 
-p<-fviz_nbclust(X.t, kmeans, method = "silhouette")
-p<-ggplotly(p)
-# api_create(p, filename = "opt_cluster_silhouette_boot1")
 
-p<-fviz_nbclust(X.t, kmeans, method = "gap_stat", nboot = 10)
-p<-ggplotly(p)
-# api_create(p, filename = "opt_cluster_gap_boot1")
 
-# fviz_nbclust(X.t, cluster::fanny, method = "wss")
-# fviz_nbclust(X.t, cluster::fanny, method = "silhouette")
-# fviz_nbclust(X.t, cluster::fanny, method = "gap_stat")
+### fuzzy
+set.seed(123)
+# function to compute total within-cluster sum of square 
+wss <- function(k) {
+  # kmeans(X.r, k, nstart = 10 )$tot.withinss
+  k2 <- fanny(X.r, k, memb.exp = 1.2, metric = c('euclidean'))
+}
+k2$membership
+k2$silinfo
+# Compute and plot wss for k = 1 to k = 10
+k.values <- 1:10
 
-k2.df <- status.idx[c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
-                          'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+wss_values <- map_dbl(k.values, wss)
 
+plot(k.values, wss_values,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+
+
+km.res <- kmeans(X.r, centers = 2, nstart = 25)
+ss<-silhouette(km.res$cluster, dist(X.r))
+mean(ss[, 3])
+
+
+gap_stat <- clusGap(X.r, FUN = kmeans, nstart = 10,
+                    K.max = 10, B = 10)
+# Print the result
+# fviz_nbclust(X.r, cluster::fanny(X.r, memb.exp = 1.2, metric = c('euclidean')), method = "wss")
+# fviz_nbclust(X.r, cluster::fanny, method = "silhouette")
+# fviz_nbclust(X.r, cluster::fanny, method = "gap_stat")
+
+
+
+
+k2.df <- status.idx[status.idx$most_general != 'healthy_control',c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
+                                                                   'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+dim(k2.df)
+dim(clin)
 # write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
 
 k2.df$system <- clin$system
@@ -512,7 +562,11 @@ k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
 # cols = gg_color_hue(n)
 k2.pal <- c(cols[c(1,4)])
 set.seed(47)
-k2 <- kmeans(X.t, centers = 2, nstart = 25)
+k2 <- kmeans(X.r, centers = 2, nstart = 25)
+k2$tot.withinss
+
+k2 <- fanny(X.r, 2, memb.exp = 1.2, metric = c('euclidean'))
+k2$membership
 k2$cluster <- as.factor(k2$cluster)
 
 clus.boot <-paste0('clus.', boot, '.2')
@@ -525,6 +579,7 @@ colnames(k2.df)
 
 table(k2$cluster, k2.df$most_general) # sanity check
 dx_clus.1.2 <- addmargins(table(k2.df[[clus.boot]], k2.df$most_general))
+dx_clus.1.2
 # write.csv(dx_clus.1.2, file = "dx_clus.1.2.csv", row.names=TRUE)
 
 
@@ -556,7 +611,7 @@ ggplot(k2.df, aes(k2.df[[clus.boot]], Age..months.)) + geom_boxplot()
 length(k2.df[[clus.boot]])
 length(k2.df$Age..months.)
 
-  
+
 #inflam
 p1<-ggplot(k2.df, aes(x = k2.df[[clus.boot]], y = k2.df$WBC, fill = k2.df[[clus.boot]])) +
   scale_fill_manual(values=cols.10[c(6,9)], name = 'Cluster')+
@@ -574,7 +629,6 @@ grid.arrange(p1, p2, ncol=2)
 # ggplotly(p2)
 # api_create(p1, filename = "boxplot_wbc_clus.1.2")
 # api_create(p2, filename = "barplot_crp_clus.1.2")
-
 
 p1<-ggplot(k2.df[k2.df$more_general == 'bacterial',], aes(x = k2.df[[clus.boot]][k2.df$more_general == 'bacterial'], y = k2.df$WBC[k2.df$more_general == 'bacterial'], fill=k2.df$more_general[k2.df$more_general == 'bacterial'])) +
   scale_fill_manual(values=dx.cols, name = 'Diagnostic Group')+
@@ -633,22 +687,8 @@ grid.arrange(p1, p2, ncol=2)
 # api_create(p2, filename = "boxplot_lymp_bct_clus.1.2")
 
 
-p<-plot_ly(status.idx, x = k2$cluster, y = ~status.idx$WBC, type = "box",
-           color = ~k2$cluster, colors = c(dx.cols.2)) %>%
-  layout(boxmode = "group",
-         title = 'Box and Whisker Plot of WBC Count by Diagnostic Group, Split by Gender',
-         xaxis = list(title = 'Diagnosis'),
-         yaxis = list(title = 'WBC Count'))
-p
 
-# 
-# p<-plot_ly(status[idx,], x = k2$cluster, y = ~crp,
-#            type = "box", color = ~k2$cluster, colors = c(dx.cols.2)) %>%
-#   layout(boxmode = "group",
-#          title = 'Box and Whisker Plot of WBC Count by Diagnostic Group, Split by Gender', 
-#          xaxis = list(title = 'Diagnosis'),
-#          yaxis = list(title = 'CRP Count'))
-# p
+
 
 
 
@@ -656,20 +696,13 @@ p
 
 
 ### system
-# trial of renaming the cluster hover over on barplot
-k2.bct.df <- k2.df[k2.df$most_general == 'bacterial',]
-names(k2.bct.df)[names(k2.bct.df) == clus.boot] <- 'cluster'
-names(k2.bct.df)
-
-addmargins(table(k2.bct.df$'cluster', k2.bct.df$system))
-p<-ggplot(k2.bct.df, aes(k2.bct.df$'cluster', fill=system)) +
-  labs(title = "Barplot of Infection System by Cluster in Bacterial Cases K=2", x = "", y = "Counts")+
-  scale_fill_manual(values = cols.10[c(4:10)])+
+table(k2.df[k2.df$most_general == 'bacterial',][[clus.boot]], k2.df[k2.df$most_general == 'bacterial',]$system)
+p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=system)) +
+  labs(title = "Barplot of Microbioloty by Cluster in Bacterial Cases K=2", x = "", y = "Counts")+
+  scale_fill_manual(values = cols.14[c(2:14)], name = "System")+
   geom_bar()
+p<-ggplotly(p)
 p
-ggplotly(p)
-# api_create(p, filename = "test_system_clus.1.2")
-
 
 cluster <- c(1, 2)
 clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[1,]
@@ -795,7 +828,7 @@ p
 
 ############ K4 ############
 set.seed(47)
-k4 <- kmeans(X.t, centers = 4, nstart = 25)
+k4 <- kmeans(X.r, centers = 4, nstart = 25)
 k4$cluster <- as.factor(k4$cluster)
 
 clus.boot <-paste0('clus.', boot, '.4')
@@ -1033,6 +1066,7 @@ p
 # View(k2.df[k2.df$micro == 'meningococcal',])
 sum(k2.df$Path_1 == 'meningococcus')
 clus.1.4 <- k2.df[k2.df$Path_1 == 'meningococcus',]
+colnames(clus.1.4)
 clus.1.4[c('Age..months.', 'WBC', 'array.contemporary.CRP', 'Path_1', 'Path_2', 'clus.1.2')]
 clus.1.4 <- clus.1.4[order(clus.1.4$clus.1.2),]
 # View(clus.1.4)
@@ -1040,14 +1074,14 @@ write.csv(clus.1.4, file = "mening_clus.1.4.csv", row.names=TRUE)
 
 
 
-mening <- k2.df[k2.df$Path_1 == 'meningococcus',][c('Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis', 'system', 'Path_1', 'Path_2' , 'clus.1.2', 'clus.1.4')]
+mening <- k2.df[k2.df$Path_1 == 'meningococcus',][c('Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis', 'system', 'Path_1', 'Path_2' , 'clus.3.2', 'clus.3.4')]
 dim(mening)
-mening <- mening[order(mening$clus.1.4),]
+mening <- mening[order(mening$clus.3.4),]
 rownames(mening) <- seq(1, nrow(mening))
 colnames(mening) <- c('Age', 'Sex', 'WBC', 'CRP', 'Presentation', 'System', 'Path_1', 'Path_2', 'K2_Cluster', 'K4_Cluster')
 
 plotly.table <- mening
-# View(plotly.table)
+View(plotly.table)
 # colnames(plotly.table)
 
 p <- plot_ly(
