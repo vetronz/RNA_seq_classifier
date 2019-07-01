@@ -497,12 +497,63 @@ p
 
 
 ### fuzzy
+dim(X.r)
+
+X.r[1:2,1:2]
+apply(X.r[1:2,1:2], 2, mean)
+fuz_test<-cmeans(X.r[1:3,1:2], 2, iter.max=10, verbose=FALSE, dist="euclidean",
+       method="cmeans", m=2, rate.par = NULL)
+
+fuz_test$centers
+fuz_test$cluster
+fuz_test$withinerror
+fuz_test$membership
+
+X.r[1:5,1:2]
+fuz_test$cluster
+
+
+fuz.2.3 <- cmeans(X.r, 2, iter.max=10, verbose=FALSE, dist="euclidean",
+        method="cmeans", m=2, rate.par = NULL)
+
+attributes(fuz.2.3)
+fuz.2.3$cluster
+dim(fuz.2.3$centers)
+fuz.2.3$withinerror
+
+sumsqr <- function(x, clusters){
+  sumsqr <- function(x) sum(scale(x, scale = FALSE)^2)
+  wss <- sapply(split(as.data.frame(x), clusters), sumsqr)
+  return(wss)
+}
+
+#get the wss for repeated clustering
+iterate_fcm_WSS <- function(df,m){
+  totss <- numeric()
+  for (i in 2:20){
+    FCMresults <- cmeans(df,centers=i,m=m)
+    totss[i] <- sum(sumsqr(df,FCMresults$cluster))
+  }
+  return(totss)
+}
+wss_2to20 <- iterate_fcm_WSS(scaledata,m)
+plot(1:20, wss_2to20[1:20], type="b", xlab="Number of Clusters", ylab="wss")
+
+
+
+
 set.seed(123)
 # function to compute total within-cluster sum of square 
 wss <- function(k) {
   # kmeans(X.r, k, nstart = 10 )$tot.withinss
   k2 <- fanny(X.r, k, memb.exp = 1.2, metric = c('euclidean'))
 }
+
+a<-wss(2)
+attributes(a)
+a$membership
+
+
 k2$membership
 k2$silinfo
 # Compute and plot wss for k = 1 to k = 10
