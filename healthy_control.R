@@ -14,6 +14,7 @@ library(neuralnet)
 library(ROCR)
 library(tidyr)
 library("illuminaHumanv4.db")
+library(Mfuzz)
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -496,31 +497,52 @@ p
 
 
 
-### fuzzy
+###### FUZZY CLUSTERING ######
 dim(X.r)
+df.1 <- X.r[1:100,1:3]
+df.1
 
-X.r[1:2,1:2]
-apply(X.r[1:2,1:2], 2, mean)
-fuz_test<-cmeans(X.r[1:3,1:2], 2, iter.max=10, verbose=FALSE, dist="euclidean",
-       method="cmeans", m=2, rate.par = NULL)
+### MFUZZ
+#save it to a temp file so ti doesnt clutter up my blog directory
+tmp <- tempfile()
+write.table(df.1, file=tmp, sep='\t', quote = F, col.names=NA)
 
-fuz_test$centers
-fuz_test$cluster
+#read it back in as an expression set
+data <- table2eset(file=tmp)
+
+data.s <- standardise(data)
+
+m1 <- mestimate(data.s)
+m1
+
+Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=3, visu=TRUE)
+
+clust=5
+
+c <- mfuzz(data,c=clust,m=m1)
+
+c$withinerror
+
+
+# validation using cmeans directly
+fuz_test<-cmeans(df.1, centers=clust, iter.max=10, verbose=FALSE, dist="euclidean",
+                 method="cmeans", m=m1, rate.par = NULL)
+
 fuz_test$withinerror
-fuz_test$membership
 
-X.r[1:5,1:2]
-fuz_test$cluster
+# custom functions to evaluate the cluster assignments
+# norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
+norm_vec <- function(x) sqrt(sum(x^2))
+testFunc <- function(x) sum(scale(x, center = TRUE, scale = FALSE)^2)
+
+sapply(split(as.data.frame(df.2), fuz_test$cluster), norm_vec)
+
+sum(sapply(split(as.data.frame(df.2), fuz_test$cluster), norm_vec))
 
 
-fuz.2.3 <- cmeans(X.r, 2, iter.max=10, verbose=FALSE, dist="euclidean",
-        method="cmeans", m=2, rate.par = NULL)
 
-attributes(fuz.2.3)
-fuz.2.3$cluster
-dim(fuz.2.3$centers)
-fuz.2.3$withinerror
 
+### CUSTOM 
 sumsqr <- function(x, clusters){
   sumsqr <- function(x) sum(scale(x, scale = FALSE)^2)
   wss <- sapply(split(as.data.frame(x), clusters), sumsqr)
@@ -536,35 +558,23 @@ iterate_fcm_WSS <- function(df,m){
   }
   return(totss)
 }
-wss_2to20 <- iterate_fcm_WSS(scaledata,m)
+wss_2to20 <- iterate_fcm_WSS(df.1, round(m1,2))
 plot(1:20, wss_2to20[1:20], type="b", xlab="Number of Clusters", ylab="wss")
 
 
 
 
-set.seed(123)
-# function to compute total within-cluster sum of square 
-wss <- function(k) {
-  # kmeans(X.r, k, nstart = 10 )$tot.withinss
-  k2 <- fanny(X.r, k, memb.exp = 1.2, metric = c('euclidean'))
-}
-
-a<-wss(2)
-attributes(a)
-a$membership
 
 
-k2$membership
-k2$silinfo
-# Compute and plot wss for k = 1 to k = 10
-k.values <- 1:10
 
-wss_values <- map_dbl(k.values, wss)
 
-plot(k.values, wss_values,
-     type="b", pch = 19, frame = FALSE, 
-     xlab="Number of clusters K",
-     ylab="Total within-clusters sum of squares")
+
+
+
+
+
+
+
 
 
 
