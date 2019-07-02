@@ -499,8 +499,7 @@ p
 
 ###### FUZZY CLUSTERING ######
 dim(X.r)
-df.1 <- X.r[1:100,1:3]
-df.1
+df.1 <- X.r
 
 ### MFUZZ
 #save it to a temp file so ti doesnt clutter up my blog directory
@@ -525,11 +524,59 @@ c$withinerror
 
 
 # validation using cmeans directly
-fuz_test<-cmeans(df.1, centers=clust, iter.max=10, verbose=FALSE, dist="euclidean",
-                 method="cmeans", m=m1, rate.par = NULL)
 
-fuz_test$withinerror
+# Get total within sum of square
+# +++++++++++++++++++++++++++++
+# d: dist object
+# cluster: cluster number of observation
+.get_withinSS <- function(d, cluster){
+  d <- stats::as.dist(d)
+  cn <- max(cluster)
+  clusterf <- as.factor(cluster)
+  clusterl <- levels(clusterf)
+  cnn <- length(clusterl)
+  
+  if (cn != cnn) {
+    warning("cluster renumbered because maximum != number of clusters")
+    for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
+    cn <- cnn
+  }
+  cwn <- cn
+  # Compute total within sum of square
+  dmat <- as.matrix(d)
+  within.cluster.ss <- 0
+  for (i in 1:cn) {
+    cluster.size <- sum(cluster == i)
+    di <- as.dist(dmat[cluster == i, cluster == i])
+    within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
+  }
+  within.cluster.ss
+}
 
+x <- as.matrix(df.1)
+diss <- stats::dist(x)
+v <- rep(0, k.max)
+
+k.max <- 15
+for (i in 2:k.max) {
+  print(paste0('iter: ', i))
+  clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
+                  method="cmeans", m=m1, rate.par = NULL)
+  v[i] <- .get_withinSS(diss, clust$cluster)
+}
+plot(v)
+
+
+x <- mtcars["Honda Civic",] 
+y <- mtcars["Camaro Z28",] 
+dist(rbind(x, y))
+
+# cluster visualization
+fviz_nbclust(df.1, fanny, method = 'wss')
+fviz_cluster(fan.1)
+fviz_silhouette(fan.1)
+
+norm_vec(as.numeric(y))-norm_vec(as.numeric(x))
 # custom functions to evaluate the cluster assignments
 # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
 norm_vec <- function(x) sqrt(sum(x^2))
@@ -541,25 +588,6 @@ sum(sapply(split(as.data.frame(df.2), fuz_test$cluster), norm_vec))
 
 
 
-
-### CUSTOM 
-sumsqr <- function(x, clusters){
-  sumsqr <- function(x) sum(scale(x, scale = FALSE)^2)
-  wss <- sapply(split(as.data.frame(x), clusters), sumsqr)
-  return(wss)
-}
-
-#get the wss for repeated clustering
-iterate_fcm_WSS <- function(df,m){
-  totss <- numeric()
-  for (i in 2:20){
-    FCMresults <- cmeans(df,centers=i,m=m)
-    totss[i] <- sum(sumsqr(df,FCMresults$cluster))
-  }
-  return(totss)
-}
-wss_2to20 <- iterate_fcm_WSS(df.1, round(m1,2))
-plot(1:20, wss_2to20[1:20], type="b", xlab="Number of Clusters", ylab="wss")
 
 
 
@@ -586,10 +614,9 @@ mean(ss[, 3])
 gap_stat <- clusGap(X.r, FUN = kmeans, nstart = 10,
                     K.max = 10, B = 10)
 # Print the result
-# fviz_nbclust(X.r, cluster::fanny(X.r, memb.exp = 1.2, metric = c('euclidean')), method = "wss")
+fviz_nbclust(df.1, cluster::fanny(X.r, memb.exp = 1.2, metric = c('euclidean')), method = "wss")
 # fviz_nbclust(X.r, cluster::fanny, method = "silhouette")
 # fviz_nbclust(X.r, cluster::fanny, method = "gap_stat")
-
 
 
 
