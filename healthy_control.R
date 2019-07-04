@@ -373,9 +373,10 @@ X.diff <- X[results.tot,]
 
 # filter out the healthy controls
 sum(status.idx$most_general != 'healthy_control') + sum(status.idx$most_general == 'healthy_control')
-status.idx$most_general != 'healthy_control'
-dim(X.t[status.idx$most_general != 'healthy_control',])
-X.r <- t(X.diff)[status.idx$most_general != 'healthy_control',]
+idx.d <- status.idx$most_general != 'healthy_control'
+dim(X.t[idx.d,])
+X.r <- t(X.diff)[idx.d,]
+status.idx.d <- status.idx[idx.d,]
 
 dim(X.r)
 
@@ -482,18 +483,18 @@ p
 ############ Clustering ############
 # p<-fviz_nbclust(X.r, kmeans, method = "wss", k.max = 15)
 # p
-# # p<-ggplotly(p)
-# # api_create(p, filename = "opt_cluster_tss_boot1")
-# 
+# p<-ggplotly(p)
+# api_create(p, filename = "opt_cluster_tss_boot1")
+
 # p<-fviz_nbclust(X.r, kmeans, method = "silhouette", k.max = 15)
 # p
-# # p<-ggplotly(p)
-# # api_create(p, filename = "opt_cluster_silhouette_boot1")
-# 
+# p<-ggplotly(p)
+# api_create(p, filename = "opt_cluster_silhouette_boot1")
+
 # p<-fviz_nbclust(X.r, kmeans, method = "gap_stat", nboot = 10)
 # p
-# # p<-ggplotly(p)
-# # api_create(p, filename = "opt_cluster_gap_boot1")
+# p<-ggplotly(p)
+# api_create(p, filename = "opt_cluster_gap_boot1")
 
 
 
@@ -514,21 +515,34 @@ data.s <- standardise(data)
 m1 <- mestimate(data.s)
 m1
 
-Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=3, visu=TRUE)
+# built in estimation of opt clust number
+# Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=5, visu=TRUE) # reccomend ~ 10 clusters
 
-clust=5
+k.max <- 15
+x <- as.matrix(df.1)
+diss <- stats::dist(x)
+v <- rep(0, k.max)
+v1 <- rep(0, k.max)
 
-c <- mfuzz(data,c=clust,m=m1)
+for(i in 2:k.max){
+  print(paste0('iter: ', i))
+  c<-mfuzz(data.s, c = i, m=m1)
+  v[i] <- c$withinerror
+  ss <- silhouette(c$cluster, diss)
+  v1[i] <- summary(ss)[4][[1]]
+}
+plot(v[-1])
+v1
+plot(v1[-1])
 
-c$withinerror
 
+gap_stat <- clusGap(X.r, FUN = fanny, nstart = 10,
+                    K.max = 10, B = 10)
 
+# mfuzz uses cmeans
 # validation using cmeans directly
 
 # Get total within sum of square
-# +++++++++++++++++++++++++++++
-# d: dist object
-# cluster: cluster number of observation
 .get_withinSS <- function(d, cluster){
   d <- stats::as.dist(d)
   cn <- max(cluster)
@@ -553,38 +567,27 @@ c$withinerror
   within.cluster.ss
 }
 
-x <- as.matrix(df.1)
-diss <- stats::dist(x)
-v <- rep(0, k.max)
-
 k.max <- 15
+v <- rep(0, k.max)
 for (i in 2:k.max) {
   print(paste0('iter: ', i))
   clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
                   method="cmeans", m=m1, rate.par = NULL)
   v[i] <- .get_withinSS(diss, clust$cluster)
 }
-plot(v)
+plot(v[-1])
 
 
+
+# distance metrix investigations
 x <- mtcars["Honda Civic",] 
 y <- mtcars["Camaro Z28",] 
 dist(rbind(x, y))
 
-# cluster visualization
-fviz_nbclust(df.1, fanny, method = 'wss')
-fviz_cluster(fan.1)
-fviz_silhouette(fan.1)
-
-norm_vec(as.numeric(y))-norm_vec(as.numeric(x))
 # custom functions to evaluate the cluster assignments
 # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
 norm_vec <- function(x) sqrt(sum(x^2))
-testFunc <- function(x) sum(scale(x, center = TRUE, scale = FALSE)^2)
-
-sapply(split(as.data.frame(df.2), fuz_test$cluster), norm_vec)
-
-sum(sapply(split(as.data.frame(df.2), fuz_test$cluster), norm_vec))
+norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
 
 
 
@@ -594,32 +597,7 @@ sum(sapply(split(as.data.frame(df.2), fuz_test$cluster), norm_vec))
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-km.res <- kmeans(X.r, centers = 2, nstart = 25)
-ss<-silhouette(km.res$cluster, dist(X.r))
-mean(ss[, 3])
-
-
-gap_stat <- clusGap(X.r, FUN = kmeans, nstart = 10,
-                    K.max = 10, B = 10)
-# Print the result
-fviz_nbclust(df.1, cluster::fanny(X.r, memb.exp = 1.2, metric = c('euclidean')), method = "wss")
-# fviz_nbclust(X.r, cluster::fanny, method = "silhouette")
-# fviz_nbclust(X.r, cluster::fanny, method = "gap_stat")
-
-
-
+#### clinical df construction
 k2.df <- status.idx[status.idx$most_general != 'healthy_control',c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
                                                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
 dim(k2.df)
@@ -650,10 +628,12 @@ k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
 # cols = gg_color_hue(n)
 k2.pal <- c(cols[c(1,4)])
 set.seed(47)
-k2 <- kmeans(X.r, centers = 2, nstart = 25)
-k2$tot.withinss
+# k2 <- kmeans(X.r, centers = 2, nstart = 25)
+# k2$tot.withinss
 
-k2 <- fanny(X.r, 2, memb.exp = 1.2, metric = c('euclidean'))
+k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
+             method="cmeans", m=1.2, rate.par = NULL)
+
 k2$membership
 k2$cluster <- as.factor(k2$cluster)
 
@@ -675,29 +655,98 @@ p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
   labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
   geom_bar()
-p + guides(fill=guide_legend(title="Diagnostic Groups"))
-p<-ggplotly(p)
 p
+p + guides(fill=guide_legend(title="Diagnostic Groups"))
+
+
+
+
+
+
+###### PREDICTION ######
+# esets
+# hierarchecal
+dim(X.r)
+
+scale01 <- function(x){
+  (x - min(x)) / (max(x) - min(x))
+}
+
+X.s<-as.data.frame(apply(X.r, 2, scale01))
+dim(X.s)
+
+length(status.idx.d$most_general == 'bacterial')
+dim(cbind(status.idx.d$most_general == 'bacterial', X.s))
+X.test <- cbind(status.idx.d$most_general == 'bacterial', X.s)
+
+colnames(X.test)[1] <- 'bacterial'
+colnames(X.test)[1]
+
+class(X.s)
+dim(X.s)
+ncol(X.s)
+
+X.s[1:10, 3051:3054]
+
+# train test split
+train <- sample(seq(1, dim(X.s)[1]), dim(X.s)[1]*0.7, replace = FALSE)
+test <- seq(1, dim(X.s)[1])[-train]
+
+train.x <- X.test[train,]
+test.x <- X.s[test,][-ncol(X.s)]
+
+y <- X.s$bacterial[train]
+dim(train.x)
+dim(test.x)
+
+roc.a <- NULL
+roc.t <- NULL
+h.n <- 5
+rep <- 5
+
+dim(train.x)
+train.x[1:10,]
+train.x <- train.x[,1:3]
+
+n <- names(train.x[-1])
+n
+f <- as.formula(paste("bacterial ~", paste(n[!n %in% "medv"], collapse = " + ")))
+f
+
+net <- neuralnet(f, data = train.x, hidden=2, threshold=0.01)
+
+for(j in 1:rep){
+  for(i in 1 : h.n) {
+    model <- neuralnet(bacterial ~ ., data = train.x, hidden=i, threshold=0.01)
+    pred <- predict(model, test.x, type="class")
+    roc.a[i] <- prediction(pred, status[idx,]$most_general[test] == 'bacterial') %>%
+      performance(measure = "auc") %>%
+      .@y.values
+  }
+  roc.t <- append(roc.t, roc.a)
+}
+# p<-ggplotly(p)
+# p
 # api_create(p, filename = "barplot_dx_clus.1.2")
 
-cluster <- c(1, 2)
-clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
-clus2<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[2,]
-df.1 <- data.frame(clus1, clus2)
-df.1
-df.2 <- mutate(df.1, Diagnostic_Group=factor(levels(k2.df$most_general)))
-df.2
-df.3 <- gather(df.2, cluster, count, -Diagnostic_Group)
-df.3
-p<-ggplot(df.3, aes(x = cluster, y = count, fill = Diagnostic_Group)) +
-  geom_bar(position = "fill",stat = "identity")+
-  labs(title = "Barplot of Diagnostic Group Proportions by Cluster", x = "Cluster", y = "Proportion")
-ggplotly(p)
+# cluster <- c(1, 2)
+# clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
+# clus2<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[2,]
+# df.1 <- data.frame(clus1, clus2)
+# df.1
+# df.2 <- mutate(df.1, Diagnostic_Group=factor(levels(k2.df$most_general)))
+# df.2
+# df.3 <- gather(df.2, cluster, count, -Diagnostic_Group)
+# df.3
+# p<-ggplot(df.3, aes(x = cluster, y = count, fill = Diagnostic_Group)) +
+#   geom_bar(position = "fill",stat = "identity")+
+#   labs(title = "Barplot of Diagnostic Group Proportions by Cluster", x = "Cluster", y = "Proportion")
+# ggplotly(p)
 # api_create(p, filename = "barplot_dx_clus.1.2")
 
-ggplot(k2.df, aes(k2.df[[clus.boot]], Age..months.)) + geom_boxplot()
-length(k2.df[[clus.boot]])
-length(k2.df$Age..months.)
+# ggplot(k2.df, aes(k2.df[[clus.boot]], Age..months.)) + geom_boxplot()
+# length(k2.df[[clus.boot]])
+# length(k2.df$Age..months.)
 
 
 #inflam
@@ -776,13 +825,6 @@ grid.arrange(p1, p2, ncol=2)
 
 
 
-
-
-
-
-
-
-
 ### system
 table(k2.df[k2.df$most_general == 'bacterial',][[clus.boot]], k2.df[k2.df$most_general == 'bacterial',]$system)
 p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], fill=system)) +
@@ -792,22 +834,22 @@ p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.d
 p<-ggplotly(p)
 p
 
-cluster <- c(1, 2)
-clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[1,]
-clus2 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[2,]
-df.1 <- data.frame(clus1, clus2)
-df.1
-df.2 <- mutate(df.1, system=factor(rownames(df.1)))
-df.2
-df.3 <- gather(df.2, cluster, count, -system)
-df.3
+# cluster <- c(1, 2)
+# clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[1,]
+# clus2 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$system[k2.df$most_general == 'bacterial'])[2,]
+# df.1 <- data.frame(clus1, clus2)
+# df.1
+# df.2 <- mutate(df.1, system=factor(rownames(df.1)))
+# df.2
+# df.3 <- gather(df.2, cluster, count, -system)
+# df.3
+# 
+# p<-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
+#   geom_bar(position = "fill",stat = "identity")+
+#   # scale_fill_manual(values=dx.cols.f)+
+#   labs(title = "Barplot of Infection System in Bacterial Cases K=2", x = "Cluster", y = "Proportion")
 
-p<-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
-  geom_bar(position = "fill",stat = "identity")+
-  # scale_fill_manual(values=dx.cols.f)+
-  labs(title = "Barplot of Infection System in Bacterial Cases K=2", x = "Cluster", y = "Proportion")
-p
-ggplotly(p)
+# ggplotly(p)
 # api_create(p, filename = "barplot_system_prop_clus.1.2")
 
 
@@ -820,28 +862,27 @@ p<-ggplot(k2.df[k2.df$most_general == 'bacterial',], aes(k2.df[[clus.boot]][k2.d
   labs(title = "Barplot of Microbioloty by Cluster in Bacterial Cases K=2", x = "", y = "Counts")+
   scale_fill_manual(values = cols.14[c(2:14)], name = "Microbe")+
   geom_bar()
-p<-ggplotly(p)
 p
 # api_create(p, filename = "barplot_micro_clus.1.2")
 
 
+# 
+# cluster <- c(1, 2)
+# clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[1,]
+# clus2 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[2,]
+# df.1 <- data.frame(clus1, clus2)
+# df.1
+# df.2 <- mutate(df.1, system=factor(rownames(df.1)))
+# df.2
+# df.3 <- gather(df.2, cluster, count, -system)
+# df.3
 
-cluster <- c(1, 2)
-clus1 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[1,]
-clus2 <- table(k2.df[[clus.boot]][k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])[2,]
-df.1 <- data.frame(clus1, clus2)
-df.1
-df.2 <- mutate(df.1, system=factor(rownames(df.1)))
-df.2
-df.3 <- gather(df.2, cluster, count, -system)
-df.3
-
-p<-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
-  geom_bar(position = "fill",stat = "identity")+
-  # scale_fill_manual(values=dx.cols.f)+
-  labs(title = "Barplot of Microbiology Proportions by Cluster", x = "Diagnosis", y = "Proportion")
-p
-ggplotly(p)
+# p<-ggplot(df.3, aes(x = cluster, y = count, fill = system)) +
+#   geom_bar(position = "fill",stat = "identity")+
+#   # scale_fill_manual(values=dx.cols.f)+
+#   labs(title = "Barplot of Microbiology Proportions by Cluster", x = "Diagnosis", y = "Proportion")
+# p
+# ggplotly(p)
 # api_create(p, filename = "barplot_micro_prop_clus.1.2")
 
 # table(k2.df$clus.2[k2.df$most_general == 'bacterial'], k2.df$Path_1[k2.df$most_general == 'bacterial'])
@@ -1118,8 +1159,8 @@ sum(k2.df$Path_1 == 'meningococcus')
 
 # MENINGOCOCCAL ANALYSIS
 p<-plot_ly(pair1, x = ~PC1, y = ~PC2, color = ~k2.df[[clus.boot]],
-        colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', k2.df$WBC, '<br>CRP: ', as.numeric(as.character(k2.df$array.contemporary.CRP)), '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
-        symbol = ~ifelse(k2.df$micro == 'meningococcal', 'meningococcal', 'other'), symbols = c('x','circle')) %>%
+           colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', k2.df$WBC, '<br>CRP: ', as.numeric(as.character(k2.df$array.contemporary.CRP)), '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
+           symbol = ~ifelse(k2.df$micro == 'meningococcal', 'meningococcal', 'other'), symbols = c('x','circle')) %>%
   add_markers() %>%
   layout(title = 'PC 1-2 Meningococcal Cluster Assignment',
          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
@@ -1128,8 +1169,8 @@ p
 # api_create(p, filename = "2d_pca_mening_clus.1.4")
 
 p<-plot_ly(pair2, x = ~PC3, y = ~PC4, color = ~k2.df[[clus.boot]],
-        colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', k2.df$WBC, '<br>CRP: ', as.numeric(as.character(k2.df$array.contemporary.CRP)), '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
-        symbol = ~ifelse(k2.df$micro == 'meningococcal', 'meningococcal', 'other'), symbols = c('x','circle')) %>%
+           colors=cols, text= ~paste0('category: ', k2.df$category, '<br>age: ', k2.df$Age..months., '<br>WBC: ', k2.df$WBC, '<br>CRP: ', as.numeric(as.character(k2.df$array.contemporary.CRP)), '<br>label:',k2.df$my_category_2, '<br>Micro: ', k2.df$Path_1, '<br>Diagnosis: ',k2.df$Diagnosis),
+           symbol = ~ifelse(k2.df$micro == 'meningococcal', 'meningococcal', 'other'), symbols = c('x','circle')) %>%
   add_markers() %>%
   layout(title = 'PCA of Diagnostic Groups',
          xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
