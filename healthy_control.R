@@ -677,21 +677,88 @@ X.s<-data.frame(apply(X.r, 2, scale01))
 dim(X.s)
 
 # add the class labels to the transcript data
-X.s$bacterial <- status.idx.d$most_general == 'bacterial'
-X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
+# X.s$bacterial <- status.idx.d$most_general == 'bacterial'
+# X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
 X.s$class <- status.idx.d$most_general
 
 # train test split
-train <- sample(seq(1, dim(X.s)[1]), dim(X.s)[1]*0.6, replace = FALSE)
-test <- seq(1, dim(X.s)[1])[-train]
+# train.x <- X.s[train_idx, ]
+# test.x <- X.s[-train_idx, ]
+# 
+# dim(train.x)
+# dim(test.x)
+# 
+# train.x[1:5,1:5]
+# train.x[1:5, (ncol(train.x)-4):ncol(train.x)]
 
-train.x <- X.s[train,]
-test.x <- X.s[test,]
 
-# y <- X.s$bacterial[train]
-dim(train.x)
-dim(test.x)
 
+# 10 fold cross validation
+k <- 10
+levels(X.s$class)
+b <- NULL
+p.b <- NULL
+u <- NULL
+p.v <- NULL
+v <- NULL
+
+# Train test split proportions
+proportion <- 3/5
+# Set to 0.995 for LOOCV
+# not able to do this with iris dataset because of 2 class requirement.
+# reducing the proportion in the test set means we get some iters where there are no seratosa
+# this breaks the roc calculation
+
+# Crossvalidate
+# set.seed(500)
+set.seed(5)
+for(i in 1:k){
+  print(paste0('iter: ', i))
+  index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
+  train_cv <- X.s[index, ]
+  test_cv <- X.s[-index, ]
+  # dim(train_cv)
+  # dim(test_cv)
+  
+  nn_cv <- neuralnet(class~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(20, 5))
+  pred <- predict(nn_cv, test_cv[-ncol(test_cv)])
+  # pred
+  
+  b[i] <- prediction(pred[,1], test_cv$class == 'bacterial') %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  p.b[i] <- prediction(pred[,2], test_cv$class == 'probable_bacterial') %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  u[i] <- prediction(pred[,3], test_cv$class == 'unknown') %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  p.v[i] <- prediction(pred[,4], test_cv$class == 'probable_viral') %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  v[i] <- prediction(pred[,5], test_cv$class == 'viral') %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+
+full.list <- c(b, p.b, u, p.v, v)
+full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+colnames(full.df) <- 'roc.A'
+full.df
+
+full.df$class <- as.factor(sort(rep(seq(1:5), k)))
+
+ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
+ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
+
+
+
+
+
+
+
+##############################################
 roc.a <- NULL
 roc.t <- NULL
 
@@ -707,33 +774,11 @@ table(test.x$class, apply(pred,1,which.max))
 
 status.idx.d$most_general[test]
 
-prediction(pred, ) %>%
-  performance(measure = "auc") %>%
-  .@y.values
+train_idx
+iris[train_idx,][-ncol(train_idx)]
+apply(iris[train_idx,], 2, scale01)
 
-
-# IRIS NET
-train_idx <- sample(nrow(iris), 2/3 * nrow(iris))
-iris_train <- iris[train_idx, ]
-iris_test <- iris[-train_idx, ]
-
-# nn <- neuralnet((Species == "setosa") + (Species == "versicolor") + (Species == "virginica")~ Petal.Length + Petal.Width, iris_train, linear.output = FALSE)
-nn <- neuralnet(Species~ Petal.Length + Petal.Width, iris_train, linear.output = FALSE, act.fct = "logistic")
-pred <- predict(nn, iris_test[-ncol(iris_test)])
-pred
-table(iris_test$Species, apply(pred, 1, which.max))
-
-
-prediction(pred[,1], iris_test$Species == 'setosa') %>%
-  performance(measure = "auc") %>%
-  .@y.values
-
-
-# next step check cross val error
-
-
-
-
+# network dimension testing
 for(i in 1:h.n){
   print(paste0('iter: ', i))
   for(j in 1:repitition){
@@ -755,8 +800,6 @@ df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
 colnames(df) <- 'roc.A'
 df$h.n <- as.factor(sort(rep(seq(1:h.n), repitition)))
 df
-
-
 
 ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
 ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_jitter()
