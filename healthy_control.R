@@ -305,7 +305,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(1, 0.05)) # 7
 
 
-boot <- 3
+boot <- 5
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 # pval <- 5.e-5
@@ -632,7 +632,7 @@ set.seed(47)
 # k2$tot.withinss
 
 k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
-             method="cmeans", m=1.2, rate.par = NULL)
+             method="cmeans", m=1.1, rate.par = NULL)
 
 k2$membership
 k2$cluster <- as.factor(k2$cluster)
@@ -656,7 +656,7 @@ p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
   geom_bar()
 p
-p + guides(fill=guide_legend(title="Diagnostic Groups"))
+# p + guides(fill=guide_legend(title="Diagnostic Groups"))
 
 
 
@@ -672,59 +672,98 @@ scale01 <- function(x){
   (x - min(x)) / (max(x) - min(x))
 }
 
-X.s<-as.data.frame(apply(X.r, 2, scale01))
+# scale the transcript data
+X.s<-data.frame(apply(X.r, 2, scale01))
 dim(X.s)
 
-length(status.idx.d$most_general == 'bacterial')
-dim(cbind(status.idx.d$most_general == 'bacterial', X.s))
-X.test <- cbind(status.idx.d$most_general == 'bacterial', X.s)
-
-colnames(X.test)[1] <- 'bacterial'
-colnames(X.test)[1]
-
-class(X.s)
-dim(X.s)
-ncol(X.s)
-
-X.s[1:10, 3051:3054]
+# add the class labels to the transcript data
+X.s$bacterial <- status.idx.d$most_general == 'bacterial'
+X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
+X.s$class <- status.idx.d$most_general
 
 # train test split
-train <- sample(seq(1, dim(X.s)[1]), dim(X.s)[1]*0.7, replace = FALSE)
+train <- sample(seq(1, dim(X.s)[1]), dim(X.s)[1]*0.6, replace = FALSE)
 test <- seq(1, dim(X.s)[1])[-train]
 
-train.x <- X.test[train,]
-test.x <- X.s[test,][-ncol(X.s)]
+train.x <- X.s[train,]
+test.x <- X.s[test,]
 
-y <- X.s$bacterial[train]
+# y <- X.s$bacterial[train]
 dim(train.x)
 dim(test.x)
 
 roc.a <- NULL
 roc.t <- NULL
-h.n <- 5
-rep <- 5
 
-dim(train.x)
-train.x[1:10,]
-train.x <- train.x[,1:3]
+h.n <- 8
+repitition <- 5
 
-n <- names(train.x[-1])
-n
-f <- as.formula(paste("bacterial ~", paste(n[!n %in% "medv"], collapse = " + ")))
-f
+train.x$class
+nn1 <- neuralnet(class ~ ., data = train.x, hidden=4, linear.output = FALSE)
 
-net <- neuralnet(f, data = train.x, hidden=2, threshold=0.01)
+pred <- predict(nn1, test.x[,-ncol(test.x)], type="class")
+pred
+table(test.x$class, apply(pred,1,which.max))
 
-for(j in 1:rep){
-  for(i in 1 : h.n) {
-    model <- neuralnet(bacterial ~ ., data = train.x, hidden=i, threshold=0.01)
-    pred <- predict(model, test.x, type="class")
-    roc.a[i] <- prediction(pred, status[idx,]$most_general[test] == 'bacterial') %>%
+status.idx.d$most_general[test]
+
+prediction(pred, ) %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+
+# IRIS NET
+train_idx <- sample(nrow(iris), 2/3 * nrow(iris))
+iris_train <- iris[train_idx, ]
+iris_test <- iris[-train_idx, ]
+
+# nn <- neuralnet((Species == "setosa") + (Species == "versicolor") + (Species == "virginica")~ Petal.Length + Petal.Width, iris_train, linear.output = FALSE)
+nn <- neuralnet(Species~ Petal.Length + Petal.Width, iris_train, linear.output = FALSE, act.fct = "logistic")
+pred <- predict(nn, iris_test[-ncol(iris_test)])
+pred
+table(iris_test$Species, apply(pred, 1, which.max))
+
+
+prediction(pred[,1], iris_test$Species == 'setosa') %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+
+# next step check cross val error
+
+
+
+
+for(i in 1:h.n){
+  print(paste0('iter: ', i))
+  for(j in 1:repitition){
+    # nn1 <- neuralnet(bacterial ~ ., data = train.x, hidden=i, threshold=0.01)
+    nn1 <- neuralnet(p.b ~ ., data = train.x, hidden=i, threshold=0.01, err.fct = 'ce')
+    pred <- predict(nn1, test.x, type="class")
+    # roc.a[j] = prediction(pred, status.idx.d$most_general[test] == 'bacterial') %>%
+    roc.a[j] = prediction(pred, status.idx.d$most_general[test] == 'probable_bacterial') %>%
       performance(measure = "auc") %>%
-      .@y.values
+      .@y.values  
   }
   roc.t <- append(roc.t, roc.a)
 }
+
+roc.a
+roc.t
+
+df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
+colnames(df) <- 'roc.A'
+df$h.n <- as.factor(sort(rep(seq(1:h.n), repitition)))
+df
+
+
+
+ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
+ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_jitter()
+
+
+
+
 # p<-ggplotly(p)
 # p
 # api_create(p, filename = "barplot_dx_clus.1.2")
