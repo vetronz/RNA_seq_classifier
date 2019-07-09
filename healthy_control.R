@@ -694,7 +694,8 @@ X.s$class <- status.idx.d$most_general
 
 
 # 10 fold cross validation
-k <- 10
+set.seed(16)
+k <- 6
 levels(X.s$class)
 b <- NULL
 p.b <- NULL
@@ -703,15 +704,13 @@ p.v <- NULL
 v <- NULL
 
 # Train test split proportions
-proportion <- 3/5
-# Set to 0.995 for LOOCV
-# not able to do this with iris dataset because of 2 class requirement.
-# reducing the proportion in the test set means we get some iters where there are no seratosa
-# this breaks the roc calculation
+# LOOCV set to 238/239
+# note roc curve breaks unless has at least of one in each class
+proportion <- 8/10 
 
 # Crossvalidate
 # set.seed(500)
-set.seed(5)
+
 for(i in 1:k){
   print(paste0('iter: ', i))
   index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
@@ -723,6 +722,7 @@ for(i in 1:k){
   nn_cv <- neuralnet(class~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(20, 5))
   pred <- predict(nn_cv, test_cv[-ncol(test_cv)])
   # pred
+  # dim(pred)
   
   b[i] <- prediction(pred[,1], test_cv$class == 'bacterial') %>%
     performance(measure = "auc") %>%
@@ -741,13 +741,18 @@ for(i in 1:k){
     .@y.values
 }
 
+# prediction(pred[,4], c(rep(0, 23),1))
 
-full.list <- c(b, p.b, u, p.v, v)
+
+class.calls <- c(b, p.b, u, p.v, v)
+# class.calls <- c(b, p.b, u, v)
+
+full.list <- class.calls
 full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
 colnames(full.df) <- 'roc.A'
 full.df
 
-full.df$class <- as.factor(sort(rep(seq(1:5), k)))
+full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
 
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
