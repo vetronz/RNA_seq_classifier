@@ -231,9 +231,9 @@ e.set.f$NK.cells.activated <- status.idx$NK.cells.activated
 e.set.f$T.cells.CD8 <- status.idx$T.cells.CD8
 # e.set.f$site <- status[idx,c('site')]
 
+# check that we have added 8 columns
 dim(e.set.f)
-
-e.set.f[1:10, (ncol(e.set.f)-9):ncol(e.set.f)]
+e.set.f[1:5, (ncol(e.set.f)-9):ncol(e.set.f)]
 
 # mean/variance calculations
 x_var <- apply(e.set[,idx], 1, var)
@@ -273,12 +273,13 @@ colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age',
 design[1:5,]
 status.idx[1:5,c('Neutrophils', 'Monocytes')]
 
+# check sums of design
 dim(design)
 colSums(design)
 
-# contrast.matrix<- makeContrasts("bct-HC", 'vrl-HC', 'greyb-HC', levels=design)
+contrast.matrix <- makeContrasts("bct-vrl", levels=design)
 # contrast.matrix<- makeContrasts("HC-bct", 'HC-vrl', levels=design)
-contrast.matrix<- makeContrasts("((bct+vrl+greyb+greyv+greyu)/5)-HC", levels=design)
+# contrast.matrix<- makeContrasts("((bct+vrl+greyb+greyv+greyu)/5)-HC", levels=design)
 contrast.matrix
 # colnames(fit$coefficients)
 
@@ -292,7 +293,7 @@ keep <- fit$Amean > 5
 sum(keep)
 fit2<- contrasts.fit(fit, contrast.matrix)
 dim(fit2)
-fit2 <- eBayes(fit2[keep,], trend = TRUE)
+fit2 <- eBayes(fit2[keep,], trend = TRUE) # same result with or without the keep filter as we have pre-processed
 dim(fit2)
 plotSA(fit2)
 
@@ -305,7 +306,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(1, 0.05)) # 7
 
 
-boot <- 5
+boot <- 7
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 # pval <- 5.e-5
@@ -370,14 +371,9 @@ dim(results)
 results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
 dim(X[results.tot,])
 X.diff <- X[results.tot,]
-
 # filter out the healthy controls
-sum(status.idx$most_general != 'healthy_control') + sum(status.idx$most_general == 'healthy_control')
 idx.d <- status.idx$most_general != 'healthy_control'
-dim(X.t[idx.d,])
-X.r <- t(X.diff)[idx.d,]
-status.idx.d <- status.idx[idx.d,]
-
+X.r <- t(X.diff[,idx.d])
 dim(X.r)
 
 
@@ -632,7 +628,7 @@ set.seed(47)
 # k2$tot.withinss
 
 k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
-             method="cmeans", m=1.1, rate.par = NULL)
+             method="cmeans", m=1.3, rate.par = NULL)
 
 k2$membership
 k2$cluster <- as.factor(k2$cluster)
@@ -679,23 +675,13 @@ dim(X.s)
 # add the class labels to the transcript data
 # X.s$bacterial <- status.idx.d$most_general == 'bacterial'
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
-X.s$class <- status.idx.d$most_general
-
-# train test split
-# train.x <- X.s[train_idx, ]
-# test.x <- X.s[-train_idx, ]
-# 
-# dim(train.x)
-# dim(test.x)
-# 
-# train.x[1:5,1:5]
-# train.x[1:5, (ncol(train.x)-4):ncol(train.x)]
-
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+X.s
 
 
 # 10 fold cross validation
 set.seed(16)
-k <- 6
+k <- 10
 levels(X.s$class)
 b <- NULL
 p.b <- NULL
@@ -706,10 +692,13 @@ v <- NULL
 # Train test split proportions
 # LOOCV set to 238/239
 # note roc curve breaks unless has at least of one in each class
-proportion <- 8/10 
+proportion <-6/10 
 
 # Crossvalidate
 # set.seed(500)
+
+train_cv$bct
+# neuralnet(bct ~ ., X.s)
 
 for(i in 1:k){
   print(paste0('iter: ', i))
@@ -719,33 +708,30 @@ for(i in 1:k){
   # dim(train_cv)
   # dim(test_cv)
   
-  nn_cv <- neuralnet(class~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(20, 5))
+  nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(10, 1))
   pred <- predict(nn_cv, test_cv[-ncol(test_cv)])
   # pred
   # dim(pred)
   
-  b[i] <- prediction(pred[,1], test_cv$class == 'bacterial') %>%
+  b[i] <- prediction(pred[,1], test_cv$bct) %>%
     performance(measure = "auc") %>%
     .@y.values
-  p.b[i] <- prediction(pred[,2], test_cv$class == 'probable_bacterial') %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  u[i] <- prediction(pred[,3], test_cv$class == 'unknown') %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  p.v[i] <- prediction(pred[,4], test_cv$class == 'probable_viral') %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  v[i] <- prediction(pred[,5], test_cv$class == 'viral') %>%
-    performance(measure = "auc") %>%
-    .@y.values
+  # p.b[i] <- prediction(pred[,2], test_cv$class == 'probable_bacterial') %>%
+  #   performance(measure = "auc") %>%
+  #   .@y.values
+  # u[i] <- prediction(pred[,3], test_cv$class == 'unknown') %>%
+  #   performance(measure = "auc") %>%
+  #   .@y.values
+  # p.v[i] <- prediction(pred[,4], test_cv$class == 'probable_viral') %>%
+  #   performance(measure = "auc") %>%
+  #   .@y.values
+  # v[i] <- prediction(pred[,5], test_cv$class == 'viral') %>%
+  #   performance(measure = "auc") %>%
+  #   .@y.values
 }
 
-# prediction(pred[,4], c(rep(0, 23),1))
-
-
-class.calls <- c(b, p.b, u, p.v, v)
-# class.calls <- c(b, p.b, u, v)
+# class.calls <- c(b, p.b, u, p.v, v)
+class.calls <- c(b)
 
 full.list <- class.calls
 full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
@@ -758,7 +744,24 @@ ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
 
 
+# select the test set patients which were pb, find the max P bct
+max(pred[status.idx.d$most_general[-index] == 'probable_bacterial'])
+# find the position in the test set of this value
+match(max(pred[status.idx.d$most_general[-index] == 'probable_bacterial']), pred)
+# pass the index match to most_general to check label then to my cat 2 to get id
+status.idx.d$most_general[-index][match(max(pred[status.idx.d$most_general[-index] == 'probable_bacterial']), pred)]
+new.bct <- status.idx.d$my_category_2[-index][match(max(pred[status.idx.d$most_general[-index] == 'probable_bacterial']), pred)]
+new.bct
 
+match(new.bct, status.idx.d$my_category_2)
+# change the class label in status.idx.d
+status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)]
+status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)] <- 'bacterial'
+status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)]
+#change the boolean value in X.s
+X.s$bct[match(new.bct, status.idx.d$my_category_2)]
+X.s$bct[match(new.bct, status.idx.d$my_category_2)] <- TRUE
+X.s$bct[match(new.bct, status.idx.d$my_category_2)]
 
 
 
