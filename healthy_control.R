@@ -660,8 +660,8 @@ p
 
 
 ###### PREDICTION ######
-# esets
-# hierarchecal
+idx.d <- status.idx$most_general != 'healthy_control'
+X.r <- t(X.diff[,idx.d])
 dim(X.r)
 
 scale01 <- function(x){
@@ -672,33 +672,27 @@ scale01 <- function(x){
 X.s<-data.frame(apply(X.r, 2, scale01))
 dim(X.s)
 
+# setup the disease only demographic matrix
+status.idx.d <- status.idx[idx.d,]
+
 # add the class labels to the transcript data
 # X.s$bacterial <- status.idx.d$most_general == 'bacterial'
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
+X.s$bct <- NULL
 X.s$bct <- status.idx.d$most_general == 'bacterial'
-X.s
+sum(X.s$bct)
 
-
-# 10 fold cross validation
+# K fold cross validation
 set.seed(16)
-k <- 10
+k <- 80
 levels(X.s$class)
 b <- NULL
-p.b <- NULL
-u <- NULL
-p.v <- NULL
-v <- NULL
 
 # Train test split proportions
 # LOOCV set to 238/239
 # note roc curve breaks unless has at least of one in each class
-proportion <-6/10 
-
-# Crossvalidate
-# set.seed(500)
-
-train_cv$bct
-# neuralnet(bct ~ ., X.s)
+proportion <- 6/10
+print(paste0('bacterial cases: ', sum(X.s$bct)))
 
 for(i in 1:k){
   print(paste0('iter: ', i))
@@ -736,9 +730,10 @@ class.calls <- c(b)
 full.list <- class.calls
 full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
 colnames(full.df) <- 'roc.A'
-full.df
+mean(full.df$roc.A)
 
 full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
+
 
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
@@ -758,7 +753,7 @@ match(new.bct, status.idx.d$my_category_2)
 status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)]
 status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)] <- 'bacterial'
 status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)]
-#change the boolean value in X.s
+# change the boolean value in X.s
 X.s$bct[match(new.bct, status.idx.d$my_category_2)]
 X.s$bct[match(new.bct, status.idx.d$my_category_2)] <- TRUE
 X.s$bct[match(new.bct, status.idx.d$my_category_2)]
