@@ -683,60 +683,109 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
 # K fold cross validation
-set.seed(16)
-k <- 80
-levels(X.s$class)
-b <- NULL
-
-# Train test split proportions
-# LOOCV set to 238/239
-# note roc curve breaks unless has at least of one in each class
-proportion <- 6/10
+k <- 100
 print(paste0('bacterial cases: ', sum(X.s$bct)))
+j_train <- NULL
+j_test <- NULL
+roc_train <- NULL
+roc_test <- NULL
+df.1 <- NULL
+p.h <- NULL
+roc_train_sd <- NULL
+roc_test_sd <- NULL
 
-for(i in 1:k){
-  print(paste0('iter: ', i))
-  index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
-  train_cv <- X.s[index, ]
-  test_cv <- X.s[-index, ]
-  # dim(train_cv)
-  # dim(test_cv)
+for(p in 1:9){
+  proportion <- p/10
+  print(paste0('prop: ', proportion))
   
-  nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(10, 1))
-  pred <- predict(nn_cv, test_cv[-ncol(test_cv)])
-  # pred
-  # dim(pred)
+  for(i in 1:k){
+    print(paste0('iter: ', i))
+    index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
+    train_cv <- X.s[index, ]
+    test_cv <- X.s[-index, ]
+    # dim(train_cv)
+    # dim(test_cv)
+    
+    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(10, 1))
+    pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
+    pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
+    # pred
+    # dim(pred)
+    
+    j_train[i] <- prediction(pred_train[,1], train_cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
+    j_test[i] <- prediction(pred_test[,1], test_cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values  
+  }
   
-  b[i] <- prediction(pred[,1], test_cv$bct) %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  # p.b[i] <- prediction(pred[,2], test_cv$class == 'probable_bacterial') %>%
-  #   performance(measure = "auc") %>%
-  #   .@y.values
-  # u[i] <- prediction(pred[,3], test_cv$class == 'unknown') %>%
-  #   performance(measure = "auc") %>%
-  #   .@y.values
-  # p.v[i] <- prediction(pred[,4], test_cv$class == 'probable_viral') %>%
-  #   performance(measure = "auc") %>%
-  #   .@y.values
-  # v[i] <- prediction(pred[,5], test_cv$class == 'viral') %>%
-  #   performance(measure = "auc") %>%
-  #   .@y.values
+  # class.calls <- c(j_test)
+  class.calls <- c(j_train, j_test)
+  full.list <- class.calls
+  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+  colnames(full.df) <- 'roc.A'
+  
+  full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
+  
+  # df.1[p] <- full.df$roc.A
+  # full.df$class <- ifelse(as.character(full.df$class) == '1', 'train', 'test')
+  
+  roc.stats <- full.df %>%
+    group_by(class) %>%
+    summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
+
+  p.h[p] <- p
+  roc_train[p] <- roc.stats$roc.m[1]
+  roc_train_sd[p] <- roc.stats$roc.sd[1]
+  roc_test[p] <- roc.stats$roc.m[2]
+  roc_test_sd[p] <- roc.stats$roc.sd[2]
 }
 
-# class.calls <- c(b, p.b, u, p.v, v)
-class.calls <- c(b)
+p.h
+roc_train
+roc_train_sd
+roc_test
+roc_test_sd
 
-full.list <- class.calls
-full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-colnames(full.df) <- 'roc.A'
-mean(full.df$roc.A)
+learning_curve.df <- as.data.frame(cbind(roc_train, roc_test, roc_train_sd, roc_test_sd, p.h))
+colnames(learning_curve.df) <- c('train', 'test', 'train_sd', 'test_sd', 'perc')
 
-full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
+ggplot(learning_curve.df, aes(x=perc, y=train)) +
+  geom_line(aes(y=train, color='train'))+
+  geom_errorbar(aes(ymin=train-train_sd, ymax=train+train_sd), width=0.1)+
+  geom_line(aes(y=test, color='test'))+
+  geom_errorbar(aes(ymin=test-test_sd, ymax=test+test_sd), width=0.1)
+  # geom_line(aes(y=test, color='test'))+
+  # geom_jitter(aes(y=train_sd, color='train'))+
+  # geom_jitter(aes(y=test_sd, color='test'))
 
+
+
+################
+set.seed(1)      # for reproducible example
+time <- 1:25
+df   <- data.frame(time,
+                   pop=rnorm(100*length(time), mean=10*time/(25+time)))
+
+ggplot(df, aes(x=time, y=pop))+
+  stat_summary(fun.data = mean_se, geom = "ribbon", fill='lightblue')+
+  stat_summary(geom="line", fun.y=mean, linetype="dashed")+
+  # geom_errorbar()+
+  stat_summary(geom="point", fun.y=mean, color="red")
+####################
+
+
+
+ggplot(full.df, aes(roc.A, fill = class, colour = class)) +
+  geom_density(alpha = 0.1)
 
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
+
+
+
 
 
 # select the test set patients which were pb, find the max P bct
