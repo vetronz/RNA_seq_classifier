@@ -682,8 +682,8 @@ X.s$bct <- NULL
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
-# K fold cross validation
-k <- 15
+# learning curves
+k <- 30
 print(paste0('bacterial cases: ', sum(X.s$bct)))
 j_train <- NULL
 j_test <- NULL
@@ -706,7 +706,7 @@ for(p in 1:19){
     # dim(train_cv)
     # dim(test_cv)
     
-    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(10, 1))
+    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(20, 5, 1))
     pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
     pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
     # pred
@@ -743,61 +743,62 @@ for(p in 1:19){
     # roc.ci.l = roc.m - z.stat * roc.se,
     # roc.ci.u = roc.m + z.stat * roc.se
   )
-  
   p.h[p] <- p
   roc.train[p] <- roc.stats$roc.m[1]
   roc.train.me[p] <- roc.stats$roc.me[1]
   roc.test[p] <- roc.stats$roc.m[2]
   roc.test.me[p] <- roc.stats$roc.me[2]
   
-  # roc.train.ci.u[p] <- roc.stats$roc.ci.u[1]
-  # roc.train.ci.u[p] <- roc.stats$roc.ci.u[1]
-  # roc_train_sd[p] <- roc.stats$roc.sd[1]
-  # roc_test_sd[p] <- roc.stats$roc.sd[2]
-  
 }
-
-p.h
-roc.train
-roc.test
-roc.train.me
-roc.test.me
 
 learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
 colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
 learning_curve.df
 
-
-
-ggplot(learning_curve.df, aes(x=perc, y=train)) +
+ggplot(learning_curve.df, aes(x=perc*5, y=train)) +
   geom_line(aes(y=train, color='train'))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=0.1)+
   geom_line(aes(y=test, color='test'))+
-  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)
+  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)+
+  labs(title="Learning Curves", x ="training Data Percentage", y = "ROCA")
 
 
 
+# hyper-parameter selection
+prop1 <- 0.9 # leave 10% untouched for the test set
 
-################
-set.seed(1)      # for reproducible example
-time <- 1:25
-df   <- data.frame(time,
-                   pop=rnorm(100*length(time), mean=10*time/(25+time)))
+# we want 75% of the ORIGINAL size of dataset for our training set == 0.75*239 = 179.25
+# 239*.75 = 179.25
+# 0.9 * 239X = 179.25
+X = 179.25/(.9*239)
+prop2 <- X
 
-ggplot(df, aes(x=time, y=pop))+
-  stat_summary(fun.data = mean_se, geom = "ribbon", fill='lightblue')+
-  stat_summary(geom="line", fun.y=mean, linetype="dashed")+
-  # geom_errorbar()+
-  stat_summary(geom="point", fun.y=mean, color="red")
-####################
+index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+train.index <- sample(index, round(prop2 * length(index)))
+
+length(index)
+length(train.index)
+length(setdiff(index, train.index))
+
+setdiff(index, train.index) # the set diff between index and train index == 36 in the validation cohort
+
+train <- X.s[train.index,]
+validate <- X.s[-train.index,]
+test <- X.s[-index,]
+
+dim(train)
+dim(validate)
+dim(test)
 
 
+.75*239
 
 ggplot(full.df, aes(roc.A, fill = class, colour = class)) +
   geom_density(alpha = 0.1)
 
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
 ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
+
 
 
 
