@@ -683,19 +683,19 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
 # K fold cross validation
-k <- 100
+k <- 15
 print(paste0('bacterial cases: ', sum(X.s$bct)))
 j_train <- NULL
 j_test <- NULL
-roc_train <- NULL
-roc_test <- NULL
-df.1 <- NULL
+roc.train <- NULL
+roc.test <- NULL
+roc.train.me <- NULL
+roc.test.me <- NULL
 p.h <- NULL
-roc_train_sd <- NULL
-roc_test_sd <- NULL
 
-for(p in 1:9){
-  proportion <- p/10
+
+for(p in 1:19){
+  proportion <- p/20
   print(paste0('prop: ', proportion))
   
   for(i in 1:k){
@@ -735,31 +735,46 @@ for(p in 1:9){
   roc.stats <- full.df %>%
     group_by(class) %>%
     summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
-
+  
+  roc.stats <- roc.stats %>% mutate(
+    roc.se = roc.sd/sqrt(k),
+    z.stat = qnorm(0.975),
+    roc.me = z.stat * roc.se
+    # roc.ci.l = roc.m - z.stat * roc.se,
+    # roc.ci.u = roc.m + z.stat * roc.se
+  )
+  
   p.h[p] <- p
-  roc_train[p] <- roc.stats$roc.m[1]
-  roc_train_sd[p] <- roc.stats$roc.sd[1]
-  roc_test[p] <- roc.stats$roc.m[2]
-  roc_test_sd[p] <- roc.stats$roc.sd[2]
+  roc.train[p] <- roc.stats$roc.m[1]
+  roc.train.me[p] <- roc.stats$roc.me[1]
+  roc.test[p] <- roc.stats$roc.m[2]
+  roc.test.me[p] <- roc.stats$roc.me[2]
+  
+  # roc.train.ci.u[p] <- roc.stats$roc.ci.u[1]
+  # roc.train.ci.u[p] <- roc.stats$roc.ci.u[1]
+  # roc_train_sd[p] <- roc.stats$roc.sd[1]
+  # roc_test_sd[p] <- roc.stats$roc.sd[2]
+  
 }
 
 p.h
-roc_train
-roc_train_sd
-roc_test
-roc_test_sd
+roc.train
+roc.test
+roc.train.me
+roc.test.me
 
-learning_curve.df <- as.data.frame(cbind(roc_train, roc_test, roc_train_sd, roc_test_sd, p.h))
-colnames(learning_curve.df) <- c('train', 'test', 'train_sd', 'test_sd', 'perc')
+learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
+colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
+learning_curve.df
+
+
 
 ggplot(learning_curve.df, aes(x=perc, y=train)) +
   geom_line(aes(y=train, color='train'))+
-  geom_errorbar(aes(ymin=train-train_sd, ymax=train+train_sd), width=0.1)+
+  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=0.1)+
   geom_line(aes(y=test, color='test'))+
-  geom_errorbar(aes(ymin=test-test_sd, ymax=test+test_sd), width=0.1)
-  # geom_line(aes(y=test, color='test'))+
-  # geom_jitter(aes(y=train_sd, color='train'))+
-  # geom_jitter(aes(y=test_sd, color='test'))
+  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)
+
 
 
 
