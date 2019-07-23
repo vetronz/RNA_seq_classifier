@@ -303,7 +303,9 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(0.375, 0.1), # 4
                    c(0.5, 0.1), # 5 gap stat 6 (9 with p val 0.05)
                    c(0.75, 0.05), # 6 gap stat of three
-                   c(1, 0.05)) # 7
+                   c(1, 0.05), # 7 gap stat of three
+                   c(1.25, 0.001), # 8 gap stat of three
+                   c(2, 0.0001)) # 9
 
 
 boot <- 7
@@ -685,119 +687,189 @@ sum(X.s$bct)
 # learning curves
 k <- 30
 print(paste0('bacterial cases: ', sum(X.s$bct)))
-j_train <- NULL
-j_test <- NULL
-roc.train <- NULL
-roc.test <- NULL
-roc.train.me <- NULL
-roc.test.me <- NULL
-p.h <- NULL
 
+h.n <- 8
+learning_curve_list <- NULL
 
-for(p in 1:19){
-  proportion <- p/20
-  print(paste0('prop: ', proportion))
-  
-  for(i in 1:k){
-    print(paste0('iter: ', i))
-    index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
-    train_cv <- X.s[index, ]
-    test_cv <- X.s[-index, ]
-    # dim(train_cv)
-    # dim(test_cv)
+for (j in 1:h.n){
+  j_train <- NULL
+  j_test <- NULL
+  roc.train <- NULL
+  roc.test <- NULL
+  roc.train.me <- NULL
+  roc.test.me <- NULL
+  p.h <- NULL
+  for(p in 1:9){
+    proportion <- p/10
+    for(i in 1:k){
+      print(paste0('hidden nodes: ', j, ', train prop: ', p, ', iter: ', i))
+      index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
+      train_cv <- X.s[index, ]
+      test_cv <- X.s[-index, ]
+      # dim(train_cv)
+      # dim(test_cv)
+      
+      nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = j)
+      pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
+      pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
+      # pred
+      # dim(pred)
+      
+      j_train[i] <- prediction(pred_train[,1], train_cv$bct) %>%
+        performance(measure = "auc") %>%
+        .@y.values
+      
+      j_test[i] <- prediction(pred_test[,1], test_cv$bct) %>%
+        performance(measure = "auc") %>%
+        .@y.values  
+    }
     
-    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = c(20, 5, 1))
-    pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
-    pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
-    # pred
-    # dim(pred)
+    # class.calls <- c(j_test)
+    class.calls <- c(j_train, j_test)
+    full.list <- class.calls
+    full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+    colnames(full.df) <- 'roc.A'
     
-    j_train[i] <- prediction(pred_train[,1], train_cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
+    full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
     
-    j_test[i] <- prediction(pred_test[,1], test_cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values  
+    # df.1[p] <- full.df$roc.A
+    # full.df$class <- ifelse(as.character(full.df$class) == '1', 'train', 'test')
+    
+    roc.stats <- full.df %>%
+      group_by(class) %>%
+      summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
+    
+    roc.stats <- roc.stats %>% mutate(
+      roc.se = roc.sd/sqrt(k),
+      z.stat = qnorm(0.975),
+      roc.me = z.stat * roc.se
+      # roc.ci.l = roc.m - z.stat * roc.se,
+      # roc.ci.u = roc.m + z.stat * roc.se
+    )
+    p.h[p] <- p
+    roc.train[p] <- roc.stats$roc.m[1]
+    roc.train.me[p] <- roc.stats$roc.me[1]
+    roc.test[p] <- roc.stats$roc.m[2]
+    roc.test.me[p] <- roc.stats$roc.me[2]
+    
   }
-  
-  # class.calls <- c(j_test)
-  class.calls <- c(j_train, j_test)
-  full.list <- class.calls
-  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-  colnames(full.df) <- 'roc.A'
-  
-  full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
-  
-  # df.1[p] <- full.df$roc.A
-  # full.df$class <- ifelse(as.character(full.df$class) == '1', 'train', 'test')
-  
-  roc.stats <- full.df %>%
-    group_by(class) %>%
-    summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
-  
-  roc.stats <- roc.stats %>% mutate(
-    roc.se = roc.sd/sqrt(k),
-    z.stat = qnorm(0.975),
-    roc.me = z.stat * roc.se
-    # roc.ci.l = roc.m - z.stat * roc.se,
-    # roc.ci.u = roc.m + z.stat * roc.se
-  )
-  p.h[p] <- p
-  roc.train[p] <- roc.stats$roc.m[1]
-  roc.train.me[p] <- roc.stats$roc.me[1]
-  roc.test[p] <- roc.stats$roc.m[2]
-  roc.test.me[p] <- roc.stats$roc.me[2]
-  
+  learning_curve.df <- NULL
+  learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
+  colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
+  learning_curve_list[j] <- list(learning_curve.df)
 }
 
-learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
-colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
-learning_curve.df
-
-ggplot(learning_curve.df, aes(x=perc*5, y=train)) +
+hidden <- 5
+ggplot(learning_curve_list[[hidden]], aes(x=perc*10, y=train)) +
   geom_line(aes(y=train, color='train'))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=0.1)+
   geom_line(aes(y=test, color='test'))+
   geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)+
-  labs(title="Learning Curves", x ="training Data Percentage", y = "ROCA")
+  labs(title=paste0('Learning Curve with ', hidden, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
+
+# plot(nn_cv)
+
+
+# looks like 4-5 hidden nodes with 75% training data is optimal
+# will need to train the network with this archetecture
+# however remember that this has been optimized to the test data
+# will need to validate on the iris dataset
 
 
 
 # hyper-parameter selection
-prop1 <- 0.9 # leave 10% untouched for the test set
+prop1 <- 0.75 # leave 10% untouched for the test set
 
 # we want 75% of the ORIGINAL size of dataset for our training set == 0.75*239 = 179.25
 # 239*.75 = 179.25
 # 0.9 * 239X = 179.25
 X = 179.25/(.9*239)
+X
 prop2 <- X
 
+
+# index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+# train.index <- sample(index, round(prop2 * length(index)))
+# validate.index <- setdiff(index, train.index)
+
+# length(index)
+# length(train.index)
+# length(validate.index)
+
+# train <- X.s[index,]
+# train <- X.s[train.index,]
+# validate <- X.s[validate.index,]
+# test <- X.s[-index,]
+
+# 
+# roc.node <- NULL
+# for (i in 1:10){
+#   nn_cv <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(i, 1))
+#   pred_test <- predict(nn_cv, validate[-ncol(validate)])
+#   pred_test
+#   dim(pred_test)
+#   
+#   roc.node[i] <- prediction(pred_test, validate$bct) %>%
+#     performance(measure = "auc") %>%
+#     .@y.values
+# }
+# roc.node
+# 
+# which.max(roc.node)
+# 
+# nn_opt <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(which.max(roc.node), 1))
+# pred_test <- predict(nn_opt, test[-ncol(test)])
+# pred_test
+# 
+# prediction(pred_test, test$bct) %>%
+#   performance(measure = "auc") %>%
+#   .@y.values
+
+#####################
 index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-train.index <- sample(index, round(prop2 * length(index)))
-
-length(index)
-length(train.index)
-length(setdiff(index, train.index))
-
-setdiff(index, train.index) # the set diff between index and train index == 36 in the validation cohort
-
-train <- X.s[train.index,]
-validate <- X.s[-train.index,]
-test <- X.s[-index,]
+train <- X.s[index, ]
+test <- X.s[-index, ]
 
 dim(train)
-dim(validate)
+# dim(validate)
 dim(test)
+h.n <- 15
+boot <- 20
+roc.a <- NULL
+roc.t <- NULL
+for(i in 1:h.n){
+  print(paste0('hidden Nodes: ', i))
+  for(j in 1:boot){
+    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(i))
+    pred <- predict(nn1, test[-ncol(test)])
+    # pred <- predict(nn1, validate[-ncol(validate)])
+    
+    roc.a[j] = prediction(pred, test$bct) %>%
+      # roc.a[j] = prediction(pred, validate$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+  }
+  roc.t <- append(roc.t, roc.a)
+}
 
+roc.a
+roc.t
 
-.75*239
+df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
+colnames(df) <- 'roc.A'
+df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
+df
 
-ggplot(full.df, aes(roc.A, fill = class, colour = class)) +
-  geom_density(alpha = 0.1)
+ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
+ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_jitter()
 
-ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
-ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
+#########################
+
+# ggplot(full.df, aes(roc.A, fill = class, colour = class)) +
+#   geom_density(alpha = 0.1)
+# 
+# ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
+# ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
 
 
 
