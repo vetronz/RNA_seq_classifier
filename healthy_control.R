@@ -310,7 +310,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(2, 0.0001)) # 9
 
 
-boot <- 9
+boot <- 7
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 # pval <- 5.e-5
@@ -690,110 +690,143 @@ sum(X.s$bct)
 
 prop1 <- 0.8
 
-index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-train <- X.s[index, ]
-test <- X.s[-index, ]
 
-dim(train)
-dim(test)
+logistic.m <- NULL
+knn.m <- NULL
+randForrest.m <- NULL
+nn.m <- NULL
+svm.m <- NULL
+for (i in 1:60){
+  print(paste0('iter: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  
+  # factor labels required for some ml models 
+  train.f <- train
+  test.f <- test
+  train.f$bct <- factor(train.f$bct)
+  test.f$bct <- factor(test.f$bct)
+  
+  # dim(train)
+  # dim(test)
+  
+  ### LOGISTIC REGRESSION
+  model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 500)
+  # summary(model)
+  # anova(model, test="Chisq")
+  
+  p <- predict(model, test[-ncol(test)])
+  pr <- prediction(p, test$bct)
+  
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  
+  logistic.m[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  # pr <- ifelse(p > 0.5,1,0)
+  # misClasificError <- mean(pr != test$bct)
+  # print(paste('Accuracy',round(1-misClasificError, 3)))
+  
+  # 
+  # ### KNN
+  # opt neighbours
+  # 
+  # trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+  # model <- train(bct ~., data = train.f, method = "knn",
+  #                trControl=trctrl,
+  #                tuneLength = 10)
+  # 
+  # # ggplot(model$results, aes(k, Accuracy)) + geom_point()
+  # 
+  # knn.opt <- model$results$k[which.max(model$results$Accuracy)]
+  # # train
+  # p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=knn.opt, prob=TRUE)
+  # 
+  # # display the confusion matrix
+  # table(p, test$bct)
+  # # attributes(pred)
+  # p<-attr(p, "prob")
+  # p<-1-p
+  # 
+  # # plot(model, print.thres = 0.5, type="S")
+  # # confusionMatrix(p, test$bct)
+  # pr <- prediction(p, test$bct)
+  # 
+  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # # plot(prf)
+  # 
+  # knn.m[i] <- pr %>%
+  #   performance(measure = "auc") %>%
+  #   .@y.values
+  
+  
+  ### RANDOM FORREST
+  model <- randomForest(bct ~ . , data = train.f)
+  # plot(model)
+  # attributes(model)
+  # model$mtry # number of variables considered by each tree
+  pred<-predict(model , test.f[-ncol(test)])
+  # attributes(pred)
+  # model=randomForest(x,y,xtest=x,ytest=y,keep.forest=TRUE)
+  model.prob <- predict(model, test.f, type="prob")
+  p <- 1-model.prob[,1]
+  pr <- prediction(p, test$bct)
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  randForrest.m[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  ### Neural Net
+  nn <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic")
+  p <- predict(nn, test[-ncol(test)])
+  p
+  pr <- prediction(p, test$bct)
+  
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  
+  nn.m[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  
+  ### SVM
+  model <- svm(bct ~ . , train.f, probability = TRUE)
+  pred <- predict(model, test.f, probability = TRUE)
+  p<-attr(pred, "prob")
+  pr <- prediction(1-p[,1], test$bct)
+  # plot(prf)
+  svm.m[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
 
-### LOGISTIC REGRESSION
-model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 500)
-summary(model)
-
-anova(model, test="Chisq")
-
-p <- predict(model, test[-ncol(test)])
-pr <- prediction(p, test$bct)
-
-prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-plot(prf)
-
-pr %>%
-  performance(measure = "auc") %>%
-  .@y.values
-
-
-pr <- ifelse(p > 0.5,1,0)
-misClasificError <- mean(pr != test$bct)
-print(paste('Accuracy',round(1-misClasificError, 3)))
-
-
-
-### KNN
-# opt neighbours
-train.f <- train
-test.f <- test
-
-train.f$bct <- factor(train.f$bct)
-test.f$bct <- factor(test.f$bct)
-
-trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
-model <- train(bct ~., data = train.f, method = "knn",
-               trControl=trctrl,
-               tuneLength = 10)
-
-ggplot(model$results, aes(k, Accuracy)) + geom_point()
-
-knn.opt <- model$results$k[which.max(model$results$Accuracy)]
-# train
-p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=knn.opt, prob=TRUE)
-
-# display the confusion matrix
-table(p, test$bct)
-# attributes(pred)
-p<-attr(p, "prob")
-p<-1-p
-
-
-# plot(model, print.thres = 0.5, type="S")
-# confusionMatrix(p, test$bct)
-pr <- prediction(p, test$bct)
-
-prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-plot(prf)
-
-pr %>%
-  performance(measure = "auc") %>%
-  .@y.values
-
-
-pr <- ifelse(p > 0.5,1,0)
-misClasificError <- mean(pr != test$bct)
-print(paste('Accuracy',round(1-misClasificError, 3)))
-
-
-### RANDOM FORREST
-model <- randomForest(bct ~ . , data = train.f)
-plot(model)
-attributes(model)
-
-model$mtry # number of variables considered by each tree
-
-pred<-predict(model , test.f[-ncol(test)])
-attributes(pred)
-
-attributes(pred)
-test.err[mtry]= with(Boston[-train,], mean( (medv - pred)^2)) #Mean Squared Test Error
-
-cat(mtry," ") #printing the output to the console
-
-
-# model=randomForest(x,y,xtest=x,ytest=y,keep.forest=TRUE)
-model.prob <- predict(model, test.f, type="prob")
-p <- 1-model.prob[,1]
-
-pr <- prediction(p, test$bct)
-
-prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-plot(prf)
-
-pr %>%
-  performance(measure = "auc") %>%
-  .@y.values
+df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
+df.1
+df.2 <- gather(df.1, learner, roc)
+df.2$roc <- unlist(df.2$roc)
+df.2$learner <- factor(df.2$learner)
+ggplot(df.2, aes(learner, roc, color = learner)) + geom_boxplot()
+ggplot(df.2, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
+  labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
+     x ="density", y = "roc area")
+# ggplot(df.2, aes(learner, roc, color = learner)) + geom_jitter()
 
 
 ###############################################################
+
+
+
+
+
+
+
+
+
 # learning curves
 k <- 30
 print(paste0('bacterial cases: ', sum(X.s$bct)))
