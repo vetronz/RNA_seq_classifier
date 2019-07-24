@@ -15,6 +15,8 @@ library(ROCR)
 library(tidyr)
 library("illuminaHumanv4.db")
 library(Mfuzz)
+library(caret)
+library(class)
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -308,7 +310,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(2, 0.0001)) # 9
 
 
-boot <- 7
+boot <- 9
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 # pval <- 5.e-5
@@ -684,6 +686,87 @@ X.s$bct <- NULL
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
+
+
+prop1 <- 0.8
+
+index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+train <- X.s[index, ]
+test <- X.s[-index, ]
+
+dim(train)
+dim(test)
+
+### LOGISTIC REGRESSION
+model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 500)
+summary(model)
+
+anova(model, test="Chisq")
+
+p <- predict(model, test[-ncol(test)])
+pr <- prediction(p, test$bct)
+
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+pr %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+
+pr <- ifelse(p > 0.5,1,0)
+misClasificError <- mean(pr != test$bct)
+print(paste('Accuracy',round(1-misClasificError, 3)))
+
+
+
+### KNN
+# opt neighbours
+knn.train <- train
+knn.test <- test
+
+knn.train$bct <- factor(knn.train$bct)
+knn.test$bct <- factor(knn.test$bct)
+
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+model <- train(bct ~., data = knn.train, method = "knn",
+               trControl=trctrl,
+               tuneLength = 10)
+
+ggplot(model$results, aes(k, Accuracy)) + geom_point()
+
+# train
+p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=7, prob=TRUE)
+
+# display the confusion matrix
+table(p, test$bct)
+# attributes(pred)
+p<-attr(p, "prob")
+p<-1-p
+
+
+# plot(model, print.thres = 0.5, type="S")
+# confusionMatrix(p, test$bct)
+pr <- prediction(p, test$bct)
+
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+pr %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+
+pr <- ifelse(p > 0.5,1,0)
+misClasificError <- mean(pr != test$bct)
+print(paste('Accuracy',round(1-misClasificError, 3)))
+
+
+
+### RANDOM FORREST
+
+
+###############################################################
 # learning curves
 k <- 30
 print(paste0('bacterial cases: ', sum(X.s$bct)))
