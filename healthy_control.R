@@ -722,21 +722,22 @@ print(paste('Accuracy',round(1-misClasificError, 3)))
 
 ### KNN
 # opt neighbours
-knn.train <- train
-knn.test <- test
+train.f <- train
+test.f <- test
 
-knn.train$bct <- factor(knn.train$bct)
-knn.test$bct <- factor(knn.test$bct)
+train.f$bct <- factor(train.f$bct)
+test.f$bct <- factor(test.f$bct)
 
 trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
-model <- train(bct ~., data = knn.train, method = "knn",
+model <- train(bct ~., data = train.f, method = "knn",
                trControl=trctrl,
                tuneLength = 10)
 
 ggplot(model$results, aes(k, Accuracy)) + geom_point()
 
+knn.opt <- model$results$k[which.max(model$results$Accuracy)]
 # train
-p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=7, prob=TRUE)
+p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=knn.opt, prob=TRUE)
 
 # display the confusion matrix
 table(p, test$bct)
@@ -762,8 +763,34 @@ misClasificError <- mean(pr != test$bct)
 print(paste('Accuracy',round(1-misClasificError, 3)))
 
 
-
 ### RANDOM FORREST
+model <- randomForest(bct ~ . , data = train.f)
+plot(model)
+attributes(model)
+
+model$mtry # number of variables considered by each tree
+
+pred<-predict(model , test.f[-ncol(test)])
+attributes(pred)
+
+attributes(pred)
+test.err[mtry]= with(Boston[-train,], mean( (medv - pred)^2)) #Mean Squared Test Error
+
+cat(mtry," ") #printing the output to the console
+
+
+# model=randomForest(x,y,xtest=x,ytest=y,keep.forest=TRUE)
+model.prob <- predict(model, test.f, type="prob")
+p <- 1-model.prob[,1]
+
+pr <- prediction(p, test$bct)
+
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+pr %>%
+  performance(measure = "auc") %>%
+  .@y.values
 
 
 ###############################################################
