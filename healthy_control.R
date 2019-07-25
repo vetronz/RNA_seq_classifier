@@ -17,6 +17,7 @@ library("illuminaHumanv4.db")
 library(Mfuzz)
 library(caret)
 library(class)
+library(randomForest)
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -692,11 +693,11 @@ prop1 <- 0.8
 
 
 logistic.m <- NULL
-knn.m <- NULL
+# knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:60){
+for (i in 1:120){
   print(paste0('iter: ', i))
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   train <- X.s[index, ]
@@ -805,7 +806,9 @@ for (i in 1:60){
     .@y.values
 }
 
-df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
+# df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
+df.1 <- as.data.frame(cbind(logistic.m, randForrest.m, nn.m, svm.m))
+
 df.1
 df.2 <- gather(df.1, learner, roc)
 df.2$roc <- unlist(df.2$roc)
@@ -814,12 +817,53 @@ ggplot(df.2, aes(learner, roc, color = learner)) + geom_boxplot()
 ggplot(df.2, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
   labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
      x ="density", y = "roc area")
+
+df.2 %>%
+  group_by(learner) %>%
+  summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
+
 # ggplot(df.2, aes(learner, roc, color = learner)) + geom_jitter()
 
 
 ###############################################################
 
 
+### NEURAL NET OPTIMIZATION
+prop1 <- 0.8
+
+
+h.n <- 5
+boot <- 300
+roc.a <- NULL
+roc.t <- NULL
+for(i in 1:h.n){
+  print(paste0('hidden Nodes: ', i))
+  for(j in 1:boot){
+    index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+    train <- X.s[index, ]
+    test <- X.s[-index, ]
+    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(2))
+    pred <- predict(nn1, test[-ncol(test)])
+    # pred <- predict(nn1, validate[-ncol(validate)])
+    
+    roc.a[j] = prediction(pred, test$bct) %>%
+      # roc.a[j] = prediction(pred, validate$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+  }
+  roc.t <- append(roc.t, roc.a)
+}
+
+df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
+colnames(df) <- 'roc.A'
+df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
+
+# ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
+ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
+
+df %>%
+  group_by(h.n) %>%
+  summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
 
 
 
@@ -827,7 +871,7 @@ ggplot(df.2, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1
 
 
 
-# learning curves
+### learning curves
 k <- 30
 print(paste0('bacterial cases: ', sum(X.s$bct)))
 
@@ -969,56 +1013,12 @@ prop2 <- X
 #   .@y.values
 
 #####################
-index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-train <- X.s[index, ]
-test <- X.s[-index, ]
-
-dim(train)
-# dim(validate)
-dim(test)
-h.n <- 15
-boot <- 20
-roc.a <- NULL
-roc.t <- NULL
-for(i in 1:h.n){
-  print(paste0('hidden Nodes: ', i))
-  for(j in 1:boot){
-    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(i))
-    pred <- predict(nn1, test[-ncol(test)])
-    # pred <- predict(nn1, validate[-ncol(validate)])
-    
-    roc.a[j] = prediction(pred, test$bct) %>%
-      # roc.a[j] = prediction(pred, validate$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-  }
-  roc.t <- append(roc.t, roc.a)
-}
-
-roc.a
-roc.t
-
-df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
-colnames(df) <- 'roc.A'
-df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
-df
-
-ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
-ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_jitter()
-
-#########################
-
-# ggplot(full.df, aes(roc.A, fill = class, colour = class)) +
-#   geom_density(alpha = 0.1)
-# 
-# ggplot(full.df, aes(class, roc.A, color=class)) + geom_boxplot()
-# ggplot(full.df, aes(class, roc.A, color=class)) + geom_jitter()
 
 
 
 
 
-
+### PSEUDO LABELING
 # select the test set patients which were pb, find the max P bct
 max(pred[status.idx.d$most_general[-index] == 'probable_bacterial'])
 # find the position in the test set of this value
