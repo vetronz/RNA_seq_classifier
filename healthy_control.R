@@ -667,6 +667,7 @@ p
 ###### PREDICTION ######
 idx.d <- status.idx$most_general != 'healthy_control'
 X.r <- t(X.diff[,idx.d])
+X.r <- as.data.frame(X.r)
 dim(X.r)
 
 scale01 <- function(x){
@@ -674,6 +675,7 @@ scale01 <- function(x){
 }
 
 # scale the transcript data
+# X.s <- data.frame(X.r)
 X.s<-data.frame(apply(X.r, 2, scale01))
 dim(X.s)
 
@@ -687,17 +689,14 @@ X.s$bct <- NULL
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
-
-
 prop1 <- 0.8
-
 
 logistic.m <- NULL
 # knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:120){
+for (i in 1:30){
   print(paste0('iter: ', i))
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   train <- X.s[index, ]
@@ -824,30 +823,55 @@ df.2 %>%
 
 # ggplot(df.2, aes(learner, roc, color = learner)) + geom_jitter()
 
-
 ###############################################################
+### HYPER PARAM OPTIMIZATION FOR PROMISING MODELS
 
-
-### NEURAL NET OPTIMIZATION
 prop1 <- 0.8
+# subdivide into train and test set
+index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+train.f <- X.s[index, ]
+test <- X.s[-index, ]
 
+# subdivide the train set into train and validation
+index.val <- sample(nrow(train.f), round(prop1*nrow(train.f)))
+train <- train.f[index.val,]
+val <- train.f[-index.val,]
 
-h.n <- 5
-boot <- 300
+dim(train)
+dim(val)
+
+### train, val, test split function 
+# split01 <- function(df, train.prop, val.prop, test.prop){
+#   spec = c(train = train.prop, validate = val.prop, test = test.prop)
+#   
+#   split <- cut(
+#     seq(nrow(df)), 
+#     nrow(df)*cumsum(c(0,spec)),
+#     labels = names(spec)
+#   )
+#   
+#   g <- sample(split, replace = FALSE)
+#   split.res <- split(df, g) # split returns a list of dataframes
+# }
+# res <- split01(X.s, 0.6, 0.2, 0.2)
+# sapply(res, nrow)/nrow(X.s) # check props
+
+### NEURAL NET ASSESSMENT
+h.n <- 8
+boot <- 8
 roc.a <- NULL
 roc.t <- NULL
 for(i in 1:h.n){
   print(paste0('hidden Nodes: ', i))
   for(j in 1:boot){
-    index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-    train <- X.s[index, ]
-    test <- X.s[-index, ]
-    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(2))
-    pred <- predict(nn1, test[-ncol(test)])
-    # pred <- predict(nn1, validate[-ncol(validate)])
+    index.val <- sample(nrow(train.f), round(prop1*nrow(train.f)))
+    train <- train.f[index.val,]
+    val <- train.f[-index.val,]
     
-    roc.a[j] = prediction(pred, test$bct) %>%
-      # roc.a[j] = prediction(pred, validate$bct) %>%
+    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(i), rep = 2, stepmax = 1e+06, startweights = NULL)
+    pred <- predict(nn1, val[-ncol(val)])
+    
+    roc.a[j] = prediction(pred, val$bct) %>%
       performance(measure = "auc") %>%
       .@y.values
   }
@@ -858,20 +882,176 @@ df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
 colnames(df) <- 'roc.A'
 df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
 
-# ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
 ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
 
 df %>%
   group_by(h.n) %>%
   summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
 
+# Neural Net Optimization: h.n 1:10, boot 720
+# h.n   roc.m roc.med roc.sd
+# 1 1     0.859   0.916 0.158 
+# 2 2     0.903   0.920 0.0985
+# 3 3     0.907   0.922 0.0717
+# 4 4     0.909   0.920 0.0638
+# 5 5     0.911   0.921 0.0631
+# 6 6     0.906   0.914 0.0632
+# 7 7     0.910   0.921 0.0614
+# 8 8     0.909   0.918 0.0600
+# 9 9     0.910   0.919 0.0617
+# 10 10    0.909   0.919 0.0606
+
+# 5 hidden nodes looks optimal
+
+# weight initialization. Cant get neuralnet package to accept so just using random init
+xavier.w <- rnorm(dim(train)[1], mean = 0, sd = sqrt(1/dim(train)[1]))
+hist(xavier.w)
+
+### test set evaluation
+boot <- 30
+nn_test <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  # nn1 <- neuralnet(bct~ ., train.f, startweights = 'pie', linear.output = FALSE, act.fct = "logistic", hidden = c(5), rep = 1, stepmax = 1e+05)
+  nn1 <- neuralnet(bct~ ., train.f, linear.output = FALSE, act.fct = "logistic", hidden = c(3), rep = 2, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, test[-ncol(test)])
+  
+  nn_test[i] <- prediction(pred, test$bct) %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+pr <- prediction(pred, test$bct)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+# plot(prf)
+# plot(nn1)
+
+mean(unlist(nn_test))
+median(unlist(nn_test))
+sd(unlist(nn_test))
 
 
 
 
+
+
+proportion <- 0.3
+index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
+train_cv <- X.s[index, ]
+test_cv <- X.s[-index, ]
+
+nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = 3)
+pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
+pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
+
+prediction(pred_train[,1], train_cv$bct) %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+prediction(pred_test[,1], test_cv$bct) %>%
+  performance(measure = "auc") %>%
+  .@y.values  
 
 
 ### learning curves
+j_train <- NULL
+j_test <- NULL
+roc.train <- NULL
+roc.test <- NULL
+roc.train.me <- NULL
+roc.test.me <- NULL
+learning_curve.df <- NULL
+
+k <- 10
+for(p in 1:9){
+  proportion <- p/10
+  print(proportion)
+  for(i in 1:k){
+    index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
+    train_cv <- X.s[index, ]
+    test_cv <- X.s[-index, ]
+    
+    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = 3)
+    pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
+    pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
+    
+    j_train[i] <- prediction(pred_train[,1], train_cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
+    j_test[i] <- prediction(pred_test[,1], test_cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values  
+  }
+  
+  # class.calls <- c(j_test)
+  class.calls <- c(j_train, j_test)
+  full.list <- class.calls
+  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+  colnames(full.df) <- 'roc.A'
+  
+  full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
+  
+  # df.1[p] <- full.df$roc.A
+  # full.df$class <- ifelse(as.character(full.df$class) == '1', 'train', 'test')
+  
+  roc.stats <- full.df %>%
+    group_by(class) %>%
+    summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
+  
+  roc.stats <- roc.stats %>% mutate(
+    roc.se = roc.sd/sqrt(k),
+    z.stat = qnorm(0.975),
+    roc.me = z.stat * roc.se
+    # roc.ci.l = roc.m - z.stat * roc.se,
+    # roc.ci.u = roc.m + z.stat * roc.se
+  )
+  p.h[p] <- p
+  roc.train[p] <- roc.stats$roc.m[1]
+  roc.train.me[p] <- roc.stats$roc.me[1]
+  roc.test[p] <- roc.stats$roc.m[2]
+  roc.test.me[p] <- roc.stats$roc.me[2]
+  
+}
+
+
+learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
+colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
+learning_curve.df
+
+ggplot(learning_curve.df, aes(x=perc*10, y=train)) +
+  geom_line(aes(y=train, color='train'))+
+  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=0.1)+
+  geom_line(aes(y=test, color='test'))+
+  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)+
+  labs(title=paste0('Learning Curve with ', ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
+
+
+# interestingly learning curve suggests degraded performance beyond 75% training percentage, presumably due to over fitting
+# can manually adjust the prop in the top and recheck this
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################
+
 k <- 30
 print(paste0('bacterial cases: ', sum(X.s$bct)))
 
@@ -964,55 +1144,9 @@ ggplot(learning_curve_list[[hidden]], aes(x=perc*10, y=train)) +
 
 
 
-# hyper-parameter selection
-prop1 <- 0.75 # leave 10% untouched for the test set
-
-# we want 75% of the ORIGINAL size of dataset for our training set == 0.75*239 = 179.25
-# 239*.75 = 179.25
-# 0.9 * 239X = 179.25
-X = 179.25/(.9*239)
-X
-prop2 <- X
 
 
-# index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-# train.index <- sample(index, round(prop2 * length(index)))
-# validate.index <- setdiff(index, train.index)
 
-# length(index)
-# length(train.index)
-# length(validate.index)
-
-# train <- X.s[index,]
-# train <- X.s[train.index,]
-# validate <- X.s[validate.index,]
-# test <- X.s[-index,]
-
-# 
-# roc.node <- NULL
-# for (i in 1:10){
-#   nn_cv <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(i, 1))
-#   pred_test <- predict(nn_cv, validate[-ncol(validate)])
-#   pred_test
-#   dim(pred_test)
-#   
-#   roc.node[i] <- prediction(pred_test, validate$bct) %>%
-#     performance(measure = "auc") %>%
-#     .@y.values
-# }
-# roc.node
-# 
-# which.max(roc.node)
-# 
-# nn_opt <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(which.max(roc.node), 1))
-# pred_test <- predict(nn_opt, test[-ncol(test)])
-# pred_test
-# 
-# prediction(pred_test, test$bct) %>%
-#   performance(measure = "auc") %>%
-#   .@y.values
-
-#####################
 
 
 
