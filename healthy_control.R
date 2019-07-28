@@ -15,7 +15,7 @@ library(ROCR)
 library(tidyr)
 library("illuminaHumanv4.db")
 library(Mfuzz)
-library(caret)
+# library(caret)
 library(class)
 library(randomForest)
 
@@ -823,22 +823,21 @@ df.2 %>%
 
 # ggplot(df.2, aes(learner, roc, color = learner)) + geom_jitter()
 
+
 ###############################################################
 ### HYPER PARAM OPTIMIZATION FOR PROMISING MODELS
 
-prop1 <- 0.8
+prop1 <- 4/5
+prop2 <- 3/4
 # subdivide into train and test set
+
 index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
 train.f <- X.s[index, ]
 test <- X.s[-index, ]
 
-# subdivide the train set into train and validation
-index.val <- sample(nrow(train.f), round(prop1*nrow(train.f)))
-train <- train.f[index.val,]
-val <- train.f[-index.val,]
+dim(train.f)
+dim(test)
 
-dim(train)
-dim(val)
 
 ### train, val, test split function 
 # split01 <- function(df, train.prop, val.prop, test.prop){
@@ -856,19 +855,21 @@ dim(val)
 # res <- split01(X.s, 0.6, 0.2, 0.2)
 # sapply(res, nrow)/nrow(X.s) # check props
 
-### NEURAL NET ASSESSMENT
+### NEURAL NET
+# optimize hidden nodes, activation function (logistic over tanh), cost function (sse over ce)
 h.n <- 8
-boot <- 8
+boot <- 16
 roc.a <- NULL
 roc.t <- NULL
 for(i in 1:h.n){
   print(paste0('hidden Nodes: ', i))
   for(j in 1:boot){
-    index.val <- sample(nrow(train.f), round(prop1*nrow(train.f)))
+    index.val <- sample(nrow(train.f), round(prop2*nrow(train.f)))
     train <- train.f[index.val,]
     val <- train.f[-index.val,]
     
-    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic", hidden = c(i), rep = 2, stepmax = 1e+06, startweights = NULL)
+    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                     hidden = c(i), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
     pred <- predict(nn1, val[-ncol(val)])
     
     roc.a[j] = prediction(pred, val$bct) %>%
@@ -884,73 +885,146 @@ df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
 
 ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
 
-df %>%
+df.1 <- df %>%
   group_by(h.n) %>%
   summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
 
-# Neural Net Optimization: h.n 1:10, boot 720
-# h.n   roc.m roc.med roc.sd
-# 1 1     0.859   0.916 0.158 
-# 2 2     0.903   0.920 0.0985
-# 3 3     0.907   0.922 0.0717
-# 4 4     0.909   0.920 0.0638
-# 5 5     0.911   0.921 0.0631
-# 6 6     0.906   0.914 0.0632
-# 7 7     0.910   0.921 0.0614
-# 8 8     0.909   0.918 0.0600
-# 9 9     0.910   0.919 0.0617
-# 10 10    0.909   0.919 0.0606
+df.1
+mixed.max <- which.max(df.1$roc.med + df.1$roc.m/2)
+med.max <- which.max(df.1$roc.med)
 
-# 5 hidden nodes looks optimal
+if(mixed.max == med.max){
+  opt.h.n <- which.max(df.1$roc.med)
+  print(paste0('optimal hidden nodes set to: ', opt.h.n))
+} else {
+  print(paste0('mixed max: ', mixed.max, ' median max: ', med.max))
+  opt.h.n <- mixed.max
+}
+
 
 # weight initialization. Cant get neuralnet package to accept so just using random init
-xavier.w <- rnorm(dim(train)[1], mean = 0, sd = sqrt(1/dim(train)[1]))
-hist(xavier.w)
+# xavier.w <- rnorm(dim(train)[1], mean = 0, sd = sqrt(1/dim(train)[1]))
+# hist(xavier.w)
 
-### test set evaluation
-boot <- 30
-nn_test <- NULL
+### TEST SET EVAL
+# opt.h.n <- 2
+boot <- 32
+nn.test <- NULL
 for (i in 1:boot){
   print(paste0('boot: ', i))
-  # nn1 <- neuralnet(bct~ ., train.f, startweights = 'pie', linear.output = FALSE, act.fct = "logistic", hidden = c(5), rep = 1, stepmax = 1e+05)
-  nn1 <- neuralnet(bct~ ., train.f, linear.output = FALSE, act.fct = "logistic", hidden = c(3), rep = 2, stepmax = 1e+06, startweights = NULL)
+  nn1 <- neuralnet(bct~ ., train.f, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
   pred <- predict(nn1, test[-ncol(test)])
   
-  nn_test[i] <- prediction(pred, test$bct) %>%
+  nn.test[i] <- prediction(pred, test$bct) %>%
     performance(measure = "auc") %>%
     .@y.values
 }
 
 pr <- prediction(pred, test$bct)
 prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-# plot(prf)
+plot(prf)
 # plot(nn1)
 
-mean(unlist(nn_test))
-median(unlist(nn_test))
-sd(unlist(nn_test))
+mean(unlist(nn.test))
+median(unlist(nn.test))
+sd(unlist(nn.test))
+
+
+
+### RANDOM FORREST
+# change the train.f and test sets to factors
+train.f$bct <- factor(train.f$bct)
+test$bct <- factor(test$bct)
+
+# index.val <- sample(nrow(train.f), round(prop2*nrow(train.f)))
+# train <- train.f[index.val,]
+# val <- train.f[-index.val,]
+
+model <- randomForest(bct ~ . , data = train.f, nodesize = 1, maxnodes = NULL)
+plot(model)
+attributes(model)
+
+model$mtry
+# [1] 12
+
+opt.tree <- which.min(model$err.rate[,1])
+opt.tree
+hyper.tree <- opt.tree * 2
+hyper.tree <- round(opt.tree * 1.5)
+
+model$err.rate[which.min(model$err.rate[,1])]
+
+hyper_grid <- NULL
+
+hyper_grid <- expand.grid(
+  mtry       = seq(7, 14, by = 1),
+  node_size  = seq(1, 9, by = 1),
+  sampe_size = c(.54, .57, .6, .632, .66, .69, .72)
+)
+
+head(hyper_grid)
+dim(hyper_grid)
+
+for(i in 1:nrow(hyper_grid)) {
+  # train model
+  model <- randomForest(
+    formula = bct ~ ., 
+    data = train.f, 
+    ntree = hyper.tree,
+    mtry = hyper_grid$mtry[i],
+    nodesize = hyper_grid$node_size[i],
+    samplesize = hyper_grid$sampe_size[i]
+    # seed = 123
+  )
+  # extract error
+  hyper_grid$OOB_MSE[i] <- model$err.rate[which.min(model$err.rate[,1])]
+}
+
+hyper_top <- hyper_grid %>% 
+  dplyr::arrange(OOB_MSE) %>%
+  head(10)
+hyper_top
+mtry.opt <- hyper_top[1,][[1]]
+node.opt <- hyper_top[1,][[2]]
+sample.opt <- hyper_top[1,][[3]]
+
+### TEST SET EVAL FORREST
+boot <- 32
+rf.test <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  model <- randomForest(formula = bct ~ .,
+                        data = train.f,
+                        ntree = hyper.tree,
+                        mtry = mtry.opt,
+                        nodesize = node.opt,
+                        samplesize = sample.opt,
+                        maxnodes = NULL)
+  p <- predict(model, test, type="prob")
+  pr <- prediction(p[,2], test$bct)
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  
+  rf.test[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+mean(unlist(rf.test))
+median(unlist(rf.test))
+sd(unlist(rf.test))
+
+df.1 <- as.data.frame(matrix(unlist(c(nn.test, rf.test))), nrow=2, byrow=T)
+colnames(df.1) <- 'roc.a'
+df.1$algo <- as.factor(sort(rep(seq(1:2), boot)))
+ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
 
 
 
 
 
 
-proportion <- 0.3
-index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
-train_cv <- X.s[index, ]
-test_cv <- X.s[-index, ]
 
-nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = 3)
-pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
-pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
-
-prediction(pred_train[,1], train_cv$bct) %>%
-  performance(measure = "auc") %>%
-  .@y.values
-
-prediction(pred_test[,1], test_cv$bct) %>%
-  performance(measure = "auc") %>%
-  .@y.values  
 
 
 ### learning curves
@@ -961,17 +1035,18 @@ roc.test <- NULL
 roc.train.me <- NULL
 roc.test.me <- NULL
 learning_curve.df <- NULL
+p.h <- NULL
+k <- 30
 
-k <- 10
-for(p in 1:9){
-  proportion <- p/10
-  print(proportion)
+for(p in 15:85){
+  prop <- p/100
+  print(prop)
   for(i in 1:k){
-    index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
+    index <- sample(nrow(X.s), round(prop*nrow(X.s)))
     train_cv <- X.s[index, ]
     test_cv <- X.s[-index, ]
     
-    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = 3)
+    nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = opt.h.n)
     pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
     pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
     
@@ -992,9 +1067,6 @@ for(p in 1:9){
   
   full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
   
-  # df.1[p] <- full.df$roc.A
-  # full.df$class <- ifelse(as.character(full.df$class) == '1', 'train', 'test')
-  
   roc.stats <- full.df %>%
     group_by(class) %>%
     summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
@@ -1003,8 +1075,6 @@ for(p in 1:9){
     roc.se = roc.sd/sqrt(k),
     z.stat = qnorm(0.975),
     roc.me = z.stat * roc.se
-    # roc.ci.l = roc.m - z.stat * roc.se,
-    # roc.ci.u = roc.m + z.stat * roc.se
   )
   p.h[p] <- p
   roc.train[p] <- roc.stats$roc.m[1]
@@ -1014,21 +1084,19 @@ for(p in 1:9){
   
 }
 
-
 learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
 colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
 learning_curve.df
 
-ggplot(learning_curve.df, aes(x=perc*10, y=train)) +
+ggplot(learning_curve.df, aes(x=p.h, y=train)) +
   geom_line(aes(y=train, color='train'))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=0.1)+
   geom_line(aes(y=test, color='test'))+
   geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)+
-  labs(title=paste0('Learning Curve with ', ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
+  labs(title=paste0('Learning Curve with ', opt.h.n, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
 
 
-# interestingly learning curve suggests degraded performance beyond 75% training percentage, presumably due to over fitting
-# can manually adjust the prop in the top and recheck this
+
 
 
 
