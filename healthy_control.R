@@ -6,18 +6,18 @@ library(ggplot2)
 require(reshape) # for melt()
 require(scales) # for percent
 library(gridExtra)
-library(dplyr)
 library(plyr)
-library(plotly)
+# library(plotly)
 library(e1071)
 library(neuralnet)
 library(ROCR)
 library(tidyr)
 library("illuminaHumanv4.db")
 library(Mfuzz)
-# library(caret)
+library(caret)
 library(class)
 library(randomForest)
+library(dplyr)
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -498,166 +498,166 @@ p
 # api_create(p, filename = "opt_cluster_gap_boot1")
 
 
-
-###### FUZZY CLUSTERING ######
-dim(X.r)
-df.1 <- X.r
-
-### MFUZZ
-#save it to a temp file so ti doesnt clutter up my blog directory
-tmp <- tempfile()
-write.table(df.1, file=tmp, sep='\t', quote = F, col.names=NA)
-
-#read it back in as an expression set
-data <- table2eset(file=tmp)
-
-data.s <- standardise(data)
-
-m1 <- mestimate(data.s)
-m1
-
-# built in estimation of opt clust number
-# Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=5, visu=TRUE) # reccomend ~ 10 clusters
-
-k.max <- 15
-x <- as.matrix(df.1)
-diss <- stats::dist(x)
-v <- rep(0, k.max)
-v1 <- rep(0, k.max)
-
-for(i in 2:k.max){
-  print(paste0('iter: ', i))
-  c<-mfuzz(data.s, c = i, m=m1)
-  v[i] <- c$withinerror
-  ss <- silhouette(c$cluster, diss)
-  v1[i] <- summary(ss)[4][[1]]
-}
-plot(v[-1])
-v1
-plot(v1[-1])
-
-
-gap_stat <- clusGap(X.r, FUN = fanny, nstart = 10,
-                    K.max = 10, B = 10)
-
-# mfuzz uses cmeans
-# validation using cmeans directly
-
-# Get total within sum of square
-.get_withinSS <- function(d, cluster){
-  d <- stats::as.dist(d)
-  cn <- max(cluster)
-  clusterf <- as.factor(cluster)
-  clusterl <- levels(clusterf)
-  cnn <- length(clusterl)
-  
-  if (cn != cnn) {
-    warning("cluster renumbered because maximum != number of clusters")
-    for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
-    cn <- cnn
-  }
-  cwn <- cn
-  # Compute total within sum of square
-  dmat <- as.matrix(d)
-  within.cluster.ss <- 0
-  for (i in 1:cn) {
-    cluster.size <- sum(cluster == i)
-    di <- as.dist(dmat[cluster == i, cluster == i])
-    within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
-  }
-  within.cluster.ss
-}
-
-k.max <- 15
-v <- rep(0, k.max)
-for (i in 2:k.max) {
-  print(paste0('iter: ', i))
-  clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
-                  method="cmeans", m=m1, rate.par = NULL)
-  v[i] <- .get_withinSS(diss, clust$cluster)
-}
-plot(v[-1])
-
-
-
-# distance metrix investigations
-x <- mtcars["Honda Civic",] 
-y <- mtcars["Camaro Z28",] 
-dist(rbind(x, y))
-
-# custom functions to evaluate the cluster assignments
-# norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
-norm_vec <- function(x) sqrt(sum(x^2))
-norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
-
-
-
-
-
-
-
-
-
-#### clinical df construction
-k2.df <- status.idx[status.idx$most_general != 'healthy_control',c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
-                                                                   'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
-dim(k2.df)
-dim(clin)
-# write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
-
-k2.df$system <- clin$system
-k2.df$system.spec <- clin$system_spec
-k2.df$micro <- clin$micro
-k2.df$sepsis <- clin$sepsis
-
-k2.df$my_wbc <- clin$wbc
-k2.df$abs_neut <- clin$abs_neut
-k2.df$perc_neut <- clin$perc_neut
-k2.df$perc_lymph <- clin$perc_lymph
-k2.df$Path_1 <- clin$Path_1
-k2.df$Path_2 <- clin$Path_2
-k2.df$Path_3 <- clin$Path_3
-
-k2.df$Path_1[is.na(k2.df$Path_1)] <- 'unknown'
-k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
-# View(k2.df)
-
-
-
-### K2
-# n = 5
-# cols = gg_color_hue(n)
-k2.pal <- c(cols[c(1,4)])
-set.seed(47)
-# k2 <- kmeans(X.r, centers = 2, nstart = 25)
-# k2$tot.withinss
-
-k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
-             method="cmeans", m=1.3, rate.par = NULL)
-
-k2$membership
-k2$cluster <- as.factor(k2$cluster)
-
-clus.boot <-paste0('clus.', boot, '.2')
-clus.boot
-
-k2.df$clus <- k2$cluster # have to assign using clus then rename it
-colnames(k2.df)[ncol(k2.df)] <- clus.boot
-k2.df[clus.boot]
-colnames(k2.df)
-
-table(k2$cluster, k2.df$most_general) # sanity check
-dx_clus.1.2 <- addmargins(table(k2.df[[clus.boot]], k2.df$most_general))
-dx_clus.1.2
-# write.csv(dx_clus.1.2, file = "dx_clus.1.2.csv", row.names=TRUE)
-
-
-p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
-  labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
-  scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
-  geom_bar()
-p
-# p + guides(fill=guide_legend(title="Diagnostic Groups"))
+# 
+# ###### FUZZY CLUSTERING ######
+# dim(X.r)
+# df.1 <- X.r
+# 
+# ### MFUZZ
+# #save it to a temp file so ti doesnt clutter up my blog directory
+# tmp <- tempfile()
+# write.table(df.1, file=tmp, sep='\t', quote = F, col.names=NA)
+# 
+# #read it back in as an expression set
+# data <- table2eset(file=tmp)
+# 
+# data.s <- standardise(data)
+# 
+# m1 <- mestimate(data.s)
+# m1
+# 
+# # built in estimation of opt clust number
+# # Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=5, visu=TRUE) # reccomend ~ 10 clusters
+# 
+# k.max <- 15
+# x <- as.matrix(df.1)
+# diss <- stats::dist(x)
+# v <- rep(0, k.max)
+# v1 <- rep(0, k.max)
+# 
+# for(i in 2:k.max){
+#   print(paste0('iter: ', i))
+#   c<-mfuzz(data.s, c = i, m=m1)
+#   v[i] <- c$withinerror
+#   ss <- silhouette(c$cluster, diss)
+#   v1[i] <- summary(ss)[4][[1]]
+# }
+# plot(v[-1])
+# v1
+# plot(v1[-1])
+# 
+# 
+# gap_stat <- clusGap(X.r, FUN = fanny, nstart = 10,
+#                     K.max = 10, B = 10)
+# 
+# # mfuzz uses cmeans
+# # validation using cmeans directly
+# 
+# # Get total within sum of square
+# .get_withinSS <- function(d, cluster){
+#   d <- stats::as.dist(d)
+#   cn <- max(cluster)
+#   clusterf <- as.factor(cluster)
+#   clusterl <- levels(clusterf)
+#   cnn <- length(clusterl)
+#   
+#   if (cn != cnn) {
+#     warning("cluster renumbered because maximum != number of clusters")
+#     for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
+#     cn <- cnn
+#   }
+#   cwn <- cn
+#   # Compute total within sum of square
+#   dmat <- as.matrix(d)
+#   within.cluster.ss <- 0
+#   for (i in 1:cn) {
+#     cluster.size <- sum(cluster == i)
+#     di <- as.dist(dmat[cluster == i, cluster == i])
+#     within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
+#   }
+#   within.cluster.ss
+# }
+# 
+# k.max <- 15
+# v <- rep(0, k.max)
+# for (i in 2:k.max) {
+#   print(paste0('iter: ', i))
+#   clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
+#                   method="cmeans", m=m1, rate.par = NULL)
+#   v[i] <- .get_withinSS(diss, clust$cluster)
+# }
+# plot(v[-1])
+# 
+# 
+# 
+# # distance metrix investigations
+# x <- mtcars["Honda Civic",] 
+# y <- mtcars["Camaro Z28",] 
+# dist(rbind(x, y))
+# 
+# # custom functions to evaluate the cluster assignments
+# # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
+# norm_vec <- function(x) sqrt(sum(x^2))
+# norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# #### clinical df construction
+# k2.df <- status.idx[status.idx$most_general != 'healthy_control',c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
+#                                                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+# dim(k2.df)
+# dim(clin)
+# # write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
+# 
+# k2.df$system <- clin$system
+# k2.df$system.spec <- clin$system_spec
+# k2.df$micro <- clin$micro
+# k2.df$sepsis <- clin$sepsis
+# 
+# k2.df$my_wbc <- clin$wbc
+# k2.df$abs_neut <- clin$abs_neut
+# k2.df$perc_neut <- clin$perc_neut
+# k2.df$perc_lymph <- clin$perc_lymph
+# k2.df$Path_1 <- clin$Path_1
+# k2.df$Path_2 <- clin$Path_2
+# k2.df$Path_3 <- clin$Path_3
+# 
+# k2.df$Path_1[is.na(k2.df$Path_1)] <- 'unknown'
+# k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
+# # View(k2.df)
+# 
+# 
+# 
+# ### K2
+# # n = 5
+# # cols = gg_color_hue(n)
+# k2.pal <- c(cols[c(1,4)])
+# set.seed(47)
+# # k2 <- kmeans(X.r, centers = 2, nstart = 25)
+# # k2$tot.withinss
+# 
+# k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
+#              method="cmeans", m=1.3, rate.par = NULL)
+# 
+# k2$membership
+# k2$cluster <- as.factor(k2$cluster)
+# 
+# clus.boot <-paste0('clus.', boot, '.2')
+# clus.boot
+# 
+# k2.df$clus <- k2$cluster # have to assign using clus then rename it
+# colnames(k2.df)[ncol(k2.df)] <- clus.boot
+# k2.df[clus.boot]
+# colnames(k2.df)
+# 
+# table(k2$cluster, k2.df$most_general) # sanity check
+# dx_clus.1.2 <- addmargins(table(k2.df[[clus.boot]], k2.df$most_general))
+# dx_clus.1.2
+# # write.csv(dx_clus.1.2, file = "dx_clus.1.2.csv", row.names=TRUE)
+# 
+# 
+# p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
+#   labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+#   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
+#   geom_bar()
+# p
+# # p + guides(fill=guide_legend(title="Diagnostic Groups"))
 
 
 
@@ -665,7 +665,10 @@ p
 
 
 ###### PREDICTION ######
+# setup the disease only demographic matrix
 idx.d <- status.idx$most_general != 'healthy_control'
+status.idx.d <- status.idx[idx.d,]
+
 X.r <- t(X.diff[,idx.d])
 X.r <- as.data.frame(X.r)
 dim(X.r)
@@ -679,9 +682,6 @@ scale01 <- function(x){
 X.s<-data.frame(apply(X.r, 2, scale01))
 dim(X.s)
 
-# setup the disease only demographic matrix
-status.idx.d <- status.idx[idx.d,]
-
 # add the class labels to the transcript data
 # X.s$bacterial <- status.idx.d$most_general == 'bacterial'
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
@@ -692,11 +692,11 @@ sum(X.s$bct)
 prop1 <- 0.8
 
 logistic.m <- NULL
-# knn.m <- NULL
+knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:30){
+for (i in 1:6){
   print(paste0('iter: ', i))
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   train <- X.s[index, ]
@@ -729,38 +729,37 @@ for (i in 1:30){
   # pr <- ifelse(p > 0.5,1,0)
   # misClasificError <- mean(pr != test$bct)
   # print(paste('Accuracy',round(1-misClasificError, 3)))
-  
-  # 
-  # ### KNN
+
+  #
+  ### KNN
   # opt neighbours
-  # 
-  # trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
-  # model <- train(bct ~., data = train.f, method = "knn",
-  #                trControl=trctrl,
-  #                tuneLength = 10)
-  # 
-  # # ggplot(model$results, aes(k, Accuracy)) + geom_point()
-  # 
-  # knn.opt <- model$results$k[which.max(model$results$Accuracy)]
-  # # train
-  # p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=knn.opt, prob=TRUE)
-  # 
-  # # display the confusion matrix
-  # table(p, test$bct)
-  # # attributes(pred)
-  # p<-attr(p, "prob")
-  # p<-1-p
-  # 
-  # # plot(model, print.thres = 0.5, type="S")
-  # # confusionMatrix(p, test$bct)
-  # pr <- prediction(p, test$bct)
-  # 
-  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-  # # plot(prf)
-  # 
-  # knn.m[i] <- pr %>%
-  #   performance(measure = "auc") %>%
-  #   .@y.values
+  trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+  model <- train(bct ~., data = train.f, method = "knn",
+                 trControl=trctrl,
+                 tuneLength = 10)
+
+  # ggplot(model$results, aes(k, Accuracy)) + geom_point()
+
+  knn.opt <- model$results$k[which.max(model$results$Accuracy)]
+  # train
+  p <- knn(train[-ncol(train)], test[-ncol(test)], train$bct,  k=knn.opt, prob=TRUE)
+
+  # display the confusion matrix
+  table(p, test$bct)
+  # attributes(pred)
+  p<-attr(p, "prob")
+  p<-1-p
+
+  # plot(model, print.thres = 0.5, type="S")
+  # confusionMatrix(p, test$bct)
+  pr <- prediction(p, test$bct)
+
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+
+  knn.m[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
   
   
   ### RANDOM FORREST
@@ -817,6 +816,8 @@ ggplot(df.2, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1
   labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
      x ="density", y = "roc area")
 
+
+detach("package:plyr", unload=TRUE)
 df.2 %>%
   group_by(learner) %>%
   summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
@@ -882,14 +883,14 @@ for(i in 1:h.n){
 df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
 colnames(df) <- 'roc.A'
 df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
-
-ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
+df
 
 df.1 <- df %>%
   group_by(h.n) %>%
   summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
 
-df.1
+ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
+
 mixed.max <- which.max(df.1$roc.med + df.1$roc.m/2)
 med.max <- which.max(df.1$roc.med)
 
@@ -899,6 +900,7 @@ if(mixed.max == med.max){
 } else {
   print(paste0('mixed max: ', mixed.max, ' median max: ', med.max))
   opt.h.n <- mixed.max
+  df.1
 }
 
 
@@ -906,7 +908,7 @@ if(mixed.max == med.max){
 # xavier.w <- rnorm(dim(train)[1], mean = 0, sd = sqrt(1/dim(train)[1]))
 # hist(xavier.w)
 
-### TEST SET EVAL
+### TEST SET NEURAL
 # opt.h.n <- 2
 boot <- 32
 nn.test <- NULL
@@ -950,7 +952,7 @@ model$mtry
 
 opt.tree <- which.min(model$err.rate[,1])
 opt.tree
-hyper.tree <- opt.tree * 2
+# hyper.tree <- opt.tree * 2
 hyper.tree <- round(opt.tree * 1.5)
 
 model$err.rate[which.min(model$err.rate[,1])]
@@ -959,7 +961,7 @@ hyper_grid <- NULL
 
 hyper_grid <- expand.grid(
   mtry       = seq(7, 14, by = 1),
-  node_size  = seq(1, 9, by = 1),
+  node_size  = seq(1, 9, by = 2),
   sampe_size = c(.54, .57, .6, .632, .66, .69, .72)
 )
 
@@ -1012,18 +1014,14 @@ for (i in 1:boot){
 
 mean(unlist(rf.test))
 median(unlist(rf.test))
-sd(unlist(rf.test))
+
+mean(unlist(nn.test))
+median(unlist(nn.test))
 
 df.1 <- as.data.frame(matrix(unlist(c(nn.test, rf.test))), nrow=2, byrow=T)
 colnames(df.1) <- 'roc.a'
 df.1$algo <- as.factor(sort(rep(seq(1:2), boot)))
 ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
-
-
-
-
-
-
 
 
 
@@ -1098,147 +1096,98 @@ ggplot(learning_curve.df, aes(x=p.h, y=train)) +
 
 
 
+### PSEUDO LABELING
+# reset the status.idx.d table
+status.idx.d <- status.idx[idx.d,]
 
+# check totals
+table(status.idx.d$most_general)
 
+# reset the scaled transcript table
+X.s<-data.frame(apply(X.r, 2, scale01))
+dim(X.s)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################
-
-k <- 30
+# add the class labels to the transcript data
+X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct)))
 
-h.n <- 8
-learning_curve_list <- NULL
+roc.h <- NULL
+iters <- 50
+for (i in 1:iters){
+  print(paste0('iter: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, test[-ncol(test)])
+  pr <- prediction(pred, test$bct)
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
 
-for (j in 1:h.n){
-  j_train <- NULL
-  j_test <- NULL
-  roc.train <- NULL
-  roc.test <- NULL
-  roc.train.me <- NULL
-  roc.test.me <- NULL
-  p.h <- NULL
-  for(p in 1:9){
-    proportion <- p/10
-    for(i in 1:k){
-      print(paste0('hidden nodes: ', j, ', train prop: ', p, ', iter: ', i))
-      index <- sample(nrow(X.s), round(proportion*nrow(X.s)))
-      train_cv <- X.s[index, ]
-      test_cv <- X.s[-index, ]
-      # dim(train_cv)
-      # dim(test_cv)
-      
-      nn_cv <- neuralnet(bct~ ., train_cv, linear.output = FALSE, act.fct = "logistic", hidden = j)
-      pred_train <- predict(nn_cv, train_cv[-ncol(train_cv)])
-      pred_test <- predict(nn_cv, test_cv[-ncol(test_cv)])
-      # pred
-      # dim(pred)
-      
-      j_train[i] <- prediction(pred_train[,1], train_cv$bct) %>%
-        performance(measure = "auc") %>%
-        .@y.values
-      
-      j_test[i] <- prediction(pred_test[,1], test_cv$bct) %>%
-        performance(measure = "auc") %>%
-        .@y.values  
-    }
+  roc.h[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  ### checks passing test index to demographic data selects same pts as pred
+  # as.character(status.idx.d[-index,]$my_category_2) == rownames(as.data.frame(pred))
+  
+  # construct pb filter, select pb from status
+  pb.filter <- status.idx.d[-index,]$most_general == 'probable_bacterial'
+  pred[pb.filter,]
+  
+  if(max(pred[pb.filter,]) > 0.99){
+    # select most probable bacterial case and store as ppv
+    which.max(pred[pb.filter,])
+    ppb <- names(which.max(pred[pb.filter,]))
     
-    # class.calls <- c(j_test)
-    class.calls <- c(j_train, j_test)
-    full.list <- class.calls
-    full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-    colnames(full.df) <- 'roc.A'
-    
-    full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/k)), k)))
-    
-    # df.1[p] <- full.df$roc.A
-    # full.df$class <- ifelse(as.character(full.df$class) == '1', 'train', 'test')
-    
-    roc.stats <- full.df %>%
-      group_by(class) %>%
-      summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
-    
-    roc.stats <- roc.stats %>% mutate(
-      roc.se = roc.sd/sqrt(k),
-      z.stat = qnorm(0.975),
-      roc.me = z.stat * roc.se
-      # roc.ci.l = roc.m - z.stat * roc.se,
-      # roc.ci.u = roc.m + z.stat * roc.se
-    )
-    p.h[p] <- p
-    roc.train[p] <- roc.stats$roc.m[1]
-    roc.train.me[p] <- roc.stats$roc.me[1]
-    roc.test[p] <- roc.stats$roc.m[2]
-    roc.test.me[p] <- roc.stats$roc.me[2]
-    
+    # select ppb form demographic subset using ppb
+    # print(paste0('PPB case: ', status.idx.d[-index,]$my_category_2[status.idx.d[-index,]$my_category_2 == ppb], ', ', status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb]))
+    status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb] <- 'bacterial'
+    # print(paste0('PPB case: ', status.idx.d[-index,]$my_category_2[status.idx.d[-index,]$my_category_2 == ppb], ', ', status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb]))
+    Sys.sleep(1)
   }
-  learning_curve.df <- NULL
-  learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, p.h))
-  colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'perc')
-  learning_curve_list[j] <- list(learning_curve.df)
 }
 
-hidden <- 5
-ggplot(learning_curve_list[[hidden]], aes(x=perc*10, y=train)) +
-  geom_line(aes(y=train, color='train'))+
-  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=0.1)+
-  geom_line(aes(y=test, color='test'))+
-  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.1)+
-  labs(title=paste0('Learning Curve with ', hidden, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
+table(status.idx.d$most_general)
+# add these pseudo labeled ppb cases to the X.s
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+print(paste0('bacterial cases: ', sum(X.s$bct)))
 
-# plot(nn_cv)
+### PSEUDO NETWORK TEST
+boot <- 32
+nn.psd.test <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, test[-ncol(test)])
+  
+  pr <- prediction(pred, test$bct)
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  nn.psd.test[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+mean(unlist(nn.test))
+median(unlist(nn.test))
+sd(unlist(nn.test))
+
+mean(unlist(nn.psd.test))
+median(unlist(nn.psd.test))
+sd(unlist(nn.psd.test))
+
+df.1 <- as.data.frame(matrix(unlist(c(nn.test, nn.psd.test))), nrow=2, byrow=T)
+colnames(df.1) <- 'roc.a'
+df.1$algo <- as.factor(sort(rep(seq(1:2), boot)))
+ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
 
 
-# looks like 4-5 hidden nodes with 75% training data is optimal
-# will need to train the network with this archetecture
-# however remember that this has been optimized to the test data
-# will need to validate on the iris dataset
-
-
-
-
-
-
-
-
-
-
-
-### PSEUDO LABELING
-# select the test set patients which were pb, find the max P bct
-max(pred[status.idx.d$most_general[-index] == 'probable_bacterial'])
-# find the position in the test set of this value
-match(max(pred[status.idx.d$most_general[-index] == 'probable_bacterial']), pred)
-# pass the index match to most_general to check label then to my cat 2 to get id
-status.idx.d$most_general[-index][match(max(pred[status.idx.d$most_general[-index] == 'probable_bacterial']), pred)]
-new.bct <- status.idx.d$my_category_2[-index][match(max(pred[status.idx.d$most_general[-index] == 'probable_bacterial']), pred)]
-new.bct
-
-match(new.bct, status.idx.d$my_category_2)
-# change the class label in status.idx.d
-status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)]
-status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)] <- 'bacterial'
-status.idx.d$most_general[match(new.bct, status.idx.d$my_category_2)]
-# change the boolean value in X.s
-X.s$bct[match(new.bct, status.idx.d$my_category_2)]
-X.s$bct[match(new.bct, status.idx.d$my_category_2)] <- TRUE
-X.s$bct[match(new.bct, status.idx.d$my_category_2)]
 
 
 
