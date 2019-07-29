@@ -31,14 +31,21 @@ sex.cols <- c('#fc1676', '#16acfc')
 positions <- c('bacterial', 'greyb', 'greyv', 'viral')
 positions.f <- c('bacterial', 'greyb', 'greyv', 'flu', 'RSV', 'adeno', 'viralother')
 
+# discrepancy in dimension of transcript and label matrix
+dim(e.set.i)
+dim(status.iris)
 
+# extract the overlap
 v <- intersect(colnames(e.set.i), status.iris$My_code)
-common <- match(v, status.iris$My_code)
-status.iris[common,]
-dim(status.iris[common,])
-View(status.iris[common,])
+length(v)
 
-as.character(colnames(e.set.i)) == as.character(status.iris[common,]$My_code) # double check correctly filtered
+common <- match(v, status.iris$My_code)
+
+status.i.idx <- status.iris[common,]
+dim(status.i.idx)
+dim(e.set.i)
+
+as.character(colnames(e.set.i)) == as.character(status.i.idx$My_code) # double check correctly filtered
 
 status.iris.c <- status.iris[common,]
 idx <- status.iris.c['most_general'] == 'bacterial' |

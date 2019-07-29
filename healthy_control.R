@@ -366,7 +366,7 @@ p
 # api_create(p, filename = "volcano_b5")
 
 
-####### filtering the e.set by the selected genes #######
+####### SELECTION OF TRANSCRIPTS #######
 # load('esets.RData')
 # saveRDS(X.t, "X.t.rds")
 # rm(X.t)
@@ -665,27 +665,31 @@ p
 
 
 ###### PREDICTION ######
+scale01 <- function(x){
+  (x - min(x)) / (max(x) - min(x))
+}
+
 # setup the disease only demographic matrix
 idx.d <- status.idx$most_general != 'healthy_control'
 status.idx.d <- status.idx[idx.d,]
+table(status.idx.d$most_general)
+
 
 X.r <- t(X.diff[,idx.d])
 X.r <- as.data.frame(X.r)
 dim(X.r)
-
-scale01 <- function(x){
-  (x - min(x)) / (max(x) - min(x))
-}
 
 # scale the transcript data
 # X.s <- data.frame(X.r)
 X.s<-data.frame(apply(X.r, 2, scale01))
 dim(X.s)
 
+
 # add the class labels to the transcript data
 # X.s$bacterial <- status.idx.d$most_general == 'bacterial'
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
 X.s$bct <- NULL
+table(status.idx.d$most_general)
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
@@ -696,7 +700,7 @@ knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:6){
+for (i in 1:16){
   print(paste0('iter: ', i))
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   train <- X.s[index, ]
@@ -754,7 +758,7 @@ for (i in 1:6){
   # confusionMatrix(p, test$bct)
   pr <- prediction(p, test$bct)
 
-  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
   # plot(prf)
 
   knn.m[i] <- pr %>%
@@ -773,7 +777,7 @@ for (i in 1:6){
   model.prob <- predict(model, test.f, type="prob")
   p <- 1-model.prob[,1]
   pr <- prediction(p, test$bct)
-  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
   # plot(prf)
   randForrest.m[i] <- pr %>%
     performance(measure = "auc") %>%
@@ -785,7 +789,7 @@ for (i in 1:6){
   p
   pr <- prediction(p, test$bct)
   
-  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
   # plot(prf)
   
   nn.m[i] <- pr %>%
@@ -805,9 +809,8 @@ for (i in 1:6){
 }
 
 # df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
-df.1 <- as.data.frame(cbind(logistic.m, randForrest.m, nn.m, svm.m))
+df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
 
-df.1
 df.2 <- gather(df.1, learner, roc)
 df.2$roc <- unlist(df.2$roc)
 df.2$learner <- factor(df.2$learner)
@@ -825,18 +828,23 @@ df.2 %>%
 # ggplot(df.2, aes(learner, roc, color = learner)) + geom_jitter()
 
 
-###############################################################
-### HYPER PARAM OPTIMIZATION FOR PROMISING MODELS
+###### HYPER PARAM OPTIMIZATION FOR PROMISING MODELS ######
+# remove pseudo labels
+status.idx.d <- status.idx[idx.d,]
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+table(status.idx.d$most_general)
+sum(X.s$bct)
 
 prop1 <- 4/5
 prop2 <- 3/4
 # subdivide into train and test set
 
+set.seed(44)
 index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-train.f <- X.s[index, ]
+train <- X.s[index, ]
 test <- X.s[-index, ]
 
-dim(train.f)
+dim(train)
 dim(test)
 
 
@@ -856,26 +864,28 @@ dim(test)
 # res <- split01(X.s, 0.6, 0.2, 0.2)
 # sapply(res, nrow)/nrow(X.s) # check props
 
+
 ### NEURAL NET
 # optimize hidden nodes, activation function (logistic over tanh), cost function (sse over ce)
-h.n <- 8
-boot <- 16
+h.n <- 5
+boot <- 32
 roc.a <- NULL
 roc.t <- NULL
 for(i in 1:h.n){
   print(paste0('hidden Nodes: ', i))
   for(j in 1:boot){
-    index.val <- sample(nrow(train.f), round(prop2*nrow(train.f)))
-    train <- train.f[index.val,]
-    val <- train.f[-index.val,]
+    index <- sample(nrow(train), round(prop2*nrow(train)))
+    train.cv <- train[index,]
+    test.cv <- train[-index,]
     
-    nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
-                     hidden = c(i), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-    pred <- predict(nn1, val[-ncol(val)])
+    nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
+                     hidden = c(1), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+    pred <- predict(nn1, test.cv[-ncol(test.cv)])
     
-    roc.a[j] = prediction(pred, val$bct) %>%
+    roc.a[j] <- prediction(pred, test.cv$bct) %>%
       performance(measure = "auc") %>%
       .@y.values
+    
   }
   roc.t <- append(roc.t, roc.a)
 }
@@ -883,13 +893,14 @@ for(i in 1:h.n){
 df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
 colnames(df) <- 'roc.A'
 df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
-df
+# df
 
 df.1 <- df %>%
   group_by(h.n) %>%
   summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
 
 ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
+df.1
 
 mixed.max <- which.max(df.1$roc.med + df.1$roc.m/2)
 med.max <- which.max(df.1$roc.med)
@@ -900,7 +911,6 @@ if(mixed.max == med.max){
 } else {
   print(paste0('mixed max: ', mixed.max, ' median max: ', med.max))
   opt.h.n <- mixed.max
-  df.1
 }
 
 
@@ -910,11 +920,11 @@ if(mixed.max == med.max){
 
 ### TEST SET NEURAL
 # opt.h.n <- 2
-boot <- 32
+boot <- 128
 nn.test <- NULL
 for (i in 1:boot){
   print(paste0('boot: ', i))
-  nn1 <- neuralnet(bct~ ., train.f, linear.output = FALSE, act.fct = "logistic",
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
                    hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
   pred <- predict(nn1, test[-ncol(test)])
   
@@ -1025,7 +1035,185 @@ ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
 
 
 
-### learning curves
+
+
+####### PSEUDO LABELING #######
+# remove pseudo labels
+status.idx.d <- status.idx[idx.d,]
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+table(status.idx.d$most_general)
+print(paste0('bacterial cases: ', sum(X.s$bct)))
+
+
+# record nn.test with full dataset rather than just train set
+nn.b.test <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, test[-ncol(test)])
+  pr <- prediction(pred, test$bct)
+  nn.b.test[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+roc.h <- NULL
+iters <- 60
+for (i in 1:iters){
+  print(paste0('iter: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, test[-ncol(test)])
+  pr <- prediction(pred, test$bct)
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+
+  roc.h[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  ### checks passing test index to demographic data selects same pts as pred
+  # as.character(status.idx.d[-index,]$my_category_2) == rownames(as.data.frame(pred))
+  
+  # construct pb filter, select pb from status
+  pb.filter <- status.idx.d[-index,]$most_general == 'probable_bacterial'
+  pred[pb.filter,]
+  
+  if(max(pred[pb.filter,]) > 0.99){
+    # select most probable bacterial case and store as ppv
+    which.max(pred[pb.filter,])
+    ppb <- names(which.max(pred[pb.filter,]))
+    
+    # select ppb form demographic subset using ppb
+    # print(paste0('PPB case: ', status.idx.d[-index,]$my_category_2[status.idx.d[-index,]$my_category_2 == ppb], ', ', status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb]))
+    status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb] <- 'bacterial'
+    # print(paste0('PPB case: ', status.idx.d[-index,]$my_category_2[status.idx.d[-index,]$my_category_2 == ppb], ', ', status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb]))
+    Sys.sleep(1)
+  }
+}
+
+table(status.idx.d$most_general)
+# add these pseudo labeled ppb cases to the X.s
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+print(paste0('bacterial cases: ', sum(X.s$bct)))
+
+### PSEUDO NETWORK TEST
+nn.psd.test <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, test[-ncol(test)])
+  
+  pr <- prediction(pred, test$bct)
+  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  nn.psd.test[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+df.1 <- as.data.frame(matrix(unlist(c(nn.test, nn.b.test, nn.psd.test))), nrow=3, byrow=T)
+colnames(df.1) <- 'roc.a'
+df.1$algo <- as.factor(sort(rep(seq(1:3), boot)))
+df.1$algo <- ifelse(df.1$algo == 1, 'normal', ifelse(df.1$algo == 2, 'normal_boot', 'pseudo_label'))
+ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
+
+
+mean(unlist(nn.b.test))
+median(unlist(nn.b.test))
+sd(unlist(nn.b.test))
+
+mean(unlist(nn.psd.test))
+median(unlist(nn.psd.test))
+sd(unlist(nn.psd.test))
+
+
+###### IRIS VALIDATION ######
+
+# discrepancy in dimension of transcript and label matrix
+dim(e.set.i)
+dim(status.iris)
+
+X.i <- t(e.set.i)
+dim(X.i)
+
+# extract the overlap
+common.my_cat <- intersect(rownames(X.i), status.iris$My_code)
+length(common.my_cat)
+
+# find position of common.my_cat in status.iris
+com.idx <- match(common.my_cat, status.iris$My_code)
+
+# pass com.idx to filter the status matrix
+dim(status.iris[com.idx,])
+
+status.i.idx <- status.iris[com.idx,]
+
+dim(status.i.idx)
+dim(X.i)
+
+# remove non relevent patients
+status.i.idx$most_general
+i.idx<- status.i.idx$most_general == 'bacterial' |
+  status.i.idx$most_general == 'viral' |
+  status.i.idx$most_general == 'greyb' |
+  status.i.idx$most_general == 'greyv'|
+  status.i.idx$most_general == 'greyu'
+sum(i.idx)
+
+status.i.idx <- status.i.idx[i.idx,]
+X.i <- X.i[i.idx,]
+
+dim(status.i.idx)
+dim(X.i)
+
+# rename most_general
+status.i.idx$most_general <- as.character(status.i.idx$most_general)
+status.i.idx$most_general[status.i.idx$most_general == 'greyb'] <- 'probable_bacterial'
+status.i.idx$most_general[status.i.idx$most_general == 'greyu'] <- 'unknown'
+status.i.idx$most_general[status.i.idx$most_general == 'greyv'] <- 'probable_viral'
+status.i.idx$most_general[status.i.idx$most_general == 'HC'] <- 'healthy_control'
+
+status.i.idx$most_general <- as.factor(status.i.idx$most_general)
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
+levels(status.i.idx$most_general)
+status.i.idx$most_general <- factor(status.i.idx$most_general, levels = dx)
+levels(status.i.idx$most_general)
+
+# transcript processing
+dim(X.i)
+x.i.var <- apply(X.i, 2, var)
+x.i.mean <- apply(X.i, 2, mean)
+df <- data.frame(log2(x.i.var), log2(x.i.mean))
+colnames(df) <- c('V1', 'V2')
+
+ggplot(df, aes(V1, V2)) +
+  geom_vline(xintercept=log2(5))+
+  geom_point(size = 0.2, stroke = 0, shape = 16)+
+  labs(title="Mean Variance Scatter Plot",
+       x ="log2 Mean Expressioin", y = "log2 Variance")
+
+
+
+
+
+
+
+
+
+###### LEARNING CURVE ######
 j_train <- NULL
 j_test <- NULL
 roc.train <- NULL
@@ -1096,174 +1284,7 @@ ggplot(learning_curve.df, aes(x=p.h, y=train)) +
 
 
 
-### PSEUDO LABELING
-# reset the status.idx.d table
-status.idx.d <- status.idx[idx.d,]
-
-# check totals
-table(status.idx.d$most_general)
-
-# reset the scaled transcript table
-X.s<-data.frame(apply(X.r, 2, scale01))
-dim(X.s)
-
-# add the class labels to the transcript data
-X.s$bct <- status.idx.d$most_general == 'bacterial'
-print(paste0('bacterial cases: ', sum(X.s$bct)))
-
-roc.h <- NULL
-iters <- 50
-for (i in 1:iters){
-  print(paste0('iter: ', i))
-  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-  train <- X.s[index, ]
-  test <- X.s[-index, ]
-  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
-                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
-  pred <- predict(nn1, test[-ncol(test)])
-  pr <- prediction(pred, test$bct)
-  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-
-  roc.h[i] <- pr %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  
-  ### checks passing test index to demographic data selects same pts as pred
-  # as.character(status.idx.d[-index,]$my_category_2) == rownames(as.data.frame(pred))
-  
-  # construct pb filter, select pb from status
-  pb.filter <- status.idx.d[-index,]$most_general == 'probable_bacterial'
-  pred[pb.filter,]
-  
-  if(max(pred[pb.filter,]) > 0.99){
-    # select most probable bacterial case and store as ppv
-    which.max(pred[pb.filter,])
-    ppb <- names(which.max(pred[pb.filter,]))
-    
-    # select ppb form demographic subset using ppb
-    # print(paste0('PPB case: ', status.idx.d[-index,]$my_category_2[status.idx.d[-index,]$my_category_2 == ppb], ', ', status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb]))
-    status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb] <- 'bacterial'
-    # print(paste0('PPB case: ', status.idx.d[-index,]$my_category_2[status.idx.d[-index,]$my_category_2 == ppb], ', ', status.idx.d[-index,]$most_general[status.idx.d[-index,]$my_category_2 == ppb]))
-    Sys.sleep(1)
-  }
-}
-
-table(status.idx.d$most_general)
-# add these pseudo labeled ppb cases to the X.s
-X.s$bct <- status.idx.d$most_general == 'bacterial'
-print(paste0('bacterial cases: ', sum(X.s$bct)))
-
-### PSEUDO NETWORK TEST
-boot <- 32
-nn.psd.test <- NULL
-for (i in 1:boot){
-  print(paste0('boot: ', i))
-  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-  train <- X.s[index, ]
-  test <- X.s[-index, ]
-  
-  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
-                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
-  pred <- predict(nn1, test[-ncol(test)])
-  
-  pr <- prediction(pred, test$bct)
-  prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-  # plot(prf)
-  nn.psd.test[i] <- pr %>%
-    performance(measure = "auc") %>%
-    .@y.values
-}
-
-mean(unlist(nn.test))
-median(unlist(nn.test))
-sd(unlist(nn.test))
-
-mean(unlist(nn.psd.test))
-median(unlist(nn.psd.test))
-sd(unlist(nn.psd.test))
-
-df.1 <- as.data.frame(matrix(unlist(c(nn.test, nn.psd.test))), nrow=2, byrow=T)
-colnames(df.1) <- 'roc.a'
-df.1$algo <- as.factor(sort(rep(seq(1:2), boot)))
-ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
-
-
-
-
-
-
-##############################################
-roc.a <- NULL
-roc.t <- NULL
-
-h.n <- 8
-repitition <- 5
-
-train.x$class
-nn1 <- neuralnet(class ~ ., data = train.x, hidden=4, linear.output = FALSE)
-
-pred <- predict(nn1, test.x[,-ncol(test.x)], type="class")
-pred
-table(test.x$class, apply(pred,1,which.max))
-
-status.idx.d$most_general[test]
-
-train_idx
-iris[train_idx,][-ncol(train_idx)]
-apply(iris[train_idx,], 2, scale01)
-
-# network dimension testing
-for(i in 1:h.n){
-  print(paste0('iter: ', i))
-  for(j in 1:repitition){
-    # nn1 <- neuralnet(bacterial ~ ., data = train.x, hidden=i, threshold=0.01)
-    nn1 <- neuralnet(p.b ~ ., data = train.x, hidden=i, threshold=0.01, err.fct = 'ce')
-    pred <- predict(nn1, test.x, type="class")
-    # roc.a[j] = prediction(pred, status.idx.d$most_general[test] == 'bacterial') %>%
-    roc.a[j] = prediction(pred, status.idx.d$most_general[test] == 'probable_bacterial') %>%
-      performance(measure = "auc") %>%
-      .@y.values  
-  }
-  roc.t <- append(roc.t, roc.a)
-}
-
-roc.a
-roc.t
-
-df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
-colnames(df) <- 'roc.A'
-df$h.n <- as.factor(sort(rep(seq(1:h.n), repitition)))
-df
-
-ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_boxplot()
-ggplot(df, aes(h.n, roc.A, color=h.n)) + geom_jitter()
-
-
-
-
-# p<-ggplotly(p)
-# p
-# api_create(p, filename = "barplot_dx_clus.1.2")
-
-# cluster <- c(1, 2)
-# clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
-# clus2<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[2,]
-# df.1 <- data.frame(clus1, clus2)
-# df.1
-# df.2 <- mutate(df.1, Diagnostic_Group=factor(levels(k2.df$most_general)))
-# df.2
-# df.3 <- gather(df.2, cluster, count, -Diagnostic_Group)
-# df.3
-# p<-ggplot(df.3, aes(x = cluster, y = count, fill = Diagnostic_Group)) +
-#   geom_bar(position = "fill",stat = "identity")+
-#   labs(title = "Barplot of Diagnostic Group Proportions by Cluster", x = "Cluster", y = "Proportion")
-# ggplotly(p)
-# api_create(p, filename = "barplot_dx_clus.1.2")
-
-# ggplot(k2.df, aes(k2.df[[clus.boot]], Age..months.)) + geom_boxplot()
-# length(k2.df[[clus.boot]])
-# length(k2.df$Age..months.)
-
+########################END#####################################
 
 #inflam
 p1<-ggplot(k2.df, aes(x = k2.df[[clus.boot]], y = k2.df$WBC, fill = k2.df[[clus.boot]])) +
