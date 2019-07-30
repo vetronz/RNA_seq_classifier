@@ -17,7 +17,10 @@ tail(data) # Last few rows
 typeof(data) # double which is still indexable somehow
 
 # load series and platform data from GEO
-gset <- getGEO("GSE5583", GSEMatrix =TRUE, getGPL=FALSE)
+datasets <- c('GSE72809')
+datasets[1]
+gset <- getGEO(datasets[1], GSEMatrix =TRUE, getGPL=FALSE)
+
 if (length(gset) > 1) idx <- grep("GPL81", attr(gset, "names")) else idx <- 1
 gset <- gset[[idx]]
 gset_df <- as.data.frame(exprs(gset))

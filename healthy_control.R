@@ -1,23 +1,32 @@
-library(tidyverse)
 library(limma)
 library(cluster)
-library(factoextra)
+# library(factoextra)
 library(ggplot2)
 require(reshape) # for melt()
 require(scales) # for percent
-library(gridExtra)
-library(plyr)
+# library(gridExtra)
 # library(plotly)
-library(e1071)
+# library(e1071)
+library(tidyr)
+# library("illuminaHumanv4.db")
+# library(Mfuzz)
+# library(caret)
+library(class)
+library(plyr)
+library(dplyr)
+
+library(tidyverse)
 library(neuralnet)
 library(ROCR)
-library(tidyr)
-library("illuminaHumanv4.db")
-library(Mfuzz)
-library(caret)
-library(class)
 library(randomForest)
-library(dplyr)
+library(sva)
+
+# install.packages("XYZ")
+
+ip <- as.data.frame(installed.packages()[,c(1,3:4)])
+rownames(ip) <- NULL
+ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
+ip[which(ip$Package == 'sva'),]
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -207,7 +216,6 @@ dim(status.idx)
 # grid.arrange(p1, p2, ncol=2)
 # # api_create(p1, filename = "box_whisker_wbc")
 # # api_create(p2, filename = "box_whisker_crp")
-
 
 
 
@@ -1140,14 +1148,47 @@ median(unlist(nn.psd.test))
 sd(unlist(nn.psd.test))
 
 
-###### IRIS VALIDATION ######
+###### COMBI ######
+# discovery prep
+idx <- status$most_general == 'bacterial' |
+  status$most_general == 'viral' |
+  status$most_general == 'greyb' |
+  status$most_general == 'greyv'|
+  status$most_general == 'greyu'
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral') 
 
+### remove outlier
+idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
+sum(idx) # 239
+
+X.d <- e.set[,idx]
+status.idx <- status[idx,]
+
+# rename most_general
+status.idx$most_general <- as.character(status.idx$most_general)
+status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
+status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
+status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
+
+status.idx$most_general <- as.factor(status.idx$most_general)
+
+levels(status.idx$most_general)
+status.idx$most_general <- factor(status.idx$most_general, levels = dx)
+levels(status.idx$most_general)
+
+status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
+
+# discovery data
+dim(status.idx)
+dim(X.d)
+
+
+## iris validation cohort prep
 # discrepancy in dimension of transcript and label matrix
 dim(e.set.i)
 dim(status.iris)
 
 X.i <- t(e.set.i)
-dim(X.i)
 
 # extract the overlap
 common.my_cat <- intersect(rownames(X.i), status.iris$My_code)
@@ -1164,7 +1205,7 @@ status.i.idx <- status.iris[com.idx,]
 dim(status.i.idx)
 dim(X.i)
 
-# remove non relevent patients
+# create disease index
 status.i.idx$most_general
 i.idx<- status.i.idx$most_general == 'bacterial' |
   status.i.idx$most_general == 'viral' |
@@ -1173,18 +1214,16 @@ i.idx<- status.i.idx$most_general == 'bacterial' |
   status.i.idx$most_general == 'greyu'
 sum(i.idx)
 
+# strip out the healthy controls 147 > 130 patients
 status.i.idx <- status.i.idx[i.idx,]
 X.i <- X.i[i.idx,]
-
-dim(status.i.idx)
-dim(X.i)
+X.i <- t(X.i) # revert the transpose
 
 # rename most_general
 status.i.idx$most_general <- as.character(status.i.idx$most_general)
 status.i.idx$most_general[status.i.idx$most_general == 'greyb'] <- 'probable_bacterial'
 status.i.idx$most_general[status.i.idx$most_general == 'greyu'] <- 'unknown'
 status.i.idx$most_general[status.i.idx$most_general == 'greyv'] <- 'probable_viral'
-status.i.idx$most_general[status.i.idx$most_general == 'HC'] <- 'healthy_control'
 
 status.i.idx$most_general <- as.factor(status.i.idx$most_general)
 dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
@@ -1192,27 +1231,105 @@ levels(status.i.idx$most_general)
 status.i.idx$most_general <- factor(status.i.idx$most_general, levels = dx)
 levels(status.i.idx$most_general)
 
-# transcript processing
+
+## PREPED DATA
+dim(status.idx)
+dim(X.d)
+
+dim(status.i.idx)
 dim(X.i)
-x.i.var <- apply(X.i, 2, var)
-x.i.mean <- apply(X.i, 2, mean)
-df <- data.frame(log2(x.i.var), log2(x.i.mean))
-colnames(df) <- c('V1', 'V2')
 
-ggplot(df, aes(V1, V2)) +
-  geom_vline(xintercept=log2(5))+
-  geom_point(size = 0.2, stroke = 0, shape = 16)+
-  labs(title="Mean Variance Scatter Plot",
-       x ="log2 Mean Expressioin", y = "log2 Variance")
+X.d[1:5,1:5]
+X.i[1:5,1:5]
+
+ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg')
+ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')
+
+#construct bct vector to bolt onto the matrix
+bct.vec <- c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg'))
+
+# select the intersection, transcripts that are contained within both datasets
+int <- intersect(rownames(X.d), rownames(X.i))
+length(int)
+
+# pass the int vector of common genes to match to pull rows
+dim(X.d[match(int, rownames(X.d)),])
+dim(X.i[match(int, rownames(X.i)),])
+
+# check that all rows (transcripts) match between the 2 matrices
+sum(rownames(X.i[match(int, rownames(X.i)),]) != rownames(X.d[match(int, rownames(X.d)),]))
+
+X.c <- as.data.frame(cbind(X.d[match(int, rownames(X.d)),], X.i[match(int, rownames(X.i)),]))
+X.c.t <- as.data.frame(t(X.c))
+class(X.c.t)
+
+# add the dataset vector
+X.c.t$dataset <- c(rep(1,239), rep(2,130))
+X.c.t$dataset <- as.factor(ifelse(X.c.t$dataset == 1, 'discovery', 'validation'))
+
+X.c.t[(nrow(X.c.t)-5):nrow(X.c.t), (ncol(X.c.t)-5):ncol(X.c.t)]
+
+dim(X.c.t[-ncol(X.c.t)])
+
+full.pca <- prcomp(X.c.t[-ncol(X.c.t)], scale=TRUE)
+
+pair1 <- as.data.frame(full.pca$x[,1:2])
+pair2 <- as.data.frame(full.pca$x[,3:4])
+pair3D <- as.data.frame(full.pca$x[,1:3])
+
+# fviz_eig(full.pca)
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+ggplot(data = pair1, aes(PC1, PC2, color=X.c.t$dataset))+geom_point()
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+
+
+# # most_gen 2D Age
+# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status.idx$most_general), size = status.idx$Age..months.,
+#              colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'PCA of Diagnostic Groups, Age Size Mapping',
+#          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
+# p
+
+# # most_gen 2D
+p <- plot_ly(pair1, x = ~PC1, y = ~PC2, color = status.idx$most_general, size = status.idx$array.contemporary.CRP,
+             colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'PC 1-2 of Diagnostic Groups, CRP Size Mapping',
+         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+         yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
+p
+p <- plot_ly(pair2, x = ~PC3, y = ~PC4, color = status.idx$most_general, size = status.idx$Age..months.,
+             colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'PC 3-4 of Diagnostic Groups, Age Size Mapping',
+         xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
+         yaxis = list(title = paste0("PC4: (", round(pve[4],2), '%)')))
+p
+
+# api_create(p, filename = "2d_pca_filt")
+
+## most_gen 3D
+p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
+             colors=c(dx.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+  add_markers() %>%
+  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+p
 
 
 
 
 
 
-
-
-
+  
 ###### LEARNING CURVE ######
 j_train <- NULL
 j_test <- NULL
