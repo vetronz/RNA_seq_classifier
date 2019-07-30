@@ -21,6 +21,7 @@ library(ROCR)
 library(randomForest)
 library(sva)
 
+
 # install.packages("XYZ")
 
 ip <- as.data.frame(installed.packages()[,c(1,3:4)])
@@ -1242,12 +1243,6 @@ dim(X.i)
 X.d[1:5,1:5]
 X.i[1:5,1:5]
 
-ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg')
-ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')
-
-#construct bct vector to bolt onto the matrix
-bct.vec <- c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg'))
-
 # select the intersection, transcripts that are contained within both datasets
 int <- intersect(rownames(X.d), rownames(X.i))
 length(int)
@@ -1259,19 +1254,24 @@ dim(X.i[match(int, rownames(X.i)),])
 # check that all rows (transcripts) match between the 2 matrices
 sum(rownames(X.i[match(int, rownames(X.i)),]) != rownames(X.d[match(int, rownames(X.d)),]))
 
-X.c <- as.data.frame(cbind(X.d[match(int, rownames(X.d)),], X.i[match(int, rownames(X.i)),]))
+X.c <- cbind(X.d[match(int, rownames(X.d)),], X.i[match(int, rownames(X.i)),])
 X.c.t <- as.data.frame(t(X.c))
+dim(X.c.t)
 class(X.c.t)
 
-# add the dataset vector
-X.c.t$dataset <- c(rep(1,239), rep(2,130))
-X.c.t$dataset <- as.factor(ifelse(X.c.t$dataset == 1, 'discovery', 'validation'))
+# X.c.t$dataset <- as.factor(ifelse(X.c.t$dataset == 1, 'discovery', 'validation'))
 
-X.c.t[(nrow(X.c.t)-5):nrow(X.c.t), (ncol(X.c.t)-5):ncol(X.c.t)]
 
-dim(X.c.t[-ncol(X.c.t)])
+# construct bct vector to bolt onto the matrix
+bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
 
-full.pca <- prcomp(X.c.t[-ncol(X.c.t)], scale=TRUE)
+# add the bct vector
+# X.c.t$label <- as.factor(bct.vec)
+# X.c.t[(nrow(X.c.t)-5):nrow(X.c.t), (ncol(X.c.t)-5):ncol(X.c.t)]
+
+# dim(X.c.t[-ncol(X.c.t)])
+
+full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pair2 <- as.data.frame(full.pca$x[,3:4])
@@ -1287,43 +1287,68 @@ ggplot(data = pair1, aes(PC1, PC2, color=X.c.t$dataset))+geom_point()
 ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
 
 
-# # most_gen 2D Age
-# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status.idx$most_general), size = status.idx$Age..months.,
-#              colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'PCA of Diagnostic Groups, Age Size Mapping',
-#          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-# p
 
-# # most_gen 2D
-p <- plot_ly(pair1, x = ~PC1, y = ~PC2, color = status.idx$most_general, size = status.idx$array.contemporary.CRP,
-             colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'PC 1-2 of Diagnostic Groups, CRP Size Mapping',
-         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-         yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-p
-p <- plot_ly(pair2, x = ~PC3, y = ~PC4, color = status.idx$most_general, size = status.idx$Age..months.,
-             colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'PC 3-4 of Diagnostic Groups, Age Size Mapping',
-         xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
-         yaxis = list(title = paste0("PC4: (", round(pve[4],2), '%)')))
-p
+# COMBAT
+dim(X.c.t[,1:(ncol(X.c.t)-2)])
 
-# api_create(p, filename = "2d_pca_filt")
+# mod <- model.matrix(~label, data = X.c.t)
+# mod0 <- model.matrix(~1, data=X.c.t)
+modcombat <- model.matrix(~1, data=X.c.t)
+modcombat
 
-## most_gen 3D
-p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
-             colors=c(dx.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-p
+class(modcombat)
 
+# a <- X.c.t[,1:(ncol(X.c.t)-2)] # if you need to stip labels off
+
+batch <- as.factor(c(rep(1,239), rep(2,130)))
+
+X.c <- t(X.c.t)
+dim(X.c)
+length(batch)
+# needed to transpose the matrix to work
+
+X.comb <- ComBat(X.c, batch=batch, mod=NULL)
+# ComBat(X.c.t, batch=batch, mod=mod0, par.prior=TRUE, prior.plots=FALSE)
+
+dim(X.comb)
+class(X.comb)
+
+X.comb[1:5,1:5]
+X.c[1:5,1:5]
+
+X.comb[1:5,1:5] == X.c[1:5,1:5]
+
+X.comb <- as.data.frame(X.comb)
+
+# transpose for PCA
+X.comb.t <- t(X.comb)
+full.pca.comb <- prcomp(X.comb.t, scale=TRUE)
+
+pair1 <- as.data.frame(full.pca.comb$x[,1:2])
+pair2 <- as.data.frame(full.pca.comb$x[,3:4])
+pair3D <- as.data.frame(full.pca.comb$x[,1:3])
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+# holy fucking hell its worked
+ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+
+
+
+
+####################################################
+# batch1 <- rep(1,times=106)
+# batch2 <- rep(2,times=106)
+# batch3 <- rep(3,times=39)
+# batch4 <- rep(4,times=26)
+# batch5 <- rep(5,times=54)
+
+# batch.type <- as.factor(c(batch1,batch2,batch3,batch4,batch5))
+
+# ComBat(data,batch=batch.type,mod=NULL)
 
 
 
