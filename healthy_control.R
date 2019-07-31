@@ -6,11 +6,11 @@ require(reshape) # for melt()
 require(scales) # for percent
 # library(gridExtra)
 # library(plotly)
-# library(e1071)
+library(e1071)
 library(tidyr)
 # library("illuminaHumanv4.db")
 # library(Mfuzz)
-# library(caret)
+library(caret)
 library(class)
 library(plyr)
 library(dplyr)
@@ -66,8 +66,185 @@ cols.14 = gg_color_hue(n)
 
 dx.cols <- c('#D81D22', '#FF3A3A', '#AD4187' , '#776BB9' , '#4A8AC3', '#32A46A')
 sex.cols <- c('#fc1676', '#16acfc')
-
 clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
+
+
+
+###### COMBI ######
+# discovery prep
+idx <- status$most_general == 'bacterial' |
+  status$most_general == 'viral' |
+  status$most_general == 'greyb' |
+  status$most_general == 'greyv'|
+  status$most_general == 'greyu'
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral') 
+
+### remove outlier
+idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
+sum(idx) # 239
+
+X.d <- e.set[,idx]
+status.idx <- status[idx,]
+
+# rename most_general
+status.idx$most_general <- as.character(status.idx$most_general)
+status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
+status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
+status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
+
+status.idx$most_general <- as.factor(status.idx$most_general)
+
+levels(status.idx$most_general)
+status.idx$most_general <- factor(status.idx$most_general, levels = dx)
+levels(status.idx$most_general)
+
+status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
+
+# discovery data
+dim(status.idx)
+dim(X.d)
+
+
+## iris validation cohort prep
+# discrepancy in dimension of transcript and label matrix
+dim(e.set.i)
+dim(status.iris)
+
+X.i <- t(e.set.i)
+
+# extract the overlap
+common.my_cat <- intersect(rownames(X.i), status.iris$My_code)
+length(common.my_cat)
+
+# find position of common.my_cat in status.iris
+com.idx <- match(common.my_cat, status.iris$My_code)
+
+# pass com.idx to filter the status matrix
+dim(status.iris[com.idx,])
+
+status.i.idx <- status.iris[com.idx,]
+
+dim(status.i.idx)
+dim(X.i)
+
+# create disease index
+status.i.idx$most_general
+i.idx<- status.i.idx$most_general == 'bacterial' |
+  status.i.idx$most_general == 'viral' |
+  status.i.idx$most_general == 'greyb' |
+  status.i.idx$most_general == 'greyv'|
+  status.i.idx$most_general == 'greyu'
+sum(i.idx)
+
+# strip out the healthy controls 147 > 130 patients
+status.i.idx <- status.i.idx[i.idx,]
+X.i <- X.i[i.idx,]
+X.i <- t(X.i) # revert the transpose
+
+# rename most_general
+status.i.idx$most_general <- as.character(status.i.idx$most_general)
+status.i.idx$most_general[status.i.idx$most_general == 'greyb'] <- 'probable_bacterial'
+status.i.idx$most_general[status.i.idx$most_general == 'greyu'] <- 'unknown'
+status.i.idx$most_general[status.i.idx$most_general == 'greyv'] <- 'probable_viral'
+
+status.i.idx$most_general <- as.factor(status.i.idx$most_general)
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
+levels(status.i.idx$most_general)
+status.i.idx$most_general <- factor(status.i.idx$most_general, levels = dx)
+levels(status.i.idx$most_general)
+
+
+## PREPED DATA
+dim(status.idx)
+dim(X.d)
+
+dim(status.i.idx)
+dim(X.i)
+
+X.d[1:5,1:5]
+X.i[1:5,1:5]
+
+# select the intersection, transcripts that are contained within both datasets
+int <- intersect(rownames(X.d), rownames(X.i))
+length(int)
+
+# pass the int vector of common genes to match to pull rows
+dim(X.d[match(int, rownames(X.d)),])
+dim(X.i[match(int, rownames(X.i)),])
+
+# check that all rows (transcripts) match between the 2 matrices
+sum(rownames(X.i[match(int, rownames(X.i)),]) != rownames(X.d[match(int, rownames(X.d)),]))
+
+X.c <- cbind(X.d[match(int, rownames(X.d)),], X.i[match(int, rownames(X.i)),])
+X.c.t <- as.data.frame(t(X.c))
+dim(X.c.t)
+class(X.c.t)
+
+# construct batch and response vectors
+batch <- as.factor(ifelse(c(rep(1,239), rep(2, 130)) == 1, 'discovery', 'iris'))
+bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
+
+# PCA
+full.pca <- prcomp(X.c.t, scale=TRUE)
+
+pair1 <- as.data.frame(full.pca$x[,1:2])
+pair2 <- as.data.frame(full.pca$x[,3:4])
+pair3D <- as.data.frame(full.pca$x[,1:3])
+
+# fviz_eig(full.pca)
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+# separation based on batch effect
+ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+
+
+# COMBAT
+# mod <- model.matrix(~label, data = X.c.t)
+# mod0 <- model.matrix(~1, data=X.c.t)
+modcombat <- model.matrix(~1, data=X.c.t)
+# modcombat
+class(modcombat)
+
+X.c <- t(X.c.t)
+dim(X.c)
+length(batch)
+# needed to transpose the matrix to work
+
+X.comb <- ComBat(X.c, batch=batch, mod=NULL)
+# ComBat(X.c.t, batch=batch, mod=mod0, par.prior=TRUE, prior.plots=FALSE)
+
+dim(X.comb)
+
+X.comb[1:5,1:5]
+X.c[1:5,1:5]
+
+# transpose for PCA
+X.comb <- as.data.frame(X.comb)
+X.comb.t <- t(X.comb)
+pca.comb <- prcomp(X.comb.t, scale=TRUE)
+
+pair1 <- as.data.frame(pca.comb$x[,1:2])
+pair2 <- as.data.frame(pca.comb$x[,3:4])
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+# holy fucking hell its worked
+ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+
+
+dim(X.comb.t)
+batch == 'discovery'
+batch == 'iris'
+
+X.dis <- X.c.t[batch == 'discovery',]
+X.val <- X.c.t[batch == 'iris',]
 
 
 ###### Cyber Sort ######
@@ -105,42 +282,42 @@ cor(df.4$Neutrophils, df.4$perc_neut)
 # dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
 
 ### supervised
-idx <- status$most_general == 'bacterial' |
-  status$most_general == 'viral' |
-  status$most_general == 'greyb' |
-  status$most_general == 'greyv'|
-  status$most_general == 'greyu' |
-  status$most_general == 'HC'
-sum(idx)
-class(idx)
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
-
-### outlier
-which(status$my_category_2 == 'bacterialgpos_19_SMH')
-idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
-idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
-idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
-
-status.idx <- status[idx,]
-status.idx$most_general[1:10]
-
-# rename most_general
-status.idx$most_general <- as.character(status.idx$most_general)
-status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
-status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
-status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
-status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
-
-status.idx$most_general <- as.factor(status.idx$most_general)
-
-levels(status.idx$most_general)
-status.idx$most_general <- factor(status.idx$most_general, levels = dx)
-levels(status.idx$most_general)
-# status.idx$most_general
-
-status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
-
-dim(status.idx)
+# idx <- status$most_general == 'bacterial' |
+#   status$most_general == 'viral' |
+#   status$most_general == 'greyb' |
+#   status$most_general == 'greyv'|
+#   status$most_general == 'greyu' |
+#   status$most_general == 'HC'
+# sum(idx)
+# class(idx)
+# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
+# 
+# ### outlier
+# which(status$my_category_2 == 'bacterialgpos_19_SMH')
+# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
+# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
+# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
+# 
+# status.idx <- status[idx,]
+# status.idx$most_general[1:10]
+# 
+# # rename most_general
+# status.idx$most_general <- as.character(status.idx$most_general)
+# status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
+# status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
+# status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
+# status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
+# 
+# status.idx$most_general <- as.factor(status.idx$most_general)
+# 
+# levels(status.idx$most_general)
+# status.idx$most_general <- factor(status.idx$most_general, levels = dx)
+# levels(status.idx$most_general)
+# # status.idx$most_general
+# 
+# status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
+# 
+# dim(status.idx)
 # 
 # # # ############ EDA ############
 # p<-ggplot(status.idx, aes(most_general, fill = most_general)) +
@@ -391,102 +568,103 @@ X.r <- t(X.diff[,idx.d])
 dim(X.r)
 
 
-###### PCA ######
-full.pca <- prcomp(X.r, scale=TRUE) # unsupervised
-# full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
 
-pair1 <- as.data.frame(full.pca$x[,1:2])
-pair2 <- as.data.frame(full.pca$x[,3:4])
-pair3D <- as.data.frame(full.pca$x[,1:3])
-
-fviz_eig(full.pca)
-
-ve <- full.pca$sdev^2
-pve <- ve/sum(ve)*100
-pve[1:5]
-
-
-# # most_gen 2D Age
-# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status.idx$most_general), size = status.idx$Age..months.,
-#              colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+# ###### PCA ######
+# full.pca <- prcomp(X.r, scale=TRUE) # unsupervised
+# # full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
+# 
+# pair1 <- as.data.frame(full.pca$x[,1:2])
+# pair2 <- as.data.frame(full.pca$x[,3:4])
+# pair3D <- as.data.frame(full.pca$x[,1:3])
+# 
+# fviz_eig(full.pca)
+# 
+# ve <- full.pca$sdev^2
+# pve <- ve/sum(ve)*100
+# pve[1:5]
+# 
+# 
+# # # most_gen 2D Age
+# # p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status.idx$most_general), size = status.idx$Age..months.,
+# #              colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'PCA of Diagnostic Groups, Age Size Mapping',
+# #          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
+# # p
+# 
+# # # most_gen 2D
+# p <- plot_ly(pair1, x = ~PC1, y = ~PC2, color = status.idx$most_general, size = status.idx$array.contemporary.CRP,
+#              colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
 #   add_markers() %>%
-#   layout(title = 'PCA of Diagnostic Groups, Age Size Mapping',
+#   layout(title = 'PC 1-2 of Diagnostic Groups, CRP Size Mapping',
 #          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
 #          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
 # p
-
-# # most_gen 2D
-p <- plot_ly(pair1, x = ~PC1, y = ~PC2, color = status.idx$most_general, size = status.idx$array.contemporary.CRP,
-             colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'PC 1-2 of Diagnostic Groups, CRP Size Mapping',
-         xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-         yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-p
-p <- plot_ly(pair2, x = ~PC3, y = ~PC4, color = status.idx$most_general, size = status.idx$Age..months.,
-             colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'PC 3-4 of Diagnostic Groups, Age Size Mapping',
-         xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
-         yaxis = list(title = paste0("PC4: (", round(pve[4],2), '%)')))
-p
-
-# api_create(p, filename = "2d_pca_filt")
-
-## most_gen 3D
-p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
-             colors=c(dx.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-  add_markers() %>%
-  layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
-         scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-                      yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-                      zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-p
-# api_create(p, filename = "3d_pca_dx_unfilt")
-
-# # more_gen
-# dx.cols.f <- c('#bd35fc', "#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
-# plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$more_general, size = status.idx$Age..months.,
-#         colors = c(dx.cols.f), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+# p <- plot_ly(pair2, x = ~PC3, y = ~PC4, color = status.idx$most_general, size = status.idx$Age..months.,
+#              colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
 #   add_markers() %>%
-#   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
-#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+#   layout(title = 'PC 3-4 of Diagnostic Groups, Age Size Mapping',
+#          xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
+#          yaxis = list(title = paste0("PC4: (", round(pve[4],2), '%)')))
+# p
 # 
-# # category
-# p<-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
-#         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
-#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-# api_create(p, filename = "3d_pca_cat")
+# # api_create(p, filename = "2d_pca_filt")
 # 
-
-# sex
-# View(status.idx)
-# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$Sex, size = ~status.idx$Age..months.,
-#              colors=c(sex.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# ## most_gen 3D
+# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
+#              colors=c(dx.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
 #   add_markers() %>%
 #   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
 #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
 #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
 #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
 # p
-# api_create(p, filename = "3d_pca_sex")
-
+# # api_create(p, filename = "3d_pca_dx_unfilt")
 # 
-# # site
-# plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
-#         colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
-#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-
+# # # more_gen
+# # dx.cols.f <- c('#bd35fc', "#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
+# # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$more_general, size = status.idx$Age..months.,
+# #         colors = c(dx.cols.f), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# # 
+# # # category
+# # p<-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
+# #         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# # api_create(p, filename = "3d_pca_cat")
+# # 
+# 
+# # sex
+# # View(status.idx)
+# # p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$Sex, size = ~status.idx$Age..months.,
+# #              colors=c(sex.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# # p
+# # api_create(p, filename = "3d_pca_sex")
+# 
+# # 
+# # # site
+# # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
+# #         colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# 
 
 
 
@@ -716,13 +894,13 @@ for (i in 1:16){
   test <- X.s[-index, ]
   
   # factor labels required for some ml models 
-  train.f <- train
-  test.f <- test
-  train.f$bct <- factor(train.f$bct)
-  test.f$bct <- factor(test.f$bct)
+  train.fac <- train
+  test.fac <- test
+  train.fac$bct <- factor(train.fac$bct)
+  test.fac$bct <- factor(test.fac$bct)
   
-  # dim(train)
-  # dim(test)
+  dim(train)
+  dim(test)
   
   ### LOGISTIC REGRESSION
   model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 500)
@@ -747,7 +925,7 @@ for (i in 1:16){
   ### KNN
   # opt neighbours
   trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
-  model <- train(bct ~., data = train.f, method = "knn",
+  model <- train(bct ~., data = train.fac, method = "knn",
                  trControl=trctrl,
                  tuneLength = 10)
 
@@ -776,14 +954,14 @@ for (i in 1:16){
   
   
   ### RANDOM FORREST
-  model <- randomForest(bct ~ . , data = train.f)
+  model <- randomForest(bct ~ . , data = train.fac)
   # plot(model)
   # attributes(model)
   # model$mtry # number of variables considered by each tree
-  pred<-predict(model , test.f[-ncol(test)])
+  pred<-predict(model , test.fac[-ncol(test)])
   # attributes(pred)
   # model=randomForest(x,y,xtest=x,ytest=y,keep.forest=TRUE)
-  model.prob <- predict(model, test.f, type="prob")
+  model.prob <- predict(model, test.fac, type="prob")
   p <- 1-model.prob[,1]
   pr <- prediction(p, test$bct)
   # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
@@ -807,8 +985,8 @@ for (i in 1:16){
   
   
   ### SVM
-  model <- svm(bct ~ . , train.f, probability = TRUE)
-  pred <- predict(model, test.f, probability = TRUE)
+  model <- svm(bct ~ . , train.fac, probability = TRUE)
+  pred <- predict(model, test.fac, probability = TRUE)
   p<-attr(pred, "prob")
   pr <- prediction(1-p[,1], test$bct)
   # plot(prf)
@@ -844,14 +1022,24 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 table(status.idx.d$most_general)
 sum(X.s$bct)
 
+# define proportions
 prop1 <- 4/5
 prop2 <- 3/4
-# subdivide into train and test set
 
-set.seed(44)
+# define bootstrap samples
+boot <- 64
+
+# subdivide into train and test set
+set.seed(43)
 index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
 train <- X.s[index, ]
 test <- X.s[-index, ]
+
+# make separate train, test sets with factor labels
+train.fac <- train
+test.fac <- test
+train.fac$bct <- as.factor(train.fac$bct)
+test.fac$bct <- as.factor(test.fac$bct)
 
 dim(train)
 dim(test)
@@ -876,8 +1064,7 @@ dim(test)
 
 ### NEURAL NET
 # optimize hidden nodes, activation function (logistic over tanh), cost function (sse over ce)
-h.n <- 5
-boot <- 32
+h.n <- 6
 roc.a <- NULL
 roc.t <- NULL
 for(i in 1:h.n){
@@ -929,7 +1116,6 @@ if(mixed.max == med.max){
 
 ### TEST SET NEURAL
 # opt.h.n <- 2
-boot <- 128
 nn.test <- NULL
 for (i in 1:boot){
   print(paste0('boot: ', i))
@@ -954,15 +1140,7 @@ sd(unlist(nn.test))
 
 
 ### RANDOM FORREST
-# change the train.f and test sets to factors
-train.f$bct <- factor(train.f$bct)
-test$bct <- factor(test$bct)
-
-# index.val <- sample(nrow(train.f), round(prop2*nrow(train.f)))
-# train <- train.f[index.val,]
-# val <- train.f[-index.val,]
-
-model <- randomForest(bct ~ . , data = train.f, nodesize = 1, maxnodes = NULL)
+model <- randomForest(bct ~ . , data = train.fac, nodesize = 1, maxnodes = NULL)
 plot(model)
 attributes(model)
 
@@ -991,7 +1169,7 @@ for(i in 1:nrow(hyper_grid)) {
   # train model
   model <- randomForest(
     formula = bct ~ ., 
-    data = train.f, 
+    data = train.fac, 
     ntree = hyper.tree,
     mtry = hyper_grid$mtry[i],
     nodesize = hyper_grid$node_size[i],
@@ -1010,13 +1188,13 @@ mtry.opt <- hyper_top[1,][[1]]
 node.opt <- hyper_top[1,][[2]]
 sample.opt <- hyper_top[1,][[3]]
 
+
 ### TEST SET EVAL FORREST
-boot <- 32
 rf.test <- NULL
 for (i in 1:boot){
   print(paste0('boot: ', i))
   model <- randomForest(formula = bct ~ .,
-                        data = train.f,
+                        data = train.fac,
                         ntree = hyper.tree,
                         mtry = mtry.opt,
                         nodesize = node.opt,
@@ -1071,7 +1249,11 @@ for (i in 1:boot){
     .@y.values
 }
 
+# train iter neural nets on randomly drawn train sets
+# evaluate on test set. Any PB with P bct > bct.thresh is labeled as bct but the dx label is not changed until outside of the loop
+
 roc.h <- NULL
+bct.thresh <- 0.99
 iters <- 60
 for (i in 1:iters){
   print(paste0('iter: ', i))
@@ -1095,7 +1277,7 @@ for (i in 1:iters){
   pb.filter <- status.idx.d[-index,]$most_general == 'probable_bacterial'
   pred[pb.filter,]
   
-  if(max(pred[pb.filter,]) > 0.99){
+  if(max(pred[pb.filter,]) > bct.thresh){
     # select most probable bacterial case and store as ppv
     which.max(pred[pb.filter,])
     ppb <- names(which.max(pred[pb.filter,]))
@@ -1147,209 +1329,6 @@ sd(unlist(nn.b.test))
 mean(unlist(nn.psd.test))
 median(unlist(nn.psd.test))
 sd(unlist(nn.psd.test))
-
-
-###### COMBI ######
-# discovery prep
-idx <- status$most_general == 'bacterial' |
-  status$most_general == 'viral' |
-  status$most_general == 'greyb' |
-  status$most_general == 'greyv'|
-  status$most_general == 'greyu'
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral') 
-
-### remove outlier
-idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
-sum(idx) # 239
-
-X.d <- e.set[,idx]
-status.idx <- status[idx,]
-
-# rename most_general
-status.idx$most_general <- as.character(status.idx$most_general)
-status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
-status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
-status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
-
-status.idx$most_general <- as.factor(status.idx$most_general)
-
-levels(status.idx$most_general)
-status.idx$most_general <- factor(status.idx$most_general, levels = dx)
-levels(status.idx$most_general)
-
-status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
-
-# discovery data
-dim(status.idx)
-dim(X.d)
-
-
-## iris validation cohort prep
-# discrepancy in dimension of transcript and label matrix
-dim(e.set.i)
-dim(status.iris)
-
-X.i <- t(e.set.i)
-
-# extract the overlap
-common.my_cat <- intersect(rownames(X.i), status.iris$My_code)
-length(common.my_cat)
-
-# find position of common.my_cat in status.iris
-com.idx <- match(common.my_cat, status.iris$My_code)
-
-# pass com.idx to filter the status matrix
-dim(status.iris[com.idx,])
-
-status.i.idx <- status.iris[com.idx,]
-
-dim(status.i.idx)
-dim(X.i)
-
-# create disease index
-status.i.idx$most_general
-i.idx<- status.i.idx$most_general == 'bacterial' |
-  status.i.idx$most_general == 'viral' |
-  status.i.idx$most_general == 'greyb' |
-  status.i.idx$most_general == 'greyv'|
-  status.i.idx$most_general == 'greyu'
-sum(i.idx)
-
-# strip out the healthy controls 147 > 130 patients
-status.i.idx <- status.i.idx[i.idx,]
-X.i <- X.i[i.idx,]
-X.i <- t(X.i) # revert the transpose
-
-# rename most_general
-status.i.idx$most_general <- as.character(status.i.idx$most_general)
-status.i.idx$most_general[status.i.idx$most_general == 'greyb'] <- 'probable_bacterial'
-status.i.idx$most_general[status.i.idx$most_general == 'greyu'] <- 'unknown'
-status.i.idx$most_general[status.i.idx$most_general == 'greyv'] <- 'probable_viral'
-
-status.i.idx$most_general <- as.factor(status.i.idx$most_general)
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
-levels(status.i.idx$most_general)
-status.i.idx$most_general <- factor(status.i.idx$most_general, levels = dx)
-levels(status.i.idx$most_general)
-
-
-## PREPED DATA
-dim(status.idx)
-dim(X.d)
-
-dim(status.i.idx)
-dim(X.i)
-
-X.d[1:5,1:5]
-X.i[1:5,1:5]
-
-# select the intersection, transcripts that are contained within both datasets
-int <- intersect(rownames(X.d), rownames(X.i))
-length(int)
-
-# pass the int vector of common genes to match to pull rows
-dim(X.d[match(int, rownames(X.d)),])
-dim(X.i[match(int, rownames(X.i)),])
-
-# check that all rows (transcripts) match between the 2 matrices
-sum(rownames(X.i[match(int, rownames(X.i)),]) != rownames(X.d[match(int, rownames(X.d)),]))
-
-X.c <- cbind(X.d[match(int, rownames(X.d)),], X.i[match(int, rownames(X.i)),])
-X.c.t <- as.data.frame(t(X.c))
-dim(X.c.t)
-class(X.c.t)
-
-# X.c.t$dataset <- as.factor(ifelse(X.c.t$dataset == 1, 'discovery', 'validation'))
-
-
-# construct bct vector to bolt onto the matrix
-bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
-
-# add the bct vector
-# X.c.t$label <- as.factor(bct.vec)
-# X.c.t[(nrow(X.c.t)-5):nrow(X.c.t), (ncol(X.c.t)-5):ncol(X.c.t)]
-
-# dim(X.c.t[-ncol(X.c.t)])
-
-full.pca <- prcomp(X.c.t, scale=TRUE)
-
-pair1 <- as.data.frame(full.pca$x[,1:2])
-pair2 <- as.data.frame(full.pca$x[,3:4])
-pair3D <- as.data.frame(full.pca$x[,1:3])
-
-# fviz_eig(full.pca)
-
-ve <- full.pca$sdev^2
-pve <- ve/sum(ve)*100
-pve[1:5]
-
-ggplot(data = pair1, aes(PC1, PC2, color=X.c.t$dataset))+geom_point()
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
-
-
-
-# COMBAT
-dim(X.c.t[,1:(ncol(X.c.t)-2)])
-
-# mod <- model.matrix(~label, data = X.c.t)
-# mod0 <- model.matrix(~1, data=X.c.t)
-modcombat <- model.matrix(~1, data=X.c.t)
-modcombat
-
-class(modcombat)
-
-# a <- X.c.t[,1:(ncol(X.c.t)-2)] # if you need to stip labels off
-
-batch <- as.factor(c(rep(1,239), rep(2,130)))
-
-X.c <- t(X.c.t)
-dim(X.c)
-length(batch)
-# needed to transpose the matrix to work
-
-X.comb <- ComBat(X.c, batch=batch, mod=NULL)
-# ComBat(X.c.t, batch=batch, mod=mod0, par.prior=TRUE, prior.plots=FALSE)
-
-dim(X.comb)
-class(X.comb)
-
-X.comb[1:5,1:5]
-X.c[1:5,1:5]
-
-X.comb[1:5,1:5] == X.c[1:5,1:5]
-
-X.comb <- as.data.frame(X.comb)
-
-# transpose for PCA
-X.comb.t <- t(X.comb)
-full.pca.comb <- prcomp(X.comb.t, scale=TRUE)
-
-pair1 <- as.data.frame(full.pca.comb$x[,1:2])
-pair2 <- as.data.frame(full.pca.comb$x[,3:4])
-pair3D <- as.data.frame(full.pca.comb$x[,1:3])
-
-ve <- full.pca$sdev^2
-pve <- ve/sum(ve)*100
-pve[1:5]
-
-# holy fucking hell its worked
-ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
-
-
-
-
-####################################################
-# batch1 <- rep(1,times=106)
-# batch2 <- rep(2,times=106)
-# batch3 <- rep(3,times=39)
-# batch4 <- rep(4,times=26)
-# batch5 <- rep(5,times=54)
-
-# batch.type <- as.factor(c(batch1,batch2,batch3,batch4,batch5))
-
-# ComBat(data,batch=batch.type,mod=NULL)
-
 
 
 
