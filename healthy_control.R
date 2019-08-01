@@ -47,27 +47,26 @@ clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FA
 # Sys.setenv("plotly_api_key"="OhacJkwCAaZOcC0wHPhp")
 
 
-
-gg_color_hue <- function(n) {
-  hues = seq(15, 375, length = n + 1)
-  hcl(h = hues, l = 65, c = 100)[1:n]
-}
-n = 5
-cols = gg_color_hue(n)
-
-n = 8
-cols.8 = gg_color_hue(n)
-
-n = 10
-cols.10 = gg_color_hue(n)
-
-n = 14
-cols.14 = gg_color_hue(n)
-
-dx.cols <- c('#D81D22', '#FF3A3A', '#AD4187' , '#776BB9' , '#4A8AC3', '#32A46A')
-sex.cols <- c('#fc1676', '#16acfc')
-clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
-
+# 
+# gg_color_hue <- function(n) {
+#   hues = seq(15, 375, length = n + 1)
+#   hcl(h = hues, l = 65, c = 100)[1:n]
+# }
+# n = 5
+# cols = gg_color_hue(n)
+# 
+# n = 8
+# cols.8 = gg_color_hue(n)
+# 
+# n = 10
+# cols.10 = gg_color_hue(n)
+# 
+# n = 14
+# cols.14 = gg_color_hue(n)
+# 
+# dx.cols <- c('#D81D22', '#FF3A3A', '#AD4187' , '#776BB9' , '#4A8AC3', '#32A46A')
+# sex.cols <- c('#fc1676', '#16acfc')
+# clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
 
 
 ###### COMBI ######
@@ -76,12 +75,13 @@ idx <- status$most_general == 'bacterial' |
   status$most_general == 'viral' |
   status$most_general == 'greyb' |
   status$most_general == 'greyv'|
-  status$most_general == 'greyu'
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral') 
+  status$most_general == 'greyu' |
+  status$most_general == 'HC'
+dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') 
 
 ### remove outlier
 idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
-sum(idx) # 239
+sum(idx) # 301
 
 X.d <- e.set[,idx]
 status.idx <- status[idx,]
@@ -91,73 +91,78 @@ status.idx$most_general <- as.character(status.idx$most_general)
 status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
 status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
 status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
+status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control'
 
 status.idx$most_general <- as.factor(status.idx$most_general)
-
 levels(status.idx$most_general)
 status.idx$most_general <- factor(status.idx$most_general, levels = dx)
-levels(status.idx$most_general)
-
-status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
+status.idx$most_general
+# status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
 
 # discovery data
 dim(status.idx)
 dim(X.d)
 
 
-## iris validation cohort prep
+## IRIS VALIDATION
 # discrepancy in dimension of transcript and label matrix
 dim(e.set.i)
 dim(status.iris)
 
-X.i <- t(e.set.i)
+X.i.t <- t(e.set.i)
+# dim(X.i)
 
 # extract the overlap
-common.my_cat <- intersect(rownames(X.i), status.iris$My_code)
+common.my_cat <- intersect(rownames(X.i.t), status.iris$My_code)
 length(common.my_cat)
 
 # find position of common.my_cat in status.iris
 com.idx <- match(common.my_cat, status.iris$My_code)
 
 # pass com.idx to filter the status matrix
-dim(status.iris[com.idx,])
+status.i <- status.iris[com.idx,]
 
-status.i.idx <- status.iris[com.idx,]
-
-dim(status.i.idx)
-dim(X.i)
+dim(status.i)
+dim(X.i.t)
 
 # create disease index
-status.i.idx$most_general
-i.idx<- status.i.idx$most_general == 'bacterial' |
-  status.i.idx$most_general == 'viral' |
-  status.i.idx$most_general == 'greyb' |
-  status.i.idx$most_general == 'greyv'|
-  status.i.idx$most_general == 'greyu'
+status.i$most_general
+i.idx<- status.i$most_general == 'bacterial' |
+  status.i$most_general == 'viral' |
+  status.i$most_general == 'greyb' |
+  status.i$most_general == 'greyv'|
+  status.i$most_general == 'greyu'|
+  status.i$most_general == 'HC'
 sum(i.idx)
 
-# strip out the healthy controls 147 > 130 patients
-status.i.idx <- status.i.idx[i.idx,]
-X.i <- X.i[i.idx,]
-X.i <- t(X.i) # revert the transpose
+# single kawasaki case removed
+which(status.i$most_general == 'KD')
+
+
+# filter status.i and eset.i (stored as X.i.t) by the i.idx to remove KD
+status.i.idx <- status.i[i.idx,]
+X.i <- t(X.i.t[i.idx,])
+# X.i <- t(X.i) # revert the transpose
 
 # rename most_general
 status.i.idx$most_general <- as.character(status.i.idx$most_general)
 status.i.idx$most_general[status.i.idx$most_general == 'greyb'] <- 'probable_bacterial'
 status.i.idx$most_general[status.i.idx$most_general == 'greyu'] <- 'unknown'
 status.i.idx$most_general[status.i.idx$most_general == 'greyv'] <- 'probable_viral'
+status.i.idx$most_general[status.i.idx$most_general == 'HC'] <- 'healthy_control'
 
 status.i.idx$most_general <- as.factor(status.i.idx$most_general)
-dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
 levels(status.i.idx$most_general)
 status.i.idx$most_general <- factor(status.i.idx$most_general, levels = dx)
 levels(status.i.idx$most_general)
 
 
 ## PREPED DATA
+# discovery
 dim(status.idx)
 dim(X.d)
 
+# validation
 dim(status.i.idx)
 dim(X.i)
 
@@ -176,20 +181,25 @@ dim(X.i[match(int, rownames(X.i)),])
 sum(rownames(X.i[match(int, rownames(X.i)),]) != rownames(X.d[match(int, rownames(X.d)),]))
 
 X.c <- cbind(X.d[match(int, rownames(X.d)),], X.i[match(int, rownames(X.i)),])
-X.c.t <- as.data.frame(t(X.c))
+X.c.t <- (t(X.c))
+
 dim(X.c.t)
 class(X.c.t)
 
+dim(status.idx)[1]
+dim(status.i.idx)[1]
+
 # construct batch and response vectors
-batch <- as.factor(ifelse(c(rep(1,239), rep(2, 130)) == 1, 'discovery', 'iris'))
+batch <- as.factor(ifelse(c(rep(1, dim(status.idx)[1]),
+                            rep(2, dim(status.i.idx)[1])) == 1, 'discovery', 'iris'))
 bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
 
-# PCA
-full.pca <- prcomp(X.c.t, scale=TRUE)
+### PCA
+# full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pair2 <- as.data.frame(full.pca$x[,3:4])
-pair3D <- as.data.frame(full.pca$x[,1:3])
+# pair3D <- as.data.frame(full.pca$x[,1:3])
 
 # fviz_eig(full.pca)
 
@@ -199,17 +209,19 @@ pve[1:5]
 
 # separation based on batch effect
 ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
+ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()
 ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()
 
 
 # COMBAT
 # mod <- model.matrix(~label, data = X.c.t)
 # mod0 <- model.matrix(~1, data=X.c.t)
-modcombat <- model.matrix(~1, data=X.c.t)
+modcombat <- model.matrix(~1, data=as.data.frame(X.c.t))
 # modcombat
 class(modcombat)
 
-X.c <- t(X.c.t)
+
 dim(X.c)
 length(batch)
 # needed to transpose the matrix to work
@@ -219,6 +231,7 @@ X.comb <- ComBat(X.c, batch=batch, mod=NULL)
 
 dim(X.comb)
 
+# subtle adjustment between the original and the combat matrix
 X.comb[1:5,1:5]
 X.c[1:5,1:5]
 
@@ -236,8 +249,13 @@ pve[1:5]
 
 # holy fucking hell its worked
 ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()
 
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
+ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()
+
+dim(status.idx)[1]
+dim(status.i.idx)[1]
 
 dim(X.comb.t)
 batch == 'discovery'
@@ -245,6 +263,10 @@ batch == 'iris'
 
 X.dis <- X.c.t[batch == 'discovery',]
 X.val <- X.c.t[batch == 'iris',]
+
+# split the combat normalized matrix back into discovery and val datasets
+dim(X.dis)
+dim(X.val)
 
 
 ###### Cyber Sort ######
@@ -256,15 +278,28 @@ colnames(cyber.s)[1] <- 'my_category_2'
 
 # join the status and cibersort dataframes together on the common column
 # join rather than merge preserves the row order
-status <- join(status, cyber.s, by='my_category_2')
-dim(status)
+status.cyber <- join(status, cyber.s, by='my_category_2')
+dim(status.cyber)
+
+
+length(idx)
+status.cyber.idx <- status.cyber[idx,]
+dim(status.cyber.idx)
+
 
 # select data from clin cases where we have neutrophil perc and compare to ciber sort pred
 df.2 <- clin[!is.na(clin$perc_neut),c('category', 'perc_neut')]
 colnames(df.2)[1] <- 'my_category_2'
-match(df.2$my_category_2, status$my_category_2)
-df.3 <- status[match(df.2$my_category_2, status$my_category_2),c('my_category_2', 'Neutrophils')]
+
+# find index positions of these cases in the status matrix or status.cyber matrix, they are same
+match(df.2$my_category_2, status.cyber$my_category_2)
+
+# pass index to status.cyber to filter out the cases with associated blood count predictions
+df.3 <- status.cyber[match(df.2$my_category_2, status$my_category_2), c('my_category_2', 'Neutrophils')]
+
+# merge dataframes so we have actual and predicted counts
 df.4 <- merge(df.3, df.2)
+dim(df.4)
 
 ggplot(df.4, aes(x=Neutrophils, y=perc_neut)) + 
   geom_point()+
