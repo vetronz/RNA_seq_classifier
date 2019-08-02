@@ -103,7 +103,6 @@ status.idx$most_general
 dim(status.idx)
 dim(X.d)
 
-
 ## IRIS VALIDATION
 # discrepancy in dimension of transcript and label matrix
 dim(e.set.i)
@@ -195,7 +194,7 @@ batch <- as.factor(ifelse(c(rep(1, dim(status.idx)[1]),
 bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
 
 ### PCA
-# full.pca <- prcomp(X.c.t, scale=TRUE)
+full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pair2 <- as.data.frame(full.pca$x[,3:4])
@@ -208,10 +207,14 @@ pve <- ve/sum(ve)*100
 pve[1:5]
 
 # separation based on batch effect
-ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
-ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
-ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()
+ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point() + 
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
+labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 
 
 # COMBAT
@@ -220,7 +223,6 @@ ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()
 modcombat <- model.matrix(~1, data=as.data.frame(X.c.t))
 # modcombat
 class(modcombat)
-
 
 dim(X.c)
 length(batch)
@@ -247,24 +249,23 @@ ve <- full.pca$sdev^2
 pve <- ve/sum(ve)*100
 pve[1:5]
 
-# holy fucking hell its worked
-ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()
-ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()
+# holy hell its worked
+ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()+
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()
-ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()
-
-dim(status.idx)[1]
-dim(status.i.idx)[1]
-
-dim(X.comb.t)
-batch == 'discovery'
-batch == 'iris'
-
-X.dis <- X.c.t[batch == 'discovery',]
-X.val <- X.c.t[batch == 'iris',]
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
+  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 
 # split the combat normalized matrix back into discovery and val datasets
+dim(status.idx)[1]
+dim(status.i.idx)[1]
+dim(X.comb.t)
+X.dis <- X.c.t[batch == 'discovery',]
+X.val <- X.c.t[batch == 'iris',]
 dim(X.dis)
 dim(X.val)
 
@@ -279,9 +280,9 @@ colnames(cyber.s)[1] <- 'my_category_2'
 # join the status and cibersort dataframes together on the common column
 # join rather than merge preserves the row order
 status.cyber <- join(status, cyber.s, by='my_category_2')
-dim(status.cyber)
+dim(status.cyber) # (23+26) = 49 - 1 for the common merge column = 48 columns
 
-
+# use idx to subset the cybersort dataframe to select out classes of interest
 length(idx)
 status.cyber.idx <- status.cyber[idx,]
 dim(status.cyber.idx)
@@ -307,195 +308,50 @@ ggplot(df.4, aes(x=Neutrophils, y=perc_neut)) +
 
 cor(df.4$Neutrophils, df.4$perc_neut)
 
-# ### unsup
-# idx <- status['most_general'] == 'bacterial' |
-#   status['most_general'] == 'viral' |
-#   status['most_general'] == 'greyb' |
-#   status['most_general'] == 'greyv'|
-#   status['most_general'] == 'greyu'
-# sum(idx)
-# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
-
-### supervised
-# idx <- status$most_general == 'bacterial' |
-#   status$most_general == 'viral' |
-#   status$most_general == 'greyb' |
-#   status$most_general == 'greyv'|
-#   status$most_general == 'greyu' |
-#   status$most_general == 'HC'
-# sum(idx)
-# class(idx)
-# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
-# 
-# ### outlier
-# which(status$my_category_2 == 'bacterialgpos_19_SMH')
-# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
-# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
-# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
-# 
-# status.idx <- status[idx,]
-# status.idx$most_general[1:10]
-# 
-# # rename most_general
-# status.idx$most_general <- as.character(status.idx$most_general)
-# status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
-# status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
-# status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
-# status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
-# 
-# status.idx$most_general <- as.factor(status.idx$most_general)
-# 
-# levels(status.idx$most_general)
-# status.idx$most_general <- factor(status.idx$most_general, levels = dx)
-# levels(status.idx$most_general)
-# # status.idx$most_general
-# 
-# status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
-# 
-# dim(status.idx)
-# 
-# # # ############ EDA ############
-# p<-ggplot(status.idx, aes(most_general, fill = most_general)) +
-#   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
-#   labs(title="Barplot Diagnostics Groups",
-#   x ="", y = "Count") +
-#   geom_bar()
-# p
-# p+theme(axis.text=element_text(size=12))
-# p<-ggplotly(p)
-# # api_create(p, filename = "barplot_dx_breakdown")
-# addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
-# 
-# #sex
-# sex <- c('F', 'M')
-# bacterial <- c(table(status.idx$most_general, status.idx$Sex)[1,])
-# probable_bacterial <- c(table(status.idx$most_general, status.idx$Sex)[2,])
-# unknown <- c(table(status.idx$most_general, status.idx$Sex)[3,])
-# probable_viral <- c(table(status.idx$most_general, status.idx$Sex)[4,])
-# viral <- c(table(status.idx$most_general, status.idx$Sex)[5,])
-# # healthy_control <- c(table(status.idx$most_general, status.idx$Sex)[6,])
-# 
-# df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral)
-# # df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral, healthy_control)
-# df
-# df.2 <- mutate(df, sex = factor(c('F','M')))
-# df.2
-# df.3 <- gather(df.2, dx, count, -sex)
-# df.3$dx <- factor(df.3$dx, levels=dx)
-# levels(df.3$dx)
-# 
-# status.idx$most_general <- factor(status.idx$most_general, levels = dx)
-# p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
-#   geom_bar(position = "fill",stat = "identity")+
-#   scale_fill_manual(values=sex.cols)+
-#   labs(title = "Barplot Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
-# p+theme(axis.text=element_text(size=12))
-# p <- ggplotly(p)
-# p
-# # api_create(p, filename = "barplot_dx_sex_dist")
-# 
-# # # age
-# p<-ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$Age..months., fill = status.idx$most_general)) +
-#   scale_fill_manual(values=dx.cols, name = "Diagnostic Group")+
-#   labs(title="Boxplot of Age (months) by Diagnostic Groups",
-#        x ="", y = "Age") +
-#   geom_boxplot()
-# p<-p+theme(axis.text=element_text(size=12))
-# p
-# api_create(p, filename = "box_whisker_age")
-# 
-# ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$Age..months., fill = status.idx$Sex)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot Age (months) Distributions by Gender",
-#        x ="", y = "Age") +
-#   scale_fill_manual(values=sex.cols, name = "Dx")+
-#   geom_boxplot()
-# #
-# # # inflam
-# p1<-ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$WBC, fill = status.idx$most_general)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot WBC Distributions by Diagnostic Group",
-#        x ="", y = "WBC Count") +
-#   scale_fill_manual(values=dx.cols, name = "Diagnostic Groups") +
-#   geom_boxplot()
-# p1 <- p1+theme(axis.text=element_text(size=11))
-# p2<-ggplot(status.idx, aes(x = status.idx$most_general, y = as.numeric(as.character(status.idx$array.contemporary.CRP)), fill = status.idx$most_general)) +
-#   # scale_fill_manual(values=dx.cols)+
-#   labs(title="Boxplot CRP Distributions by Diagnostic Group",
-#        x ="", y = "CRP Count") +
-#   scale_fill_manual(values=dx.cols, name = "Diagnostic Groups") +
-#   geom_boxplot()
-# p2<-p2+theme(axis.text=element_text(size=8))
-# grid.arrange(p1, p2, ncol=2)
-# # api_create(p1, filename = "box_whisker_wbc")
-# # api_create(p2, filename = "box_whisker_crp")
-
-
+# as.character(status.cyber.idx$my_category_2) == rownames(X.dis)
 
 
 ############ LIMMA ############
-dim(e.set)
-# View(head(e.set))
-e.set.f <- e.set[,idx]
-e.set.f <- as.data.frame(t(e.set.f))
-dim(e.set.f)
-
-# check that the patient order has not been changed by the join step
-# e.set.f defined using the raw idx whereas we are appending columns from status.idx which have been processed
-status[idx,]$my_category_2[1:10]
-status.idx$my_category_2[1:10]
-
-e.set.f$label <- status.idx$most_general
-e.set.f$sex <- status.idx$Sex
-e.set.f$age <- status.idx$Age..months.
-e.set.f$Neutrophils <- status.idx$Neutrophils
-e.set.f$Monocytes <- status.idx$Monocytes
-e.set.f$NK.cells.resting <- status.idx$NK.cells.resting
-e.set.f$NK.cells.activated <- status.idx$NK.cells.activated
-e.set.f$T.cells.CD8 <- status.idx$T.cells.CD8
-# e.set.f$site <- status[idx,c('site')]
-
-# check that we have added 8 columns
-dim(e.set.f)
-e.set.f[1:5, (ncol(e.set.f)-9):ncol(e.set.f)]
 
 # mean/variance calculations
-x_var <- apply(e.set[,idx], 1, var)
-x_mean <- apply(e.set[,idx], 1, mean)
+x_var <- apply(X.dis, 2, var)
+x_mean <- apply(X.dis, 2, mean)
 df <- data.frame(log2(x_var), log2(x_mean))
+colnames(df) <- c('V1', 'V2')
 
-# plot(log2(x_mean), log2(x_var), pch='.')
-# abline(v=log2(5), col='red')
-
-ggplot(df, aes(log2.x_mean., log2.x_var.)) +
+ggplot(df, aes(V2, V1)) +
   geom_vline(xintercept=log2(5))+
   geom_point(size = 0.2, stroke = 0, shape = 16)+
   labs(title="Mean Variance Scatter Plot",
        x ="log2 Mean Expressioin", y = "log2 Variance")
 
-dim(e.set[,idx])
-# e.set[,idx][which(x_mean > 5)]
-dim(t(e.set[,idx][which(x_mean > 5),]))
-# X <- e.set[,idx] # full unfiltered 47323 genes
-X <- e.set[,idx][which(x_mean > 5),]
-X.t <- t(X)
-dim(X.t)
+X.dis.fit <- as.data.frame(X.dis[,x_mean > 5])
+dim(X.dis.fit)
+
+# initialize d.dis.lim to add the cybersort covariates
+X.dis.lim <- X.dis.fit
+
+X.dis.lim$label <- status.idx$most_general
+X.dis.lim$sex <- status.idx$Sex
+X.dis.lim$age <- status.idx$Age..months.
+X.dis.lim$Neutrophils <- status.cyber.idx$Neutrophils
+X.dis.lim$Monocytes <- status.cyber.idx$Monocytes
+X.dis.lim$NK.cells.resting <- status.cyber.idx$NK.cells.resting
+X.dis.lim$NK.cells.activated <- status.cyber.idx$NK.cells.activated
+X.dis.lim$T.cells.CD8 <- status.cyber.idx$T.cells.CD8
+
+# check 8 columns added
+dim(X.dis.lim)
 
 ### DESIGN MATRIX
-# colnames(design)<- c("bct","greyb","greyv", 'HC', 'vrl', 'sexM', 'age', 'CHW', 'EUC', 'FED', 'FPIES', 'KEN', 'OXF','SMH','SOT','UCSD')
-
-# design <- model.matrix(~label + sex + age + 0, data = e.set.f)
-# colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age')
-
 design <- model.matrix(~label + sex + age + round(Neutrophils, 3) +
                          round(Monocytes, 3) + round(NK.cells.resting, 3) +
                          round(NK.cells.activated, 3) + round(T.cells.CD8, 3) + 0,
-                       data = e.set.f)
+                       data = X.dis.lim)
 colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age', 'neut', 'mono', 'nk.rest', 'nk.act', 'CD8')
 
-# double check design with status to ensure correct cibersort values in design
 design[1:5,]
-status.idx[1:5,c('Neutrophils', 'Monocytes')]
+round(status.cyber.idx[1:5,c('Neutrophils', 'Monocytes')],3)
 
 # check sums of design
 dim(design)
@@ -507,7 +363,9 @@ contrast.matrix <- makeContrasts("bct-vrl", levels=design)
 contrast.matrix
 # colnames(fit$coefficients)
 
-fit <- lmFit(X, design)
+
+# fit <- lmFit(X.dis.lim, design)
+fit <- lmFit(t(X.dis.fit), design)
 
 hist(fit$Amean)
 plotSA(fit)
@@ -595,13 +453,12 @@ p
 
 dim(results)
 results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
-dim(X[results.tot,])
-X.diff <- X[results.tot,]
+dim(X.dis.fit[,results.tot])
+X.diff <- X.dis.fit[,results.tot]
 # filter out the healthy controls
 idx.d <- status.idx$most_general != 'healthy_control'
-X.r <- t(X.diff[,idx.d])
+X.r <- X.diff[idx.d,]
 dim(X.r)
-
 
 
 # ###### PCA ######
@@ -885,7 +742,7 @@ dim(X.r)
 
 
 
-
+  
 ###### PREDICTION ######
 scale01 <- function(x){
   (x - min(x)) / (max(x) - min(x))
@@ -1366,7 +1223,10 @@ median(unlist(nn.psd.test))
 sd(unlist(nn.psd.test))
 
 
-
+# evaluation on iris validation set
+# should be able to train a normal and psudo labeled network and evaluate them both on iris
+# nn1 and nn2 will have diff weights depending on traniing on normal or psudo datasets
+# interesting to see whether the psudo lab on this dataset improves performnace in the iris
 
   
 ###### LEARNING CURVE ######
@@ -2009,40 +1869,126 @@ api_create(p, filename = "barplot_bootstrap")
 
 
 
+###### exploratory data analysis ######
+### unsup
+# idx <- status['most_general'] == 'bacterial' |
+#   status['most_general'] == 'viral' |
+#   status['most_general'] == 'greyb' |
+#   status['most_general'] == 'greyv'|
+#   status['most_general'] == 'greyu'
+# sum(idx)
+# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral')
 
-### BARPLOT WITH COUNT VALUES GRAVEYARD ###
-# have to use this ordering to ensure labels corespond to same color code in alphabetical ggplot
-dx <- c('viral', 'unknown', 'probable viral', 'probable bacterial', 'bacterial', 'viral', 'unknown', 'probable viral', 'probable bacterial', 'bacterial')
-dx <- rep(levels(k2.df$most_general), times=2)
-
-clus1<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[1,]
-clus2<-table(k2.df[[clus.boot]], droplevels(k2.df$most_general))[2,]
-
-df.1 <- data.frame(clus1, clus2)
-df.1
-df.2 <- gather(df.1, key='cluster', value = 'count')
-df.2
-df.3 <- mutate(df.2, Diagnosis = dx)
-df.3
-
-df.4 <- ddply(df.3, "cluster",
-              transform, tot=cumsum(count))
-df.4
-ggplot(data=df.4, aes(x=cluster, y=count, fill=Diagnosis)) +
-  geom_bar(stat="identity")+
-  geom_text(aes(y=tot, label=count))
-
-
-
-
-
-# Construction: get the full demographics into dataframe
-# clin2 <- read.table('Mega_sub2_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = FALSE)
-# dim(clin2)
-# a <- c(1, 19, 27, 28, 33, 34, 84, 85) # barcode, Dx,  wbc, abs_neut, perc_neut, perc_lymp, dx_1, dx_2
-# clin2[clin2$V1 == '9423641116_B', a] # search clin2 using barcode
-# View(clin)
-
-
-# end
-
+### supervised
+# idx <- status$most_general == 'bacterial' |
+#   status$most_general == 'viral' |
+#   status$most_general == 'greyb' |
+#   status$most_general == 'greyv'|
+#   status$most_general == 'greyu' |
+#   status$most_general == 'HC'
+# sum(idx)
+# class(idx)
+# dx <- c('bacterial', 'probable_bacterial', 'unknown', 'probable_viral', 'viral', 'healthy_control') # supervised
+# 
+# ### outlier
+# which(status$my_category_2 == 'bacterialgpos_19_SMH')
+# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
+# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')] <- FALSE
+# idx[which(status$my_category_2 == 'bacterialgpos_19_SMH')]
+# 
+# status.idx <- status[idx,]
+# status.idx$most_general[1:10]
+# 
+# # rename most_general
+# status.idx$most_general <- as.character(status.idx$most_general)
+# status.idx$most_general[status.idx$most_general == 'greyb'] <- 'probable_bacterial'
+# status.idx$most_general[status.idx$most_general == 'greyu'] <- 'unknown'
+# status.idx$most_general[status.idx$most_general == 'greyv'] <- 'probable_viral'
+# status.idx$most_general[status.idx$most_general == 'HC'] <- 'healthy_control' # toggle for unsupervised
+# 
+# status.idx$most_general <- as.factor(status.idx$most_general)
+# 
+# levels(status.idx$most_general)
+# status.idx$most_general <- factor(status.idx$most_general, levels = dx)
+# levels(status.idx$most_general)
+# # status.idx$most_general
+# 
+# status.idx$array.contemporary.CRP <- as.numeric(as.character(status.idx$array.contemporary.CRP))
+# 
+# dim(status.idx)
+# 
+# # # ############ EDA ############
+# p<-ggplot(status.idx, aes(most_general, fill = most_general)) +
+#   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
+#   labs(title="Barplot Diagnostics Groups",
+#   x ="", y = "Count") +
+#   geom_bar()
+# p
+# p+theme(axis.text=element_text(size=12))
+# p<-ggplotly(p)
+# # api_create(p, filename = "barplot_dx_breakdown")
+# addmargins(table(droplevels(status[idx,]$most_general), status[idx,]$Sex))
+# 
+# #sex
+# sex <- c('F', 'M')
+# bacterial <- c(table(status.idx$most_general, status.idx$Sex)[1,])
+# probable_bacterial <- c(table(status.idx$most_general, status.idx$Sex)[2,])
+# unknown <- c(table(status.idx$most_general, status.idx$Sex)[3,])
+# probable_viral <- c(table(status.idx$most_general, status.idx$Sex)[4,])
+# viral <- c(table(status.idx$most_general, status.idx$Sex)[5,])
+# # healthy_control <- c(table(status.idx$most_general, status.idx$Sex)[6,])
+# 
+# df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral)
+# # df <- data.frame(bacterial, probable_bacterial, unknown, probable_viral, viral, healthy_control)
+# df
+# df.2 <- mutate(df, sex = factor(c('F','M')))
+# df.2
+# df.3 <- gather(df.2, dx, count, -sex)
+# df.3$dx <- factor(df.3$dx, levels=dx)
+# levels(df.3$dx)
+# 
+# status.idx$most_general <- factor(status.idx$most_general, levels = dx)
+# p<-ggplot(df.3, aes(x = dx, y = count, fill = sex)) +
+#   geom_bar(position = "fill",stat = "identity")+
+#   scale_fill_manual(values=sex.cols)+
+#   labs(title = "Barplot Gender Proportions Within Diagnostic Groups", x = "Diagnosis", y = "Proportion")
+# p+theme(axis.text=element_text(size=12))
+# p <- ggplotly(p)
+# p
+# # api_create(p, filename = "barplot_dx_sex_dist")
+# 
+# # # age
+# p<-ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$Age..months., fill = status.idx$most_general)) +
+#   scale_fill_manual(values=dx.cols, name = "Diagnostic Group")+
+#   labs(title="Boxplot of Age (months) by Diagnostic Groups",
+#        x ="", y = "Age") +
+#   geom_boxplot()
+# p<-p+theme(axis.text=element_text(size=12))
+# p
+# api_create(p, filename = "box_whisker_age")
+# 
+# ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$Age..months., fill = status.idx$Sex)) +
+#   # scale_fill_manual(values=dx.cols)+
+#   labs(title="Boxplot Age (months) Distributions by Gender",
+#        x ="", y = "Age") +
+#   scale_fill_manual(values=sex.cols, name = "Dx")+
+#   geom_boxplot()
+# #
+# # # inflam
+# p1<-ggplot(status.idx, aes(x = status.idx$most_general, y = status.idx$WBC, fill = status.idx$most_general)) +
+#   # scale_fill_manual(values=dx.cols)+
+#   labs(title="Boxplot WBC Distributions by Diagnostic Group",
+#        x ="", y = "WBC Count") +
+#   scale_fill_manual(values=dx.cols, name = "Diagnostic Groups") +
+#   geom_boxplot()
+# p1 <- p1+theme(axis.text=element_text(size=11))
+# p2<-ggplot(status.idx, aes(x = status.idx$most_general, y = as.numeric(as.character(status.idx$array.contemporary.CRP)), fill = status.idx$most_general)) +
+#   # scale_fill_manual(values=dx.cols)+
+#   labs(title="Boxplot CRP Distributions by Diagnostic Group",
+#        x ="", y = "CRP Count") +
+#   scale_fill_manual(values=dx.cols, name = "Diagnostic Groups") +
+#   geom_boxplot()
+# p2<-p2+theme(axis.text=element_text(size=8))
+# grid.arrange(p1, p2, ncol=2)
+# # api_create(p1, filename = "box_whisker_wbc")
+# # api_create(p2, filename = "box_whisker_crp")
