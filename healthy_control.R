@@ -28,6 +28,7 @@ ip <- as.data.frame(installed.packages()[,c(1,3:4)])
 rownames(ip) <- NULL
 ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
 ip[which(ip$Package == 'sva'),]
+ip[which(ip$Package == 'rmarkdown'),]
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -48,12 +49,12 @@ clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FA
 
 
 # 
-# gg_color_hue <- function(n) {
-#   hues = seq(15, 375, length = n + 1)
-#   hcl(h = hues, l = 65, c = 100)[1:n]
-# }
-# n = 5
-# cols = gg_color_hue(n)
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+n = 5
+cols = gg_color_hue(n)
 # 
 # n = 8
 # cols.8 = gg_color_hue(n)
@@ -198,7 +199,7 @@ full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pair2 <- as.data.frame(full.pca$x[,3:4])
-# pair3D <- as.data.frame(full.pca$x[,1:3])
+pair3D <- as.data.frame(full.pca$x[,1:3])
 
 # fviz_eig(full.pca)
 
@@ -208,13 +209,15 @@ pve[1:5]
 
 # separation based on batch effect
 ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point() + 
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
+  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
 ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
-labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+  scale_color_manual(values=cols[c(3,5)])+
+  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+  scale_color_manual(values=cols[c(3,5)])+
+  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 
 
 # COMBAT
@@ -250,15 +253,17 @@ pve <- ve/sum(ve)*100
 pve[1:5]
 
 # holy hell its worked
-ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point()+
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point() + 
+  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-
+  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
 ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+  scale_color_manual(values=cols[c(3,5)])+
+  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
-  labs(title="PCA Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+  scale_color_manual(values=cols[c(3,5)])+
+  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+
 
 # split the combat normalized matrix back into discovery and val datasets
 dim(status.idx)[1]
@@ -302,8 +307,10 @@ df.3 <- status.cyber[match(df.2$my_category_2, status$my_category_2), c('my_cate
 df.4 <- merge(df.3, df.2)
 dim(df.4)
 
-ggplot(df.4, aes(x=Neutrophils, y=perc_neut)) + 
+ggplot(df.4, aes(x=Neutrophils*100, y=perc_neut)) + 
+  scale_y_continuous(limits = c(1,100))+
   geom_point()+
+  labs('Scatter Plot of Cybersort Neutrophil % Prediction against Clinical Data', x='Cybersort Prediction', y='Clinical Neut Count')+
   geom_smooth(method=lm, level=0.95)
 
 cor(df.4$Neutrophils, df.4$perc_neut)
@@ -312,7 +319,6 @@ cor(df.4$Neutrophils, df.4$perc_neut)
 
 
 ############ LIMMA ############
-
 # mean/variance calculations
 x_var <- apply(X.dis, 2, var)
 x_mean <- apply(X.dis, 2, mean)
@@ -436,30 +442,26 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
        x ="Log Fold Change", y = "log10 P-value")
 p
 
-# p<-plot_ly(all.filt, x=~logFC, y=~-log10(adj.P.Val),
-#            text = ~paste('<br>Gene: ', gene, '<br>Ensembl: ', ensemb),
-#            type='scatter', mode = "markers", color = ~logThresh)
-# add_segments(x = lfc, xend = lfc, y = 0, yend = 25, name = paste0('lfc >:', lfc)) %>%
-# add_segments(x = -lfc, xend = -lfc, y = 0, yend = 25, name = paste0('lfc <:', -1*lfc))
-# p
-# api_create(p, filename = "volcano_b5")
-
 
 ####### SELECTION OF TRANSCRIPTS #######
-# load('esets.RData')
-# saveRDS(X.t, "X.t.rds")
-# rm(X.t)
-# X.t <- readRDS("X.t.rds")
-
+# subset the disc and validation matrices by the sig genes
 dim(results)
 results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
 dim(X.dis.fit[,results.tot])
 X.diff <- X.dis.fit[,results.tot]
-# filter out the healthy controls
-idx.d <- status.idx$most_general != 'healthy_control'
-X.r <- X.diff[idx.d,]
-dim(X.r)
+X.val <- X.val[,match(names(results[results.tot,]), colnames(X.val))]
 
+dim(X.diff)
+dim(X.val)
+
+# filter out the healthy controls
+X.r <- X.diff[status.idx$most_general != 'healthy_control',]
+X.val <- X.val[status.i.idx$most_general != 'healthy_control',]
+status.i.idx <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
+
+dim(X.r)
+dim(X.val)
+dim(status.i.idx)
 
 # ###### PCA ######
 # full.pca <- prcomp(X.r, scale=TRUE) # unsupervised
@@ -753,11 +755,6 @@ idx.d <- status.idx$most_general != 'healthy_control'
 status.idx.d <- status.idx[idx.d,]
 table(status.idx.d$most_general)
 
-
-X.r <- t(X.diff[,idx.d])
-X.r <- as.data.frame(X.r)
-dim(X.r)
-
 # scale the transcript data
 # X.s <- data.frame(X.r)
 X.s<-data.frame(apply(X.r, 2, scale01))
@@ -922,7 +919,7 @@ prop2 <- 3/4
 boot <- 64
 
 # subdivide into train and test set
-set.seed(43)
+set.seed(41)
 index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
 train <- X.s[index, ]
 test <- X.s[-index, ]
@@ -1110,6 +1107,8 @@ median(unlist(nn.test))
 df.1 <- as.data.frame(matrix(unlist(c(nn.test, rf.test))), nrow=2, byrow=T)
 colnames(df.1) <- 'roc.a'
 df.1$algo <- as.factor(sort(rep(seq(1:2), boot)))
+df.1$algo <- as.factor(ifelse(df.1$algo == 1, 'neural_net', 'randomForest'))
+df.1$algo
 ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
 
 
@@ -1146,7 +1145,7 @@ for (i in 1:boot){
 
 roc.h <- NULL
 bct.thresh <- 0.99
-iters <- 60
+iters <- 50
 for (i in 1:iters){
   print(paste0('iter: ', i))
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
@@ -1195,9 +1194,9 @@ for (i in 1:boot){
   train <- X.s[index, ]
   test <- X.s[-index, ]
   
-  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+  nn2 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
                    hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
-  pred <- predict(nn1, test[-ncol(test)])
+  pred <- predict(nn2, test[-ncol(test)])
   
   pr <- prediction(pred, test$bct)
   prf <- performance(pr, measure = "tpr", x.measure = "fpr")
@@ -1223,12 +1222,73 @@ median(unlist(nn.psd.test))
 sd(unlist(nn.psd.test))
 
 
-# evaluation on iris validation set
-# should be able to train a normal and psudo labeled network and evaluate them both on iris
-# nn1 and nn2 will have diff weights depending on traniing on normal or psudo datasets
-# interesting to see whether the psudo lab on this dataset improves performnace in the iris
-
+#################################################
+nn.psd.val <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
   
+  
+  nn2 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  
+  pred.2 <- predict(nn2, X.val)
+  pr <- prediction(pred.2, status.i.idx$most_general == 'bacterial')
+  
+  nn.psd.val[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+
+# remove pseudo labels
+status.idx.d <- status.idx[idx.d,]
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+table(status.idx.d$most_general)
+print(paste0('bacterial cases: ', sum(X.s$bct)))
+
+nn.norm.val <- NULL
+for (i in 1:boot){
+  print(paste0('boot: ', i))
+  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  train <- X.s[index, ]
+  test <- X.s[-index, ]
+  
+  nn1 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+  pred <- predict(nn1, X.val)
+  pr <- prediction(pred, status.i.idx$most_general == 'bacterial')
+  
+  nn.norm.val[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+mean(unlist(nn.psd.val))
+median(unlist(nn.psd.val))
+sd(unlist(nn.psd.val))
+
+mean(unlist(nn.norm.val))
+median(unlist(nn.norm.val))
+sd(unlist(nn.norm.val))
+
+# index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+# train <- X.s[index, ]
+# test <- X.s[-index, ]
+# 
+# nn2 <- neuralnet(bct~ ., train, linear.output = FALSE, act.fct = "logistic",
+#                  hidden = c(opt.h.n), rep = 3, stepmax = 1e+06, startweights = NULL)
+# 
+# pred.2 <- predict(nn2, X.val)
+# pr <- prediction(pred.2, status.i.idx$most_general == 'bacterial')
+# pr %>%
+#   performance(measure = "auc") %>%
+#   .@y.values
+
+
+
 ###### LEARNING CURVE ######
 j_train <- NULL
 j_test <- NULL
