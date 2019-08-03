@@ -1,3 +1,4 @@
+###### PACKAGES ######
 library(limma)
 library(cluster)
 # library(factoextra)
@@ -20,7 +21,7 @@ library(neuralnet)
 library(ROCR)
 library(randomForest)
 library(sva)
-
+library(splitstackshape)
 
 # install.packages("XYZ")
 
@@ -28,7 +29,7 @@ ip <- as.data.frame(installed.packages()[,c(1,3:4)])
 rownames(ip) <- NULL
 ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
 ip[which(ip$Package == 'sva'),]
-ip[which(ip$Package == 'rmarkdown'),]
+ip[which(ip$Package == 'splitstackshape'),]
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -455,293 +456,16 @@ dim(X.diff)
 dim(X.val)
 
 # filter out the healthy controls
-X.r <- X.diff[status.idx$most_general != 'healthy_control',]
+X.dis <- X.diff[status.idx$most_general != 'healthy_control',]
 X.val <- X.val[status.i.idx$most_general != 'healthy_control',]
+status.idx <- status.idx[status.idx$most_general != 'healthy_control', ]
 status.i.idx <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
 
-dim(X.r)
+dim(X.dis)
+dim(status.idx)
+
 dim(X.val)
 dim(status.i.idx)
-
-# ###### PCA ######
-# full.pca <- prcomp(X.r, scale=TRUE) # unsupervised
-# # full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
-# 
-# pair1 <- as.data.frame(full.pca$x[,1:2])
-# pair2 <- as.data.frame(full.pca$x[,3:4])
-# pair3D <- as.data.frame(full.pca$x[,1:3])
-# 
-# fviz_eig(full.pca)
-# 
-# ve <- full.pca$sdev^2
-# pve <- ve/sum(ve)*100
-# pve[1:5]
-# 
-# 
-# # # most_gen 2D Age
-# # p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status.idx$most_general), size = status.idx$Age..months.,
-# #              colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-# #   add_markers() %>%
-# #   layout(title = 'PCA of Diagnostic Groups, Age Size Mapping',
-# #          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-# #          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-# # p
-# 
-# # # most_gen 2D
-# p <- plot_ly(pair1, x = ~PC1, y = ~PC2, color = status.idx$most_general, size = status.idx$array.contemporary.CRP,
-#              colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'PC 1-2 of Diagnostic Groups, CRP Size Mapping',
-#          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
-# p
-# p <- plot_ly(pair2, x = ~PC3, y = ~PC4, color = status.idx$most_general, size = status.idx$Age..months.,
-#              colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'PC 3-4 of Diagnostic Groups, Age Size Mapping',
-#          xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
-#          yaxis = list(title = paste0("PC4: (", round(pve[4],2), '%)')))
-# p
-# 
-# # api_create(p, filename = "2d_pca_filt")
-# 
-# ## most_gen 3D
-# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
-#              colors=c(dx.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-#   add_markers() %>%
-#   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
-#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-# p
-# # api_create(p, filename = "3d_pca_dx_unfilt")
-# 
-# # # more_gen
-# # dx.cols.f <- c('#bd35fc', "#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
-# # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$more_general, size = status.idx$Age..months.,
-# #         colors = c(dx.cols.f), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
-# #   add_markers() %>%
-# #   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
-# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-# # 
-# # # category
-# # p<-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
-# #         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-# #   add_markers() %>%
-# #   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
-# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-# # api_create(p, filename = "3d_pca_cat")
-# # 
-# 
-# # sex
-# # View(status.idx)
-# # p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$Sex, size = ~status.idx$Age..months.,
-# #              colors=c(sex.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-# #   add_markers() %>%
-# #   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
-# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-# # p
-# # api_create(p, filename = "3d_pca_sex")
-# 
-# # 
-# # # site
-# # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
-# #         colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
-# #   add_markers() %>%
-# #   layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
-# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
-# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
-# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
-# 
-
-
-
-############ Clustering ############
-# p<-fviz_nbclust(X.r, kmeans, method = "wss", k.max = 15)
-# p
-# p<-ggplotly(p)
-# api_create(p, filename = "opt_cluster_tss_boot1")
-
-# p<-fviz_nbclust(X.r, kmeans, method = "silhouette", k.max = 15)
-# p
-# p<-ggplotly(p)
-# api_create(p, filename = "opt_cluster_silhouette_boot1")
-
-# p<-fviz_nbclust(X.r, kmeans, method = "gap_stat", nboot = 10)
-# p
-# p<-ggplotly(p)
-# api_create(p, filename = "opt_cluster_gap_boot1")
-
-
-# 
-# ###### FUZZY CLUSTERING ######
-# dim(X.r)
-# df.1 <- X.r
-# 
-# ### MFUZZ
-# #save it to a temp file so ti doesnt clutter up my blog directory
-# tmp <- tempfile()
-# write.table(df.1, file=tmp, sep='\t', quote = F, col.names=NA)
-# 
-# #read it back in as an expression set
-# data <- table2eset(file=tmp)
-# 
-# data.s <- standardise(data)
-# 
-# m1 <- mestimate(data.s)
-# m1
-# 
-# # built in estimation of opt clust number
-# # Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=5, visu=TRUE) # reccomend ~ 10 clusters
-# 
-# k.max <- 15
-# x <- as.matrix(df.1)
-# diss <- stats::dist(x)
-# v <- rep(0, k.max)
-# v1 <- rep(0, k.max)
-# 
-# for(i in 2:k.max){
-#   print(paste0('iter: ', i))
-#   c<-mfuzz(data.s, c = i, m=m1)
-#   v[i] <- c$withinerror
-#   ss <- silhouette(c$cluster, diss)
-#   v1[i] <- summary(ss)[4][[1]]
-# }
-# plot(v[-1])
-# v1
-# plot(v1[-1])
-# 
-# 
-# gap_stat <- clusGap(X.r, FUN = fanny, nstart = 10,
-#                     K.max = 10, B = 10)
-# 
-# # mfuzz uses cmeans
-# # validation using cmeans directly
-# 
-# # Get total within sum of square
-# .get_withinSS <- function(d, cluster){
-#   d <- stats::as.dist(d)
-#   cn <- max(cluster)
-#   clusterf <- as.factor(cluster)
-#   clusterl <- levels(clusterf)
-#   cnn <- length(clusterl)
-#   
-#   if (cn != cnn) {
-#     warning("cluster renumbered because maximum != number of clusters")
-#     for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
-#     cn <- cnn
-#   }
-#   cwn <- cn
-#   # Compute total within sum of square
-#   dmat <- as.matrix(d)
-#   within.cluster.ss <- 0
-#   for (i in 1:cn) {
-#     cluster.size <- sum(cluster == i)
-#     di <- as.dist(dmat[cluster == i, cluster == i])
-#     within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
-#   }
-#   within.cluster.ss
-# }
-# 
-# k.max <- 15
-# v <- rep(0, k.max)
-# for (i in 2:k.max) {
-#   print(paste0('iter: ', i))
-#   clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
-#                   method="cmeans", m=m1, rate.par = NULL)
-#   v[i] <- .get_withinSS(diss, clust$cluster)
-# }
-# plot(v[-1])
-# 
-# 
-# 
-# # distance metrix investigations
-# x <- mtcars["Honda Civic",] 
-# y <- mtcars["Camaro Z28",] 
-# dist(rbind(x, y))
-# 
-# # custom functions to evaluate the cluster assignments
-# # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
-# norm_vec <- function(x) sqrt(sum(x^2))
-# norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# #### clinical df construction
-# k2.df <- status.idx[status.idx$most_general != 'healthy_control',c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
-#                                                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
-# dim(k2.df)
-# dim(clin)
-# # write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
-# 
-# k2.df$system <- clin$system
-# k2.df$system.spec <- clin$system_spec
-# k2.df$micro <- clin$micro
-# k2.df$sepsis <- clin$sepsis
-# 
-# k2.df$my_wbc <- clin$wbc
-# k2.df$abs_neut <- clin$abs_neut
-# k2.df$perc_neut <- clin$perc_neut
-# k2.df$perc_lymph <- clin$perc_lymph
-# k2.df$Path_1 <- clin$Path_1
-# k2.df$Path_2 <- clin$Path_2
-# k2.df$Path_3 <- clin$Path_3
-# 
-# k2.df$Path_1[is.na(k2.df$Path_1)] <- 'unknown'
-# k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
-# # View(k2.df)
-# 
-# 
-# 
-# ### K2
-# # n = 5
-# # cols = gg_color_hue(n)
-# k2.pal <- c(cols[c(1,4)])
-# set.seed(47)
-# # k2 <- kmeans(X.r, centers = 2, nstart = 25)
-# # k2$tot.withinss
-# 
-# k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
-#              method="cmeans", m=1.3, rate.par = NULL)
-# 
-# k2$membership
-# k2$cluster <- as.factor(k2$cluster)
-# 
-# clus.boot <-paste0('clus.', boot, '.2')
-# clus.boot
-# 
-# k2.df$clus <- k2$cluster # have to assign using clus then rename it
-# colnames(k2.df)[ncol(k2.df)] <- clus.boot
-# k2.df[clus.boot]
-# colnames(k2.df)
-# 
-# table(k2$cluster, k2.df$most_general) # sanity check
-# dx_clus.1.2 <- addmargins(table(k2.df[[clus.boot]], k2.df$most_general))
-# dx_clus.1.2
-# # write.csv(dx_clus.1.2, file = "dx_clus.1.2.csv", row.names=TRUE)
-# 
-# 
-# p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
-#   labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
-#   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
-#   geom_bar()
-# p
-# # p + guides(fill=guide_legend(title="Diagnostic Groups"))
-
-
-
 
 
   
@@ -750,14 +474,9 @@ scale01 <- function(x){
   (x - min(x)) / (max(x) - min(x))
 }
 
-# setup the disease only demographic matrix
-idx.d <- status.idx$most_general != 'healthy_control'
-status.idx.d <- status.idx[idx.d,]
-table(status.idx.d$most_general)
-
 # scale the transcript data
 # X.s <- data.frame(X.r)
-X.s<-data.frame(apply(X.r, 2, scale01))
+X.s<-data.frame(apply(X.dis, 2, scale01))
 dim(X.s)
 
 
@@ -765,20 +484,42 @@ dim(X.s)
 # X.s$bacterial <- status.idx.d$most_general == 'bacterial'
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
 X.s$bct <- NULL
-table(status.idx.d$most_general)
-X.s$bct <- status.idx.d$most_general == 'bacterial'
+table(status.idx$most_general)
+X.s$bct <- status.idx$most_general == 'bacterial'
 sum(X.s$bct)
 
-prop1 <- 0.8
+prop1 <- 0.75
+
+## STRATIFIED SAMPLING
+# group (second arg), selects the column within df (1st arg) on which to stratify
+# size (3rd arg) determins what proportion of dataframe to use
+a <- stratified(X.s, c('bct'), 0.25, select = NULL, replace = FALSE,
+                keep.rownames = TRUE, bothSets = FALSE)
+
+print(paste0('bacterial proportion in test set: ', round(sum(a$bct)/dim(a)[1], 2))) # preserves overal bct prop in train
+print(paste0('test set proportion: ', round(dim(a)[1]/239, 2)))
+sum(a$bct)
+
+index <- match(setdiff(rownames(X.s), a$rn), rownames(X.s))
+train <- X.s[index, ]
+test <- X.s[-index, ]
+sum(test$bct)
+test$bct
 
 logistic.m <- NULL
 knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:16){
+for (i in 1:8){
   print(paste0('iter: ', i))
-  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  # index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+  # train <- X.s[index, ]
+  # test <- X.s[-index, ]
+  
+  a <- stratified(X.s, c('bct'), 0.3, select = NULL, replace = FALSE,
+                  keep.rownames = TRUE, bothSets = FALSE)
+  index <- match(setdiff(rownames(X.s), a$rn), rownames(X.s))
   train <- X.s[index, ]
   test <- X.s[-index, ]
   
@@ -787,9 +528,6 @@ for (i in 1:16){
   test.fac <- test
   train.fac$bct <- factor(train.fac$bct)
   test.fac$bct <- factor(test.fac$bct)
-  
-  dim(train)
-  dim(test)
   
   ### LOGISTIC REGRESSION
   model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 500)
@@ -2052,3 +1790,284 @@ api_create(p, filename = "barplot_bootstrap")
 # grid.arrange(p1, p2, ncol=2)
 # # api_create(p1, filename = "box_whisker_wbc")
 # # api_create(p2, filename = "box_whisker_crp")
+
+
+
+# ###### PCA ######
+# full.pca <- prcomp(X.r, scale=TRUE) # unsupervised
+# # full.pca <- prcomp(t(X[results.tot,]), scale=TRUE) # supervised
+# 
+# pair1 <- as.data.frame(full.pca$x[,1:2])
+# pair2 <- as.data.frame(full.pca$x[,3:4])
+# pair3D <- as.data.frame(full.pca$x[,1:3])
+# 
+# fviz_eig(full.pca)
+# 
+# ve <- full.pca$sdev^2
+# pve <- ve/sum(ve)*100
+# pve[1:5]
+# 
+# 
+# # # most_gen 2D Age
+# # p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, color = ~droplevels(status.idx$most_general), size = status.idx$Age..months.,
+# #              colors=c(dx.cols), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ', crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'PCA of Diagnostic Groups, Age Size Mapping',
+# #          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
+# # p
+# 
+# # # most_gen 2D
+# p <- plot_ly(pair1, x = ~PC1, y = ~PC2, color = status.idx$most_general, size = status.idx$array.contemporary.CRP,
+#              colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'PC 1-2 of Diagnostic Groups, CRP Size Mapping',
+#          xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#          yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')))
+# p
+# p <- plot_ly(pair2, x = ~PC3, y = ~PC4, color = status.idx$most_general, size = status.idx$Age..months.,
+#              colors=cols, text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'PC 3-4 of Diagnostic Groups, Age Size Mapping',
+#          xaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)')),
+#          yaxis = list(title = paste0("PC4: (", round(pve[4],2), '%)')))
+# p
+# 
+# # api_create(p, filename = "2d_pca_filt")
+# 
+# ## most_gen 3D
+# p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$most_general, size = status.idx$Age..months.,
+#              colors=c(dx.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+#   add_markers() %>%
+#   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+#          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+#                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+#                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# p
+# # api_create(p, filename = "3d_pca_dx_unfilt")
+# 
+# # # more_gen
+# # dx.cols.f <- c('#bd35fc', "#ed0404", "#fc5716", '#d7fc35', '#35c7fc', '#16fc31', '#464647', "#165bfc")
+# # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$more_general, size = status.idx$Age..months.,
+# #         colors = c(dx.cols.f), text= ~paste0('category: ', status.idx$category, '<br>age: ', status.idx$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status.idx$my_category_2, '<br>Diagnosis: ',status.idx$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Diagnostic Groups by PCA 1-2-3, Age Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# # 
+# # # category
+# # p<-plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$category, size = status[idx,]$Age..months.,
+# #         colors=c(cat.pal), text= ~paste0('category: ', status[idx,]$category, '<br>age: ', status[idx,]$Age..months., '<br>WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Category Groups by PCA 1-2-3, Age Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# # api_create(p, filename = "3d_pca_cat")
+# # 
+# 
+# # sex
+# # View(status.idx)
+# # p <- plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status.idx$Sex, size = ~status.idx$Age..months.,
+# #              colors=c(sex.cols), text= ~paste0('<br>age: ', status.idx$Age..months., '<br>Sex:', status.idx$Sex, '<br>WBC: ', status.idx$WBC, '<br>CRP: ', status.idx$array.contemporary.CRP, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Diagnostic Groups by PCA 1-2-3, CRP Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# # p
+# # api_create(p, filename = "3d_pca_sex")
+# 
+# # 
+# # # site
+# # plot_ly(pair3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~status[idx,]$site, size = ~status[idx,]$Age..months.,
+# #         colors = c(site.pal), text= ~paste0('WBC: ', wbc, '<br>CRP: ',crp, '<br>label:',status[idx,]$my_category_2, '<br>Diagnosis: ',status[idx,]$Diagnosis)) %>%
+# #   add_markers() %>%
+# #   layout(title = 'Site Recruitment by PCA 1-2-3, Age Size Mapping',
+# #          scene = list(xaxis = list(title = paste0("PC1: (", round(pve[1],2), '%)')),
+# #                       yaxis = list(title = paste0("PC2: (", round(pve[2],2), '%)')),
+# #                       zaxis = list(title = paste0("PC3: (", round(pve[3],2), '%)'))))
+# 
+
+
+
+############ Clustering ############
+# p<-fviz_nbclust(X.r, kmeans, method = "wss", k.max = 15)
+# p
+# p<-ggplotly(p)
+# api_create(p, filename = "opt_cluster_tss_boot1")
+
+# p<-fviz_nbclust(X.r, kmeans, method = "silhouette", k.max = 15)
+# p
+# p<-ggplotly(p)
+# api_create(p, filename = "opt_cluster_silhouette_boot1")
+
+# p<-fviz_nbclust(X.r, kmeans, method = "gap_stat", nboot = 10)
+# p
+# p<-ggplotly(p)
+# api_create(p, filename = "opt_cluster_gap_boot1")
+
+
+# 
+# ###### FUZZY CLUSTERING ######
+# dim(X.r)
+# df.1 <- X.r
+# 
+# ### MFUZZ
+# #save it to a temp file so ti doesnt clutter up my blog directory
+# tmp <- tempfile()
+# write.table(df.1, file=tmp, sep='\t', quote = F, col.names=NA)
+# 
+# #read it back in as an expression set
+# data <- table2eset(file=tmp)
+# 
+# data.s <- standardise(data)
+# 
+# m1 <- mestimate(data.s)
+# m1
+# 
+# # built in estimation of opt clust number
+# # Dmin(data.s, m=m1, crange=seq(2,22,1), repeats=5, visu=TRUE) # reccomend ~ 10 clusters
+# 
+# k.max <- 15
+# x <- as.matrix(df.1)
+# diss <- stats::dist(x)
+# v <- rep(0, k.max)
+# v1 <- rep(0, k.max)
+# 
+# for(i in 2:k.max){
+#   print(paste0('iter: ', i))
+#   c<-mfuzz(data.s, c = i, m=m1)
+#   v[i] <- c$withinerror
+#   ss <- silhouette(c$cluster, diss)
+#   v1[i] <- summary(ss)[4][[1]]
+# }
+# plot(v[-1])
+# v1
+# plot(v1[-1])
+# 
+# 
+# gap_stat <- clusGap(X.r, FUN = fanny, nstart = 10,
+#                     K.max = 10, B = 10)
+# 
+# # mfuzz uses cmeans
+# # validation using cmeans directly
+# 
+# # Get total within sum of square
+# .get_withinSS <- function(d, cluster){
+#   d <- stats::as.dist(d)
+#   cn <- max(cluster)
+#   clusterf <- as.factor(cluster)
+#   clusterl <- levels(clusterf)
+#   cnn <- length(clusterl)
+#   
+#   if (cn != cnn) {
+#     warning("cluster renumbered because maximum != number of clusters")
+#     for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
+#     cn <- cnn
+#   }
+#   cwn <- cn
+#   # Compute total within sum of square
+#   dmat <- as.matrix(d)
+#   within.cluster.ss <- 0
+#   for (i in 1:cn) {
+#     cluster.size <- sum(cluster == i)
+#     di <- as.dist(dmat[cluster == i, cluster == i])
+#     within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
+#   }
+#   within.cluster.ss
+# }
+# 
+# k.max <- 15
+# v <- rep(0, k.max)
+# for (i in 2:k.max) {
+#   print(paste0('iter: ', i))
+#   clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
+#                   method="cmeans", m=m1, rate.par = NULL)
+#   v[i] <- .get_withinSS(diss, clust$cluster)
+# }
+# plot(v[-1])
+# 
+# 
+# 
+# # distance metrix investigations
+# x <- mtcars["Honda Civic",] 
+# y <- mtcars["Camaro Z28",] 
+# dist(rbind(x, y))
+# 
+# # custom functions to evaluate the cluster assignments
+# # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
+# norm_vec <- function(x) sqrt(sum(x^2))
+# norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# #### clinical df construction
+# k2.df <- status.idx[status.idx$most_general != 'healthy_control',c('barcode_megaexp', 'category', 'my_category_2', 'most_general', 'more_general', 'site',
+#                                                                    'Age..months.', 'Sex', 'WBC', 'array.contemporary.CRP', 'Diagnosis')]
+# dim(k2.df)
+# dim(clin)
+# # write.csv(k2.df, file = "k2.df.csv", row.names=TRUE)
+# 
+# k2.df$system <- clin$system
+# k2.df$system.spec <- clin$system_spec
+# k2.df$micro <- clin$micro
+# k2.df$sepsis <- clin$sepsis
+# 
+# k2.df$my_wbc <- clin$wbc
+# k2.df$abs_neut <- clin$abs_neut
+# k2.df$perc_neut <- clin$perc_neut
+# k2.df$perc_lymph <- clin$perc_lymph
+# k2.df$Path_1 <- clin$Path_1
+# k2.df$Path_2 <- clin$Path_2
+# k2.df$Path_3 <- clin$Path_3
+# 
+# k2.df$Path_1[is.na(k2.df$Path_1)] <- 'unknown'
+# k2.df$Path_1[k2.df$Path_1 == ''] <- 'unknown'
+# # View(k2.df)
+# 
+# 
+# 
+# ### K2
+# # n = 5
+# # cols = gg_color_hue(n)
+# k2.pal <- c(cols[c(1,4)])
+# set.seed(47)
+# # k2 <- kmeans(X.r, centers = 2, nstart = 25)
+# # k2$tot.withinss
+# 
+# k2 <- cmeans(X.r, centers = 2, iter.max=30, verbose=FALSE, dist="euclidean",
+#              method="cmeans", m=1.3, rate.par = NULL)
+# 
+# k2$membership
+# k2$cluster <- as.factor(k2$cluster)
+# 
+# clus.boot <-paste0('clus.', boot, '.2')
+# clus.boot
+# 
+# k2.df$clus <- k2$cluster # have to assign using clus then rename it
+# colnames(k2.df)[ncol(k2.df)] <- clus.boot
+# k2.df[clus.boot]
+# colnames(k2.df)
+# 
+# table(k2$cluster, k2.df$most_general) # sanity check
+# dx_clus.1.2 <- addmargins(table(k2.df[[clus.boot]], k2.df$most_general))
+# dx_clus.1.2
+# # write.csv(dx_clus.1.2, file = "dx_clus.1.2.csv", row.names=TRUE)
+# 
+# 
+# p<-ggplot(k2.df, aes(k2.df[[clus.boot]], fill=most_general)) +
+#   labs(title = "Barplot of Diagnostic Groups by Cluster K=2", x = "", y = "Counts")+
+#   scale_fill_manual(values=dx.cols, 'Diagnostic Groups')+
+#   geom_bar()
+# p
+# # p + guides(fill=guide_legend(title="Diagnostic Groups"))
+
+
