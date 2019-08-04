@@ -196,7 +196,7 @@ batch <- as.factor(ifelse(c(rep(1, dim(status.idx)[1]),
 bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
 
 ### PCA
-full.pca <- prcomp(X.c.t, scale=TRUE)
+# full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pair2 <- as.data.frame(full.pca$x[,3:4])
@@ -244,7 +244,7 @@ X.c[1:5,1:5]
 # transpose for PCA
 X.comb <- as.data.frame(X.comb)
 X.comb.t <- t(X.comb)
-pca.comb <- prcomp(X.comb.t, scale=TRUE)
+# pca.comb <- prcomp(X.comb.t, scale=TRUE)
 
 pair1 <- as.data.frame(pca.comb$x[,1:2])
 pair2 <- as.data.frame(pca.comb$x[,3:4])
@@ -450,25 +450,25 @@ dim(results)
 results.tot <- ifelse(results[,1] == 0, FALSE, TRUE)
 dim(X.dis.fit[,results.tot])
 X.diff <- X.dis.fit[,results.tot]
-X.val <- X.val[,match(names(results[results.tot,]), colnames(X.val))]
+X.diff.val <- X.val[,match(names(results[results.tot,]), colnames(X.val))]
 
 dim(X.diff)
-dim(X.val)
+dim(X.diff.val)
 
 # filter out the healthy controls
 X.dis <- X.diff[status.idx$most_general != 'healthy_control',]
-X.val <- X.val[status.i.idx$most_general != 'healthy_control',]
-status.idx <- status.idx[status.idx$most_general != 'healthy_control', ]
-status.i.idx <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
+X.val <- X.diff.val[status.i.idx$most_general != 'healthy_control',]
+status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
+status.i.idx.d <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
 
 dim(X.dis)
-dim(status.idx)
+dim(status.idx.d)
 
 dim(X.val)
-dim(status.i.idx)
+dim(status.i.idx.d)
 
 
-  
+
 ###### PREDICTION ######
 scale01 <- function(x){
   (x - min(x)) / (max(x) - min(x))
@@ -485,33 +485,39 @@ dim(X.s)
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
 X.s$bct <- NULL
 table(status.idx$most_general)
-X.s$bct <- status.idx$most_general == 'bacterial'
+X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
-prop1 <- 0.75
+
 
 ## STRATIFIED SAMPLING
+prop1 <- 0.75
+
 # group (second arg), selects the column within df (1st arg) on which to stratify
 # size (3rd arg) determins what proportion of dataframe to use
-a <- stratified(X.s, c('bct'), 0.25, select = NULL, replace = FALSE,
+set.seed(43)
+test.set.df <- stratified(X.s, c('bct'), (1-prop1), select = NULL, replace = FALSE,
                 keep.rownames = TRUE, bothSets = FALSE)
 
-print(paste0('bacterial proportion in test set: ', round(sum(a$bct)/dim(a)[1], 2))) # preserves overal bct prop in train
-print(paste0('test set proportion: ', round(dim(a)[1]/239, 2)))
-sum(a$bct)
+print(paste0('test set proportion: ', round(dim(test.set.df)[1]/239, 2)))
+print(paste0('test set bacterial proportion: ', round(sum(test.set.df$bct)/dim(test.set.df)[1], 2))) # preserves overal bct prop in train
+sum(test.set.df$bct)
 
-index <- match(setdiff(rownames(X.s), a$rn), rownames(X.s))
+index <- match(setdiff(rownames(X.s), test.set.df$rn), rownames(X.s))
 train <- X.s[index, ]
 test <- X.s[-index, ]
-sum(test$bct)
-test$bct
+
+train.fac <- train
+test.fac <- test
+train.fac$bct <- as.factor(train.fac$bct)
+test.fac$bct <- as.factor(test.fac$bct)
 
 logistic.m <- NULL
 knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:8){
+for (i in 1:32){
   print(paste0('iter: ', i))
   # index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   # train <- X.s[index, ]
@@ -530,7 +536,7 @@ for (i in 1:8){
   test.fac$bct <- factor(test.fac$bct)
   
   ### LOGISTIC REGRESSION
-  model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 500)
+  model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 128)
   # summary(model)
   # anova(model, test="Chisq")
   
@@ -622,9 +628,7 @@ for (i in 1:8){
     .@y.values
 }
 
-# df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
 df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
-
 df.2 <- gather(df.1, learner, roc)
 df.2$roc <- unlist(df.2$roc)
 df.2$learner <- factor(df.2$learner)
@@ -639,38 +643,15 @@ df.2 %>%
   group_by(learner) %>%
   summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
 
-# ggplot(df.2, aes(learner, roc, color = learner)) + geom_jitter()
-
 
 ###### HYPER PARAM OPTIMIZATION FOR PROMISING MODELS ######
 # remove pseudo labels
+dim(status.idx)
+
 status.idx.d <- status.idx[idx.d,]
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 table(status.idx.d$most_general)
 sum(X.s$bct)
-
-# define proportions
-prop1 <- 4/5
-prop2 <- 3/4
-
-# define bootstrap samples
-boot <- 64
-
-# subdivide into train and test set
-set.seed(41)
-index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-train <- X.s[index, ]
-test <- X.s[-index, ]
-
-# make separate train, test sets with factor labels
-train.fac <- train
-test.fac <- test
-train.fac$bct <- as.factor(train.fac$bct)
-test.fac$bct <- as.factor(test.fac$bct)
-
-dim(train)
-dim(test)
-
 
 ### train, val, test split function 
 # split01 <- function(df, train.prop, val.prop, test.prop){
@@ -689,7 +670,74 @@ dim(test)
 # sapply(res, nrow)/nrow(X.s) # check props
 
 
+
 ### NEURAL NET
+hyper_grid <- NULL
+
+hyper_grid <- expand.grid(
+  # h.n       = seq(1, 100, by = 3), # beyond 40 overfitting
+  h.n       = seq(9, 26, by = 1), # maxed between 10 - 20 roc.a ~ 90
+  train.cv.prop = seq(from=75, to=76, by=.05)/100
+)
+
+head(hyper_grid)
+dim(hyper_grid)
+
+roc.a <- NULL
+for(i in 1:nrow(hyper_grid)) {
+  # train model
+  index <- sample(nrow(train), round(hyper_grid$train.cv.prop[i] * nrow(train)))
+  train.cv <- train[index,]
+  test.cv <- train[-index,]
+  nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
+                   hidden = c(hyper_grid$h.n[i]), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+  pred <- predict(nn1, test.cv[-ncol(test.cv)])
+  # extract error
+  roc.a[i] <- prediction(pred, test.cv$bct) %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+hyper_grid$roc.a <- unlist(roc.a)
+top.n <- nrow(hyper_grid)
+
+# arranges the highest top.n rows of hypergrid roc.a values in descending order
+hyper_top <- hyper_grid %>% 
+  dplyr::arrange(desc(unlist(roc.a)))%>%
+  head(top.n)
+
+dim(hyper_top)
+
+# h.n to factor for plotting
+hyper_top$h.n <- as.factor(hyper_top$h.n)
+
+# compute mean, median, sdev values for top.n rows in hyper_grid
+hyp.df <- hyper_top %>%
+  group_by(h.n) %>%
+  summarise(roc.m = mean(roc.a), roc.med = median(roc.a), roc.sd = sd(roc.a))
+
+# ggplot(hyper_top, aes(roc.a, fill=h.n, color=h.n)) + geom_density(alpha=0.2)
+ggplot(hyper_top, aes(h.n, roc.a, fill=h.n, color=h.n)) + geom_boxplot(alpha=0.7)
+
+print(paste0('combined mean and median maxed at: ', hyp.df$h.n[which.max(hyp.df$roc.m+hyp.df$roc.med/2)], ' hidden node(s)'))
+
+hyp.df
+hyp.df[which.max(hyp.df$roc.m+hyp.df$roc.med/2),]
+
+# check the number of times h.n occured in hyper_top
+# ensures that we do not set h.n.opt to a freak one off occurence of high roc
+sort(table(hyper_top$h.n), decreasing = TRUE)
+
+
+# top 10 rows
+hyper_top[1:20,]
+
+
+
+
+
+
+
 # optimize hidden nodes, activation function (logistic over tanh), cost function (sse over ce)
 h.n <- 6
 roc.a <- NULL
@@ -792,6 +840,7 @@ hyper_grid <- expand.grid(
 head(hyper_grid)
 dim(hyper_grid)
 
+
 for(i in 1:nrow(hyper_grid)) {
   # train model
   model <- randomForest(
@@ -855,7 +904,7 @@ ggplot(df.1, aes(roc.a, color = algo, fill=algo)) + geom_density(alpha=.1)
 
 ####### PSEUDO LABELING #######
 # remove pseudo labels
-status.idx.d <- status.idx[idx.d,]
+status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 table(status.idx.d$most_general)
 print(paste0('bacterial cases: ', sum(X.s$bct)))
