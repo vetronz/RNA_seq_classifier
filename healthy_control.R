@@ -470,6 +470,9 @@ dim(status.i.idx.d)
 
 
 ###### PREDICTION ######
+# reset pseudo labels
+
+
 scale01 <- function(x){
   (x - min(x)) / (max(x) - min(x))
 }
@@ -485,55 +488,149 @@ dim(X.s)
 # X.s$p.b <- status.idx.d$most_general == 'probable_bacterial'
 X.s$bct <- NULL
 table(status.idx$most_general)
+status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 sum(X.s$bct)
 
 
-
 ## STRATIFIED SAMPLING
+
 prop1 <- 0.75
+prop2 <- 0.7
+prop3 <- 0.9
 
-# group (second arg), selects the column within df (1st arg) on which to stratify
-# size (3rd arg) determins what proportion of dataframe to use
-set.seed(43)
-test.set.df <- stratified(X.s, c('bct'), (1-prop1), select = NULL, replace = FALSE,
-                keep.rownames = TRUE, bothSets = FALSE)
+boot <- 32
+ 
+# # STRAT
+# set.seed(46)
+# test.set.df <- stratified(X.s, c('bct'), (1-prop1), select = NULL, replace = FALSE,
+#                           keep.rownames = TRUE, bothSets = FALSE)
+# 
+# print(paste0('test set proportion: ', round(dim(test.set.df)[1]/239, 2)))
+# print(paste0('test set bacterial proportion: ', round(sum(test.set.df$bct)/dim(test.set.df)[1], 2))) # preserves overal bct prop in train
+# sum(test.set.df$bct)
+# 
+# index <- match(setdiff(rownames(X.s), test.set.df$rn), rownames(X.s))
+# train <- X.s[index, ]
+# test <- X.s[-index, ]
+# 
+# train.fac <- train
+# test.fac <- test
+# train.fac$bct <- as.factor(train.fac$bct)
+# test.fac$bct <- as.factor(test.fac$bct)
 
-print(paste0('test set proportion: ', round(dim(test.set.df)[1]/239, 2)))
-print(paste0('test set bacterial proportion: ', round(sum(test.set.df$bct)/dim(test.set.df)[1], 2))) # preserves overal bct prop in train
-sum(test.set.df$bct)
 
-index <- match(setdiff(rownames(X.s), test.set.df$rn), rownames(X.s))
-train <- X.s[index, ]
-test <- X.s[-index, ]
+## CROSS VALIDATION
+logistic.m <- NULL
+knn.m <- NULL
+randForrest.m <- NULL
+nn.m <- NULL
+svm.m <- NULL
 
-train.fac <- train
-test.fac <- test
-train.fac$bct <- as.factor(train.fac$bct)
-test.fac$bct <- as.factor(test.fac$bct)
+n_folds <- 10
+n.train <- round(nrow(X.s))
+folds.i <- sample(rep(1:n_folds, length.out = n.train))
+cv_tmp <- matrix(NA, nrow = n_folds, ncol = length(df))
+for (k in 1:n_folds) {
+  test.i <- which(folds.i == k)
+  train.cv <- X.s[-test.i, ]
+  test.cv <- X.s[test.i, ]
+  
+  # factoring cv data
+  train.cv.fac <- train.cv
+  train.cv.fac$bct <- as.factor(train.cv$bct)
+  test.cv.fac <- test.cv
+  test.cv.fac$bct <- as.factor(test.cv$bct)
+  
+  # dim(train.cv)[1] +dim(test.cv)[1]
+  
+  print(paste0('fold: ', k))
+  
+  ### LOGISTIC REGRESSION
+  model <- glm(bct~ ., data=train.cv, family=binomial(link='logit'), maxit = 128)
+  # summary(model)
+  # anova(model, test="Chisq")
+  pred.test <- predict(model, test.cv[-ncol(test.cv)])
+  pr.test <- prediction(pred.test, test.cv$bct)
+  
+  logistic.m[k] <- pr.test %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  
+  ### KNN
+  trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+  model <- train(bct ~., data = train.cv.fac, method = "knn",
+                 trControl=trctrl,
+                 tuneLength = 10)
+  
+  knn.opt <- model$results$k[which.max(model$results$Accuracy)]
+  # train
+  p <- knn(train.cv[-ncol(train.cv)], test.cv[-ncol(test.cv)], train.cv$bct,  k=knn.opt, prob=TRUE)
+  
+  # display the confusion matrix
+  # table(p, test$bct)
+  # attributes(pred)
+  p<-attr(p, "prob")
+  p<-1-p
+  
+  # plot(model, print.thres = 0.5, type="S")
+  # confusionMatrix(p, test$bct)
+  pr <- prediction(p, test.cv$bct)
+  
+  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  
+  knn.m[k] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+
+  ### RANDOM FORREST
+  model <- randomForest(bct ~ . , data = train.cv.fac)
+  # plot(model)
+  # attributes(model)
+  # model$mtry # number of variables considered by each tree
+  pred<-predict(model , test.cv.fac[-ncol(test.cv.fac)])
+  # attributes(pred)
+  # model=randomForest(x,y,xtest=x,ytest=y,keep.forest=TRUE)
+  model.prob <- predict(model, test.cv.fac, type="prob")
+  p <- 1-model.prob[,1]
+  pr <- prediction(p, test.cv$bct)
+  # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+  # plot(prf)
+  randForrest.m[k] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  ### Neural Net
+  nn <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic")
+  p <- predict(nn, test.cv[-ncol(test.cv)])
+  pr <- prediction(p, test.cv$bct)
+  nn.m[k] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  
+  ### SVM
+  model <- svm(bct ~ . , train.cv.fac, probability = TRUE)
+  pred <- predict(model, test.cv.fac, probability = TRUE)
+  p<-attr(pred, "prob")
+  pr <- prediction(1-p[,1], test.cv$bct)
+  # plot(prf)
+  svm.m[k] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
 
 logistic.m <- NULL
 knn.m <- NULL
 randForrest.m <- NULL
 nn.m <- NULL
 svm.m <- NULL
-for (i in 1:32){
+for (i in 1:8){
   print(paste0('iter: ', i))
-  # index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-  # train <- X.s[index, ]
-  # test <- X.s[-index, ]
-  
-  a <- stratified(X.s, c('bct'), 0.3, select = NULL, replace = FALSE,
-                  keep.rownames = TRUE, bothSets = FALSE)
-  index <- match(setdiff(rownames(X.s), a$rn), rownames(X.s))
-  train <- X.s[index, ]
-  test <- X.s[-index, ]
-  
-  # factor labels required for some ml models 
-  train.fac <- train
-  test.fac <- test
-  train.fac$bct <- factor(train.fac$bct)
-  test.fac$bct <- factor(test.fac$bct)
   
   ### LOGISTIC REGRESSION
   model <- glm(bct~ ., data=train, family=binomial(link='logit'), maxit = 128)
@@ -645,13 +742,21 @@ df.2 %>%
 
 
 ###### HYPER PARAM OPTIMIZATION FOR PROMISING MODELS ######
-# remove pseudo labels
-dim(status.idx)
 
-status.idx.d <- status.idx[idx.d,]
-X.s$bct <- status.idx.d$most_general == 'bacterial'
-table(status.idx.d$most_general)
-sum(X.s$bct)
+# remove pseudo labels
+
+# X.dis <- X.diff[status.idx$most_general != 'healthy_control',]
+# X.val <- X.diff.val[status.i.idx$most_general != 'healthy_control',]
+# status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
+# status.i.idx.d <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
+# 
+# dim(status.idx)
+# 
+# status.idx.d <- status.idx[status.idx.d$most_general == 'bacterial',]
+# X.s$bct <- status.idx.d$most_general == 'bacterial'
+# table(status.idx.d$most_general)
+# sum(X.s$bct)
+
 
 ### train, val, test split function 
 # split01 <- function(df, train.prop, val.prop, test.prop){
@@ -670,119 +775,141 @@ sum(X.s$bct)
 # sapply(res, nrow)/nrow(X.s) # check props
 
 
-
 ### NEURAL NET
-hyper_grid <- NULL
-
-hyper_grid <- expand.grid(
-  # h.n       = seq(1, 100, by = 3), # beyond 40 overfitting
-  h.n       = seq(9, 26, by = 1), # maxed between 10 - 20 roc.a ~ 90
-  train.cv.prop = seq(from=75, to=76, by=.05)/100
-)
-
-head(hyper_grid)
-dim(hyper_grid)
-
-roc.a <- NULL
-for(i in 1:nrow(hyper_grid)) {
-  # train model
-  index <- sample(nrow(train), round(hyper_grid$train.cv.prop[i] * nrow(train)))
-  train.cv <- train[index,]
-  test.cv <- train[-index,]
-  nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
-                   hidden = c(hyper_grid$h.n[i]), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  pred <- predict(nn1, test.cv[-ncol(test.cv)])
-  # extract error
-  roc.a[i] <- prediction(pred, test.cv$bct) %>%
-    performance(measure = "auc") %>%
-    .@y.values
-}
-
-hyper_grid$roc.a <- unlist(roc.a)
-top.n <- nrow(hyper_grid)
-
-# arranges the highest top.n rows of hypergrid roc.a values in descending order
-hyper_top <- hyper_grid %>% 
-  dplyr::arrange(desc(unlist(roc.a)))%>%
-  head(top.n)
-
-dim(hyper_top)
-
-# h.n to factor for plotting
-hyper_top$h.n <- as.factor(hyper_top$h.n)
-
-# compute mean, median, sdev values for top.n rows in hyper_grid
-hyp.df <- hyper_top %>%
-  group_by(h.n) %>%
-  summarise(roc.m = mean(roc.a), roc.med = median(roc.a), roc.sd = sd(roc.a))
-
-# ggplot(hyper_top, aes(roc.a, fill=h.n, color=h.n)) + geom_density(alpha=0.2)
-ggplot(hyper_top, aes(h.n, roc.a, fill=h.n, color=h.n)) + geom_boxplot(alpha=0.7)
-
-print(paste0('combined mean and median maxed at: ', hyp.df$h.n[which.max(hyp.df$roc.m+hyp.df$roc.med/2)], ' hidden node(s)'))
-
-hyp.df
-hyp.df[which.max(hyp.df$roc.m+hyp.df$roc.med/2),]
-
-# check the number of times h.n occured in hyper_top
-# ensures that we do not set h.n.opt to a freak one off occurence of high roc
-sort(table(hyper_top$h.n), decreasing = TRUE)
-
-
-# top 10 rows
-hyper_top[1:20,]
-
-
-
-
-
-
-
 # optimize hidden nodes, activation function (logistic over tanh), cost function (sse over ce)
-h.n <- 6
+h.n <- 40
 roc.a <- NULL
 roc.t <- NULL
+j.train <- NULL
+j.test <- NULL
+h.n.hx <- NULL
+roc.train <- NULL
+roc.train.me <- NULL
+roc.test <- NULL
+roc.test.me <- NULL
+boot <- 16
 for(i in 1:h.n){
-  print(paste0('hidden Nodes: ', i))
   for(j in 1:boot){
+    print(paste0('hidden Nodes: ', i, ', bootstrap: ', j))
     index <- sample(nrow(train), round(prop2*nrow(train)))
     train.cv <- train[index,]
     test.cv <- train[-index,]
-    
+    # dim(train.cv)
+    # dim(test.cv)
     nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
-                     hidden = c(1), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-    pred <- predict(nn1, test.cv[-ncol(test.cv)])
+                     hidden = c(i), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
     
-    roc.a[j] <- prediction(pred, test.cv$bct) %>%
+    pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
+    pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
+    
+    j.train[j] <- prediction(pred.train[,1], train.cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
+    j.test[j] <- prediction(pred.test[,1], test.cv$bct) %>%
       performance(measure = "auc") %>%
       .@y.values
     
   }
-  roc.t <- append(roc.t, roc.a)
+    full.list <- c(j.train, j.test)
+    full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+    colnames(full.df) <- 'roc.A'
+    
+    full.df$class <- as.factor(sort(rep(seq(1:(length(full.list)/boot)), boot)))
+    
+    roc.stats <- full.df %>%
+      group_by(class) %>%
+      summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
+    
+    roc.stats <- roc.stats %>% mutate(
+      roc.se = roc.sd/sqrt(boot),
+      z.stat = qnorm(0.975),
+      roc.me = z.stat * roc.se
+    )
+    h.n.hx[i] <- i
+    roc.train[i] <- roc.stats$roc.m[1]
+    roc.train.me[i] <- roc.stats$roc.me[1]
+    roc.test[i] <- roc.stats$roc.m[2]
+    roc.test.me[i] <- roc.stats$roc.me[2]
 }
 
-df <- data.frame(matrix(unlist(roc.t), nrow=length(roc.t), byrow=T))
-colnames(df) <- 'roc.A'
-df$h.n <- as.factor(sort(rep(seq(1:h.n), boot)))
-# df
 
-df.1 <- df %>%
-  group_by(h.n) %>%
-  summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
+mod.complexity.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, h.n.hx))
+colnames(mod.complexity.df) <- c('train', 'test', 'train.me', 'test.me', 'h.n')
 
-ggplot(df, aes(roc.A, color=h.n, fill = h.n)) + geom_density(alpha=0.1)
-df.1
+pd <- position_dodge(0.2)
+ggplot(mod.complexity.df, aes(x=h.n, y=train, color='train')) +
+  # scale_y_continuous(limits = c(,1))+
+  geom_line(aes(y=train))+
+  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=.4, position=pd)+
+  geom_line(aes(y=test, color='test'))+
+  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.4, color='red')+
+  labs(title=paste0('Bias-Variance Trade Off'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
 
-mixed.max <- which.max(df.1$roc.med + df.1$roc.m/2)
-med.max <- which.max(df.1$roc.med)
+which.max(mod.complexity.df$test)
 
-if(mixed.max == med.max){
-  opt.h.n <- which.max(df.1$roc.med)
-  print(paste0('optimal hidden nodes set to: ', opt.h.n))
-} else {
-  print(paste0('mixed max: ', mixed.max, ' median max: ', med.max))
-  opt.h.n <- mixed.max
-}
+### NEURAL HYPER GRID OPTIMIZATION
+# hyper_grid <- NULL
+# hyper_grid <- expand.grid(
+#   # h.n       = seq(1, 100, by = 3), # beyond 40 overfitting
+#   h.n       = seq(5, 40, by = .2), # maxed between 10 - 20 roc.a ~ 90
+#   train.cv.prop = seq(from=60, to=70, by=5)/100
+# )
+# 
+# head(hyper_grid)
+# dim(hyper_grid)
+# 
+# roc.a <- NULL
+# for(i in 1:nrow(hyper_grid)) {
+#   print(paste0('iter: ', i))
+#   # train model
+#   index <- sample(nrow(train), round(hyper_grid$train.cv.prop[i] * nrow(train)))
+#   train.cv <- train[index,]
+#   test.cv <- train[-index,]
+#   nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
+#                    hidden = c(hyper_grid$h.n[i]), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+#   pred <- predict(nn1, test.cv[-ncol(test.cv)])
+#   # extract error
+#   roc.a[i] <- prediction(pred, test.cv$bct) %>%
+#     performance(measure = "auc") %>%
+#     .@y.values
+# }
+# 
+# hyper_grid$roc.a <- unlist(roc.a)
+# top.n <- nrow(hyper_grid)
+# 
+# # arranges the highest top.n rows of hypergrid roc.a values in descending order
+# hyper_top <- hyper_grid %>% 
+#   dplyr::arrange(desc(unlist(roc.a)))%>%
+#   head(top.n)
+# 
+# dim(hyper_top)
+# 
+# # h.n to factor for plotting
+# hyper_top$h.n <- as.factor(hyper_top$h.n)
+# 
+# # compute mean, median, sdev values for top.n rows in hyper_grid
+# hyp.df <- hyper_top %>%
+#   group_by(h.n) %>%
+#   summarise(roc.m = mean(roc.a), roc.med = median(roc.a), roc.sd = sd(roc.a))
+# 
+# # ggplot(hyper_top, aes(roc.a, fill=h.n, color=h.n)) + geom_density(alpha=0.2)
+# ggplot(hyper_top, aes(h.n, roc.a, fill=h.n, color=h.n)) + geom_boxplot(alpha=0.7)
+# 
+# print(paste0('combined mean and median maxed at: ', hyp.df$h.n[which.max(hyp.df$roc.m+hyp.df$roc.med/2)], ' hidden node(s)'))
+# 
+# hyp.df
+# hyp.df[which.max(hyp.df$roc.m+hyp.df$roc.med/2),]
+# 
+# # check the number of times h.n occured in hyper_top
+# # ensures that we do not set h.n.opt to a freak one off occurence of high roc
+# sort(table(hyper_top$h.n), decreasing = TRUE)
+# 
+# 
+# # top 10 rows
+# hyper_top[1:20,]
+
+
 
 
 # weight initialization. Cant get neuralnet package to accept so just using random init
@@ -790,7 +917,9 @@ if(mixed.max == med.max){
 # hist(xavier.w)
 
 ### TEST SET NEURAL
-# opt.h.n <- 2
+
+opt.h.n <- which.max(mod.complexity.df$test)
+# opt.h.n <- 1
 nn.test <- NULL
 for (i in 1:boot){
   print(paste0('boot: ', i))
