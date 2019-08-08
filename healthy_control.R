@@ -826,7 +826,7 @@ median(unlist(j.test))
 
 
 
-  ####### rf.pseud labeling #######
+####### rf.pseud labeling #######
 # remove pseudo labels
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
 table(status.idx.d$most_general)
@@ -1167,10 +1167,6 @@ ppb.opt <- which.max(a$fitted.values)[[1]]
 
 
 
-
-
-
-
 ###### NEURAL ######
 # remove pseudo labels
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
@@ -1185,7 +1181,7 @@ ppb.h <- NULL
 ppb.prob.h <- NULL
 roc.h.psd <- NULL
 for(i in 1:250){
-  
+  if (sum(status.idx.d$most_general == 'probable_bacterial') == 0) break
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   train.cv <- X.s[index, ]
   test.cv <- X.s[-index, ]
@@ -1242,8 +1238,8 @@ ppb.h.df <- as.data.frame(cbind(ppb.h, round(ppb.prob.h,3)))
 ppb.h.df <- ppb.h.df[complete.cases(ppb.h.df),]
 ppb.h.df$pb.case <- seq(1:dim(ppb.h.df)[1])
 colnames(ppb.h.df)[2] <- 'bct.prob'
-ppb.h.df$roc.a <- nn.psd.df$roc.a
-ppb.h.df
+ppb.h.df$roc.a <- unlist(roc.h.psd)
+ppb.h.df[1:5,]
 
 
 ggplot(ppb.h.df, aes(pb.case, roc.a))+geom_point()+
@@ -1259,6 +1255,78 @@ ycs.prime <- diff(ycs)/diff(x)
 plot(ycs.prime)
 which.max(ycs.prime)
 ppb.opt <- which.max(a$fitted.values)[[1]]
+ppb.opt
+
+
+### NEURAL validation performance
+# remove pseudo labels
+status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
+table(status.idx.d$most_general)
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+# X.s$bct <- as.factor(X.s$bct)
+print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
+
+# neural opt, val
+nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                   hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+
+pred.opt.val <- predict(nn.opt, X.s.val)
+pred.opt.val <- ifelse(pred.opt.val > 0.5, TRUE, FALSE)
+table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
+print(paste0('Opt RF Validation F1 Score: ', round(f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)),3)))
+
+prob.opt.val <- predict(nn.opt, X.s.val)
+pr <- prediction(prob.opt.val, status.i.idx.d$most_general=='bacterial')
+a <- pr %>%
+  performance(measure = "auc") %>%
+  .@y.values
+print(paste0('Opt RF Validation ROCA: ', round(unlist(a),3)))
+
+
+# neural opt val psd
+# select the optimal pb labels 
+# ppb.opt <- 10
+ppb.h.df[1:ppb.opt,]$ppb.h
+
+# find optimal pb labels in status.idx.d
+ppb.pos <- match(ppb.h.df[1:ppb.opt,]$ppb.h, status.idx.d$my_category_2)
+
+# check they are the same as ppb.h and that they are pb
+status.idx.d$my_category_2[ppb.pos]
+status.idx.d$most_general[ppb.pos]
+
+# change the labels and add to X.s
+status.idx.d$most_general[ppb.pos] <- 'bacterial'
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
+
+# train the psd network
+nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                    hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+
+pred.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
+table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
+print(paste0('Opt RF Validation F1 Score: ', round(f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)),3)))
+
+prob.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+pr <- prediction(prob.opt.val, status.i.idx.d$most_general=='bacterial')
+a <- pr %>%
+  performance(measure = "auc") %>%
+  .@y.values
+print(paste0('Opt RF Validation ROCA: ', round(unlist(a),3)))
+
+
+pb.dist.df <- as.data.frame(cbind(prob.opt.val[status.i.idx.d$most_general=='probable_bacterial'],
+                                  prob.opt.val.psd[status.i.idx.d$most_general=='probable_bacterial']))
+colnames(pb.dist.df) <- c('normal', 'pseudo-labeled')
+hist(pb.dist.df$normal)
+hist(pb.dist.df$`pseudo-labeled`)
+pb.dist.df <- melt(pb.dist.df)
+colnames(pb.dist.df)[1] <- 'model'
+ggplot(pb.dist.df, aes(value, color=model, fill=model))+geom_density(alpha=0.2)+
+  labs(title = 'Probability Density that Probable Bacterial Cases Represent Genuine Bacterial Infection', 
+       x='Probability of Bacterial', y='Density')
 
 
 
