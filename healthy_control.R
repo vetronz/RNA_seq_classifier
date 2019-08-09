@@ -310,6 +310,27 @@ length(idx)
 status.cyber.idx <- status.cyber[idx,]
 dim(status.cyber.idx)
 
+dim(status.idx)
+
+
+
+names(status.cyber)[24:45]
+# subset the cybersort matrix selecting bv cases
+dim(status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',])
+
+# full gambit of cybersort cell lines
+# df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral', 24:45]
+
+# selected interesting cybersort cell lines
+df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45][c(2,4,5,11,13,19,22)]]
+
+df.1$most_general <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',]$most_general
+
+df.2 <- melt(df.1, id.vars='most_general')
+
+ggplot(df.2) +
+  geom_boxplot(aes(x=variable, y=value, color=most_general))
+
 
 # select data from clin cases where we have neutrophil perc and compare to ciber sort pred
 df.2 <- clin[!is.na(clin$perc_neut),c('category', 'perc_neut')]
@@ -331,7 +352,11 @@ ggplot(df.4, aes(x=Neutrophils*100, y=perc_neut)) +
   labs('Scatter Plot of Cybersort Neutrophil % Prediction against Clinical Data', x='Cybersort Prediction', y='Clinical Neut Count')+
   geom_smooth(method=lm, level=0.95)
 
+lin.mod <- lm(Neutrophils ~ perc_neut, data = df.4)
+attributes(lin.mod)
+
 cor(df.4$Neutrophils, df.4$perc_neut)
+cor(df.4$Neutrophils, df.4$perc_neut)^2
 
 # as.character(status.cyber.idx$my_category_2) == rownames(X.dis)
 
@@ -492,6 +517,13 @@ dim(status.i.idx.d)
 X.s<-data.frame(apply(X.dis, 2, scale01))
 X.s.val <-data.frame(apply(X.val, 2, scale01))
 dim(X.s)
+dim(X.s.val)
+
+# filter X.s.val to select only the definite cases for testing
+bv.filt <- status.i.idx.d$most_general=='viral' | status.i.idx.d$most_general=='bacterial'
+X.s.val.bv <- X.s.val[bv.filt,]
+dim(X.s.val.bv)
+
 
 # X.s$bct <- status.idx.d$most_general == 'bacterial'
 # train.fac <- X.s
@@ -1175,13 +1207,18 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 # X.s$bct <- as.factor(X.s$bct)
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
-b.thresh <- 0.99
+b.thresh <- 0.995
 nn.psd.df <- NULL
 ppb.h <- NULL
 ppb.prob.h <- NULL
 roc.h.psd <- NULL
+
+prop1 <- 0.75
 for(i in 1:250){
-  if (sum(status.idx.d$most_general == 'probable_bacterial') == 0) break
+  if (sum(status.idx.d$most_general == 'probable_bacterial') == 0) {
+    print(paste0('Breaking at iteration: ' , i, ', PB cases: ', sum(status.idx.d$most_general == 'probable_bacterial')))
+    break
+  }
   index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
   train.cv <- X.s[index, ]
   test.cv <- X.s[-index, ]
@@ -1220,10 +1257,10 @@ for(i in 1:250){
       .@y.values
   } else if(i < 100){
     b.thresh = b.thresh-0.001
-  } else if(i < 200){
+  } else if(i < 150){
     b.thresh = b.thresh-0.005
   } else{
-    b.thresh = b.thresh-0.015
+    b.thresh = b.thresh-0.025
   }
   Sys.sleep(1)
 }
@@ -1270,13 +1307,16 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                    hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
 
-pred.opt.val <- predict(nn.opt, X.s.val)
+pred.opt.val <- predict(nn.opt, X.s.val.bv)
 pred.opt.val <- ifelse(pred.opt.val > 0.5, TRUE, FALSE)
-table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
-print(paste0('Opt RF Validation F1 Score: ', round(f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)),3)))
 
-prob.opt.val <- predict(nn.opt, X.s.val)
-pr <- prediction(prob.opt.val, status.i.idx.d$most_general=='bacterial')
+table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+print(paste0('Opt RF Validation F1 Score: ',round(f1.score(
+  table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
+
+
+prob.opt.val <- predict(nn.opt, X.s.val.bv)
+pr <- prediction(prob.opt.val, status.i.idx.d[bv.filt,]$most_general=='bacterial')
 a <- pr %>%
   performance(measure = "auc") %>%
   .@y.values
@@ -1304,32 +1344,43 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                     hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
 
-pred.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+pred.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
 pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
-table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
-print(paste0('Opt RF Validation F1 Score: ', round(f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)),3)))
+table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+print(paste0('Opt RF Validation F1 Score: ', round(f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
 
-prob.opt.val.psd <- predict(nn.opt.psd, X.s.val)
-pr <- prediction(prob.opt.val, status.i.idx.d$most_general=='bacterial')
+prob.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
+pr <- prediction(prob.opt.val.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
 a <- pr %>%
   performance(measure = "auc") %>%
   .@y.values
 print(paste0('Opt RF Validation ROCA: ', round(unlist(a),3)))
 
+dim(status.i.idx.d)
+dim(X.s.val[status.i.idx.d$most_general=='probable_bacterial',])
 
-pb.dist.df <- as.data.frame(cbind(prob.opt.val[status.i.idx.d$most_general=='probable_bacterial'],
-                                  prob.opt.val.psd[status.i.idx.d$most_general=='probable_bacterial']))
-colnames(pb.dist.df) <- c('normal', 'pseudo-labeled')
-hist(pb.dist.df$normal)
-hist(pb.dist.df$`pseudo-labeled`)
+
+# PB and Unknown distributions
+pb.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='probable_bacterial',]),
+                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='probable_bacterial',])))
+colnames(pb.dist.df) <- c('normal', 'pseudo_labeled')
 pb.dist.df <- melt(pb.dist.df)
 colnames(pb.dist.df)[1] <- 'model'
-ggplot(pb.dist.df, aes(value, color=model, fill=model))+geom_density(alpha=0.2)+
-  labs(title = 'Probability Density that Probable Bacterial Cases Represent Genuine Bacterial Infection', 
-       x='Probability of Bacterial', y='Density')
+hist1 <- ggplot(pb.dist.df, aes(value))+geom_histogram(bins = 10)
+# hist1 + facet_grid(model ~ .)
+hist1 + facet_wrap(model ~ .)
+
+unknown.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='unknown',]),
+                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='unknown',])))
+colnames(unknown.dist.df) <- c('normal', 'pseudo_labeled')
+unknown.dist.df <- melt(unknown.dist.df)
+colnames(unknown.dist.df)[1] <- 'model'
+hist2 <- ggplot(unknown.dist.df, aes(value))+geom_histogram(bins = 10)
+# hist1 + facet_grid(model ~ .)
+hist2 + facet_wrap(model ~ .)
 
 
-
+  
 
 
 # neutral cv
