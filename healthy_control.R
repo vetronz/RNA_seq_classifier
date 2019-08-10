@@ -321,8 +321,27 @@ dim(status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_ge
 
 # selected interesting cybersort cell lines
 df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45]]
-# df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45][c(2,4,5,11,13,19,22)]]
 
+cell <- NULL
+cell.perc <- NULL
+for(i in 1:ncol(df.1)){
+  x <- df.1[i]
+  cell[i] <- names(x)
+  cell.perc[i] <- sum(x!=0)/143
+}
+df.2 <- as.data.frame(cbind(cell, cell.perc))
+df.2$cell <- as.character(df.2$cell)
+df.2$cell.perc <- as.numeric(as.character(df.2$cell.perc))
+# ggplot(df.2, aes(x = cell, y=cell.perc))+geom_bar()
+df.2
+sum(df.2$cell.perc < 0.05)
+
+# i will suggest that you remove these cell lines in which less than 5% of pts have a in silico cell count prediction.
+# this will leave around 22-7 for adjustment.
+# if this leads to strang distortions further down stream you can increase the threshold to remove more cell lines
+
+
+# df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45][c(2,4,5,11,13,19,22)]]
 df.1$most_general <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',]$most_general
 df.1$most_general <- droplevels(df.1$most_general)
 
@@ -331,17 +350,27 @@ class(split.df)
 dim(split.df[[1]])
 dim(split.df[[2]])
 
-for(i in 1:ncol(split.df[[1]])){
-  cell <- names(split.df[[1]][i])
+
+test.stat <- NULL
+p.val <- NULL
+cell <- NULL
+for(i in 1:(ncol(split.df[[1]])-1)){
+  print(i)
+  cell[i] <- names(split.df[[1]][i])
   x <- split.df[[1]][[i]]
   y <- split.df[[2]][[i]]
+  
+  a<-t.test(x, y,
+            alternative = c("two.sided"), paired = FALSE, var.equal = FALSE,
+            conf.level = 0.95)
+  test.stat[i] <- a$statistic
+  p.val[i] <- a$p.value
 }
 
-
-a<-t.test(x, y,
-       alternative = c("two.sided"), paired = FALSE, var.equal = FALSE,
-       conf.level = 0.95)
-a$p.value
+test.stat[1]
+p.val
+cell
+cbind(cell, test.stat, p.val)
 
 df.2 <- melt(df.1, id.vars='most_general')
 
