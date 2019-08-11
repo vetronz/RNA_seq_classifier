@@ -73,6 +73,16 @@ f1.score <- function(x){
   2*((tpr*ppv) / (tpr+ppv))
 }
 
+tpr <- function(x){
+  tpr <- x[4]/(x[2]+x[4])
+  return(tpr)
+}
+
+tnr <- function(x){
+  tnr <- x[1]/(x[1]+x[3])
+  return(tnr)
+}
+
 # 
 # n = 8
 # cols.8 = gg_color_hue(n)
@@ -320,36 +330,15 @@ dim(status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_ge
 # df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral', 24:45]
 
 # selected interesting cybersort cell lines
-df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45]]
-
-cell <- NULL
-cell.perc <- NULL
-for(i in 1:ncol(df.1)){
-  x <- df.1[i]
-  cell[i] <- names(x)
-  cell.perc[i] <- sum(x!=0)/143
-}
-df.2 <- as.data.frame(cbind(cell, cell.perc))
-df.2$cell <- as.character(df.2$cell)
-df.2$cell.perc <- as.numeric(as.character(df.2$cell.perc))
-# ggplot(df.2, aes(x = cell, y=cell.perc))+geom_bar()
-df.2
-sum(df.2$cell.perc < 0.05)
-
-# i will suggest that you remove these cell lines in which less than 5% of pts have a in silico cell count prediction.
-# this will leave around 22-7 for adjustment.
-# if this leads to strang distortions further down stream you can increase the threshold to remove more cell lines
-
-
 # df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45][c(2,4,5,11,13,19,22)]]
 df.1$most_general <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',]$most_general
 df.1$most_general <- droplevels(df.1$most_general)
 
+# split the b.v cases into 2 separate dataframes to calc sig diff cell lines
 split.df <- split(df.1, df.1$most_general)
 class(split.df)
 dim(split.df[[1]])
 dim(split.df[[2]])
-
 
 test.stat <- NULL
 p.val <- NULL
@@ -367,15 +356,14 @@ for(i in 1:(ncol(split.df[[1]])-1)){
   p.val[i] <- a$p.value
 }
 
-test.stat[1]
-p.val
-cell
-cbind(cell, test.stat, p.val)
+a <- as.data.frame(cbind(cell, test.stat, p.val))
+b <- a[-c(which(as.character(a$p.val)=='NaN')),]
 
-df.2 <- melt(df.1, id.vars='most_general')
+b$p.val <- as.numeric(as.character(b$p.val))
+b
+sum(b$p.val<0.1)
+sig.cells <- as.character(b[b$p.val<0.1,]$cell)
 
-ggplot(df.2) +
-  geom_boxplot(aes(x=variable, y=value, color=most_general))
 
 
 # select data from clin cases where we have neutrophil perc and compare to ciber sort pred
@@ -425,26 +413,36 @@ dim(X.dis.fit)
 
 # initialize d.dis.lim to add the cybersort covariates
 X.dis.lim <- X.dis.fit
+sig.cells
 
 X.dis.lim$label <- status.idx$most_general
 X.dis.lim$sex <- status.idx$Sex
 X.dis.lim$age <- status.idx$Age..months.
-X.dis.lim$Neutrophils <- status.cyber.idx$Neutrophils
-X.dis.lim$Monocytes <- status.cyber.idx$Monocytes
-X.dis.lim$NK.cells.resting <- status.cyber.idx$NK.cells.resting
-X.dis.lim$NK.cells.activated <- status.cyber.idx$NK.cells.activated
+X.dis.lim$B.cells.naive <- status.cyber.idx$B.cells.naive
+X.dis.lim$B.cells.memory <- status.cyber.idx$B.cells.memory
+X.dis.lim$Plasma.cells <- status.cyber.idx$Plasma.cells
 X.dis.lim$T.cells.CD8 <- status.cyber.idx$T.cells.CD8
+X.dis.lim$T.cells.CD4.naive <- status.cyber.idx$T.cells.CD4.naive
+X.dis.lim$T.cells.CD4.memory.activated <- status.cyber.idx$T.cells.CD4.memory.activated
+X.dis.lim$NK.cells.resting <- status.cyber.idx$NK.cells.resting
+X.dis.lim$Monocytes <- status.cyber.idx$Monocytes
+X.dis.lim$Macrophages.M0 <- status.cyber.idx$Macrophages.M0
+X.dis.lim$Neutrophils <- status.cyber.idx$Neutrophils
 
 # check 8 columns added
 dim(X.dis.lim)
 
 ### DESIGN MATRIX
-design <- model.matrix(~label + sex + age + round(Neutrophils, 3) +
-                         round(Monocytes, 3) + round(NK.cells.resting, 3) +
-                         round(NK.cells.activated, 3) + round(T.cells.CD8, 3) + 0,
+design <- model.matrix(~label + sex + age + B.cells.naive + B.cells.memory +
+                         Plasma.cells + T.cells.CD8 + T.cells.CD4.naive +
+                         T.cells.CD4.memory.activated + NK.cells.resting +
+                         Monocytes + Macrophages.M0 + Neutrophils + 0,
                        data = X.dis.lim)
-colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age', 'neut', 'mono', 'nk.rest', 'nk.act', 'CD8')
+colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age',
+                     'b.naive', 'b.mem', 'plasma', 'CD8', 'CD4.naive', 'CD4.mem',
+                     'nk.rest', 'mono', 'macrophage', 'neut')
 
+# check preserved order between cyber and X.dis.lim
 design[1:5,]
 round(status.cyber.idx[1:5,c('Neutrophils', 'Monocytes')],3)
 
@@ -452,7 +450,7 @@ round(status.cyber.idx[1:5,c('Neutrophils', 'Monocytes')],3)
 dim(design)
 colSums(design)
 
-# contrast.matrix <- makeContrasts("bct-vrl", levels=design)
+contrast.matrix <- makeContrasts("bct-vrl", levels=design)
 contrast.matrix<- makeContrasts("vrl-bct", 'vrl-greyb', levels=design)
 # contrast.matrix<- makeContrasts("((bct+vrl+greyb+greyv+greyu)/5)-HC", levels=design)
 contrast.matrix
@@ -494,57 +492,63 @@ pval
 
 results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc)
 dim(results)
-# head(results)
-# summary(results)
+head(results)
+summary(results)
 vennDiagram(results, include = 'both')
-# vennCounts(results, include = 'both')
 
-
-# results.bct <- union(rownames(X[keep,])[results[,1] == 1]
-#                       ,rownames(X[keep,])[results[,1] == -1])
-# length(results.bct)
-# results.vrl <- union(rownames(X[keep,])[results[,2] == 1]
-#                       ,rownames(X[keep,])[results[,2] == -1])
-# results.tot <- union(results.bct, results.vrl)
-# length(results.tot)
-
+# peek at the top 10 in each group
+# vrl.bct, brl.greyb appear to be to lfc for each gene with respect to contrast
 top.hits <- topTable(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc)
 top.hits[1:5,]
 
-all.hits <- topTable(fit2, number=nrow(fit2))
-# dim(top.hits)
+# pull all genes passing number=nrow(fit2)
+all.hits <- topTable(fit2, adjust.method = 'BH', number=nrow(fit2))
 dim(all.hits)
 all.hits[1:5,]
 
-all.filt <- all.hits[abs(all.hits$logFC) > lfc & all.hits$adj.P.Val < pval,]
-# all.filt[1:5,]
-# all.filt <- all.hits
+# we set max.lfc to the vrl.bct value unless abs value vrl.greyb is bigger
+all.hits$max.lfc <- all.hits$vrl.bct
+for(i in 1:nrow(all.hits)){
+  b.v <- all.hits$vrl.bct[i]
+  gb.v <- all.hits$vrl.greyb[i]
+  if(abs(gb.v) > abs(b.v)){
+    all.hits$max.lfc[i] <- gb.v
+  }
+}
+
+# filter out the sig.transcripts
+all.filt <- all.hits[abs(all.hits$max.lfc) > lfc & all.hits$adj.P.Val < pval,]
 dim(all.filt)
 
-p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=logFC)) +
+p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=max.lfc)) +
   geom_point(size = 1, stroke = 0, shape = 16) +
   # text = ~paste("<br>Ensembl: ", ensemb, '<br>Gene: ', gene)
   geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
   geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
-  labs(title="Volcano Plot of Log Fold Change Against -log10 P Value Boot=5",
+  labs(title="Volcano Plot of Log Fold Change Against -log10 P Value",
        x ="Log Fold Change", y = "log10 P-value")
 p
 
 
-names(results[results.tot,])
-
 ####### SELECTION OF TRANSCRIPTS #######
 # subset the disc and validation matrices by the sig genes
 dim(results)
+
+# get sig.transcripts
+attributes(results)
+trans <- dimnames(results)[[1]]
+length(trans)
+
 b.v.res <- ifelse(results[,1] == 0, FALSE, TRUE)
 pb.v.res <- ifelse(results[,2] == 0, FALSE, TRUE)
 
 # creates vector of TRUE FALSE, TRUE if either b.v or pb.v is significant
-ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1
+length(ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1)
+sum(ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1)
 
 # pass this vector to names to extract the sig genes
-sig.trans <- names(results.tot[ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1])
+sig.trans <- trans[ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1]
 
 X.diff <- X.dis.fit[,match(sig.trans, colnames(X.dis.fit))]
 X.diff.val <- X.val[,match(sig.trans, colnames(X.val))]
@@ -608,7 +612,6 @@ print(paste0('bacterial cases: ', sum(train.fac$bct==TRUE)))
 
 
 ## CROSS VALIDATION
-
 prop1 <- 0.75
 prop2 <- 0.7
 boot <- 8
@@ -1351,109 +1354,7 @@ table(status.idx.d$most_general)
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
-# neural opt, val
-f1.opt <- NULL
-roc.opt <- NULL
-for (i in 1:boot){
-  print(i)
-  nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                      hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  pred.opt.val <- predict(nn.opt, X.s.val.bv)
-  pred.opt.val <- ifelse(pred.opt.val > 0.5, TRUE, FALSE)
-  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
-  # print(paste0('Opt NN Validation F1 Score: ',round(f1.score(
-    # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
-  f1.opt[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
-  
-  prob.opt.val <- predict(nn.opt, X.s.val.bv)
-  pr <- prediction(prob.opt.val, status.i.idx.d[bv.filt,]$most_general=='bacterial')
-  roc.opt[i] <- pr %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  # print(paste0('Opt NN Validation ROCA: ', round(unlist(a),3)))
-  Sys.sleep(1)
-}
-
-
-# neural opt val psd
-# select the optimal pb labels 
-# ppb.opt <- 10
-ppb.h.df[1:ppb.opt,]$ppb.h
-
-# find optimal pb labels in status.idx.d
-ppb.pos <- match(ppb.h.df[1:ppb.opt,]$ppb.h, status.idx.d$my_category_2)
-
-# check they are the same as ppb.h and that they are pb
-status.idx.d$my_category_2[ppb.pos]
-status.idx.d$most_general[ppb.pos]
-
-# change the labels and add to X.s
-status.idx.d$most_general[ppb.pos] <- 'bacterial'
-X.s$bct <- status.idx.d$most_general == 'bacterial'
-print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
-
-
-# train the psd network
-f1.opt.psd <- NULL
-roc.opt.psd <- NULL
-for (i in 1:boot){
-  print(i)
-  nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                          hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  
-  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
-  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
-  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
-  # print(paste0('Opt Psd NN Validation F1 Score: ', round(f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
-  f1.opt.psd[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
-  
-  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
-  pr <- prediction(prob.opt.val.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
-  roc.opt.psd[i] <- pr %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  # print(paste0('Opt Psd NN Validation ROCA: ', round(unlist(a),4)))
-  Sys.sleep(1)
-}
-
-# compare F1 scores between normal and psed bootstraps
-a <- as.data.frame(cbind(f1.opt, f1.opt.psd))
-colnames(a) <- c('f1_normal', 'f1_pseudo_labeled')
-b<-gather(a)
-b
-ggplot(b, aes(value, colour=key, fill=key))+geom_density(alpha=0.2)
-
-# compare ROC.A scores between normal and psed bootstraps
-a <- as.data.frame(cbind(unlist(roc.opt), unlist(roc.opt.psd)))
-colnames(a) <- c('ROC_normal', 'ROC_pseudo_labeled')
-b<-gather(a)
-ggplot(b, aes(value, colour=key, fill=key))+geom_density(alpha=0.2)
-
-
-# PB and Unknown distributions
-pb.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='probable_bacterial',]),
-                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='probable_bacterial',])))
-colnames(pb.dist.df) <- c('normal', 'pseudo_labeled')
-pb.dist.df <- melt(pb.dist.df)
-colnames(pb.dist.df)[1] <- 'model'
-hist1 <- ggplot(pb.dist.df, aes(value))+geom_histogram(bins = 10)
-# hist1 + facet_grid(model ~ .)
-hist1 + facet_wrap(model ~ .)
-
-unknown.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='unknown',]),
-                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='unknown',])))
-colnames(unknown.dist.df) <- c('normal', 'pseudo_labeled')
-unknown.dist.df <- melt(unknown.dist.df)
-colnames(unknown.dist.df)[1] <- 'model'
-hist2 <- ggplot(unknown.dist.df, aes(value))+geom_histogram(bins = 10)
-# hist1 + facet_grid(model ~ .)
-hist2 + facet_wrap(model ~ .)
-
-
-  
-
-
-# neutral cv
+# OPTIMIZATION
 h.n <- 30
 roc.a <- NULL
 roc.t <- NULL
@@ -1464,20 +1365,21 @@ roc.train <- NULL
 roc.train.me <- NULL
 roc.test <- NULL
 roc.test.me <- NULL
-# boot <- 16
+boot <- 32
 
 for(i in 1:h.n){
-  for (k in 1:n_folds) {
+  for (k in 1:boot) {
+  # for (k in 1:n_folds) {
     print(paste0('hidden_nodes: ', i, ', fold: ', k))
     
-    test.i <- which(folds.i == k)
-    train.cv <- X.s[-test.i, ]
-    test.cv <- X.s[test.i, ]
+    # test.i <- which(folds.i == k)
+    # train.cv <- X.s[-test.i, ]
+    # test.cv <- X.s[test.i, ]
     
-    # print(paste0('hidden Nodes: ', i, ', bootstrap: ', j))
-    # index <- sample(nrow(train), round(prop2*nrow(train)))
-    # train.cv <- train[index,]
-    # test.cv <- train[-index,]
+    print(paste0('hidden Nodes: ', i, ', bootstrap: ', k))
+    index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+    train.cv <- X.s[index,]
+    test.cv <- X.s[-index,]
     # dim(train.cv)
     # dim(test.cv)
     nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
@@ -1518,15 +1420,12 @@ for(i in 1:h.n){
   roc.train.me[i] <- roc.stats$roc.me[2]
 }
 
-
 mod.complexity.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, h.n.hx))
 colnames(mod.complexity.df) <- c('train', 'test', 'train.me', 'test.me', 'h.n')
-# mod.complexity.df$train <- log(mod.complexity.df$train)
-# mod.complexity.df$test <- log(mod.complexity.df$test)
 
 pd <- position_dodge(0.2)
 ggplot(mod.complexity.df, aes(x=h.n, y=train, color='train')) +
-  scale_y_continuous(limits = c(0.75,1))+
+  # scale_y_continuous(limits = c(0.75,1))+
   geom_line(aes(y=train))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=.4, position=pd)+
   geom_line(aes(y=test, color='test'))+
@@ -1540,7 +1439,139 @@ mod.complexity.df %>%
   dplyr::arrange(desc(test))%>%
   head(10)
 
-opt.h.n <- 12
+opt.h.n <- which.max(mod.complexity.df$test)
+
+
+# neural opt, val
+f1.opt <- NULL
+roc.opt <- NULL
+for (i in 1:boot){
+  print(i)
+  nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                      hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+  pred.opt.val <- predict(nn.opt, X.s.val.bv)
+  pred.opt.val <- ifelse(pred.opt.val > 0.5, TRUE, FALSE)
+  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+  # print(paste0('Opt NN Validation F1 Score: ',round(f1.score(
+    # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
+  f1.opt[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+  
+  prob.opt.val <- predict(nn.opt, X.s.val.bv)
+  pr <- prediction(prob.opt.val, status.i.idx.d[bv.filt,]$most_general=='bacterial')
+  roc.opt[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  # print(paste0('Opt NN Validation ROCA: ', round(unlist(a),3)))
+  Sys.sleep(1)
+}
+table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+
+# tpr tnr threshold
+nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                    hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+prob.opt.val <- predict(nn.opt, X.s.val.bv)
+
+p.scale <- 1:99
+tpr.h <- NULL
+tnr.h <- NULL
+for(i in p.scale){
+  p.thresh <- i/100
+  print(p.thresh)
+  pred.opt.val <- ifelse(prob.opt.val > p.thresh, TRUE, FALSE)
+  table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+  tpr.h[i] <- tpr(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+  tnr.h[i] <- tnr(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+}
+df.1 <- as.data.frame(cbind(tpr.h, tnr.h))
+df.2 <- gather(df.1, 'metric', 'result')
+df.2$P_threshold <- rep(seq(1:length(p.scale))/100,2)
+
+ggplot(df.2, aes(x=P_threshold, y=result, group=metric, color=metric))+geom_line()
+
+opt.thresh <- max(which(df.1$tpr.h > df.1$tnr.h))/100
+
+pred.opt.val <- ifelse(prob.opt.val > opt.thresh, TRUE, FALSE)
+table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+
+
+# neural opt val psd
+# select the optimal pb labels
+# ppb.opt <- 10
+ppb.h.df[1:ppb.opt,]$ppb.h
+
+# find optimal pb labels in status.idx.d
+ppb.pos <- match(ppb.h.df[1:ppb.opt,]$ppb.h, status.idx.d$my_category_2)
+
+# check they are the same as ppb.h and that they are pb
+status.idx.d$my_category_2[ppb.pos]
+status.idx.d$most_general[ppb.pos]
+
+# change the labels and add to X.s
+status.idx.d$most_general[ppb.pos] <- 'bacterial'
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
+
+# train the psd network
+f1.opt.psd <- NULL
+roc.opt.psd <- NULL
+for (i in 1:boot){
+  print(i)
+  nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                          hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+  
+  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
+  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
+  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+  # print(paste0('Opt Psd NN Validation F1 Score: ', round(f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
+  f1.opt.psd[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+  
+  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
+  pr <- prediction(prob.opt.val.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
+  roc.opt.psd[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  # print(paste0('Opt Psd NN Validation ROCA: ', round(unlist(a),4)))
+  Sys.sleep(1)
+}
+table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+
+# compare F1 scores between normal and psed bootstraps
+a <- as.data.frame(cbind(f1.opt, f1.opt.psd))
+colnames(a) <- c('f1_normal', 'f1_pseudo_labeled')
+b<-gather(a)
+b
+ggplot(b, aes(value, colour=key, fill=key))+geom_density(alpha=0.2)
+
+# compare ROC.A scores between normal and psed bootstraps
+a <- as.data.frame(cbind(unlist(roc.opt), unlist(roc.opt.psd)))
+colnames(a) <- c('ROC_normal', 'ROC_pseudo_labeled')
+b<-gather(a)
+ggplot(b, aes(value, colour=key, fill=key))+geom_density(alpha=0.2)
+mean(a$ROC_normal)
+mean(a$ROC_pseudo_labeled)
+
+# PB and Unknown distributions
+pb.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='probable_bacterial',]),
+                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='probable_bacterial',])))
+colnames(pb.dist.df) <- c('normal', 'pseudo_labeled')
+pb.dist.df <- melt(pb.dist.df)
+colnames(pb.dist.df)[1] <- 'model'
+hist1 <- ggplot(pb.dist.df, aes(value))+geom_histogram(bins = 10)
+# hist1 + facet_grid(model ~ .)
+hist1 + facet_wrap(model ~ .)
+
+unknown.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='unknown',]),
+                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='unknown',])))
+colnames(unknown.dist.df) <- c('normal', 'pseudo_labeled')
+unknown.dist.df <- melt(unknown.dist.df)
+colnames(unknown.dist.df)[1] <- 'model'
+hist2 <- ggplot(unknown.dist.df, aes(value))+geom_histogram(bins = 10)
+# hist1 + facet_grid(model ~ .)
+hist2 + facet_wrap(model ~ .)
+
+
+
 
 
 ###### LEARNING CURVE ######
