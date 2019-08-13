@@ -22,6 +22,7 @@ library(randomForest)
 library(sva)
 library(splitstackshape) # stratified sampling
 library(plotly)
+library(glmnet)
 
 # install.packages("XYZ")
 
@@ -325,16 +326,17 @@ status.cyber.idx <- status.cyber[idx,]
 dim(status.cyber.idx)
 dim(status.idx)
 
-
-names(status.cyber)[24:45]
-# subset the cybersort matrix selecting bv cases
+# subset the cybersort matrix selecting b.v cases
 dim(status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',])
 
-# full gambit of cybersort cell lines
-# df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral', 24:45]
+# select all cybersort cell lines for b.v cases
+names(status.cyber)[24:45]
+df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' |
+                           status.idx$most_general == 'viral',
+                         names(status.cyber)[24:45]]
 
-# selected interesting cybersort cell lines
-# df.1 <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',][names(status.cyber)[24:45][c(2,4,5,11,13,19,22)]]
+# add class labels
+dim(df.1)
 df.1$most_general <- status.cyber.idx[status.idx$most_general == 'bacterial' | status.idx$most_general == 'viral',]$most_general
 df.1$most_general <- droplevels(df.1$most_general)
 
@@ -360,16 +362,35 @@ for(i in 1:(ncol(split.df[[1]])-1)){
   p.val[i] <- a$p.value
 }
 
-a <- as.data.frame(cbind(cell, test.stat, p.val))
-b <- a[-c(which(as.character(a$p.val)=='NaN')),]
+cell.lines<- as.data.frame(cbind(cell, test.stat, p.val))
 
-b$p.val <- as.numeric(as.character(b$p.val))
-b
-sum(b$p.val<0.1)
-sig.cells <- as.character(b[b$p.val<0.1,]$cell)
+# remove undetecteble cell lines
+cell.lines <- cell.lines[-c(which(as.character(cell.lines$p.val)=='NaN')),]
+cell.lines$p.val <- as.numeric(as.character(cell.lines$p.val))
+
+# select significantly differentially expressed cell lines between b.v
+cell.lines[cell.lines$p.val <0.1 ,]
+sig.cells <- as.character(cell.lines[cell.lines$p.val <0.1 ,]$cell)
+sig.cells
+
+# filter df.1 by sig genes
+df.1.sig <- df.1[,match(sig.cells, colnames(df.1))]
+
+# reshape df for plotting
+a<-gather(df.1.sig)
+dim(a)
+
+# create a label colup to split boxplot on
+label.col <- rep(c(rep('bacterial', dim(split.df[[1]])[1]), rep('viral', dim(split.df[[2]])[1])), 10)
+length(label.col)
+a$label <- label.col
+
+ggplot(a, aes(key, value, color=label.col, fill=label.col))+geom_boxplot()+
+  labs(title='Significantly Differentially Expressed Cell Lines Between Bacterial and Viral Cases',
+       x='Cell Line', y='Proportion')
 
 
-
+### check correlation
 # select data from clin cases where we have neutrophil perc and compare to ciber sort pred
 df.2 <- clin[!is.na(clin$perc_neut),c('category', 'perc_neut')]
 colnames(df.2)[1] <- 'my_category_2'
@@ -572,63 +593,7 @@ dim(status.idx.d)
 dim(X.val)
 dim(status.i.idx.d)
 
-
-###### GLM FEATURE SELECTION ######
-dim(X.s)
-X.s$bct
-X <- as.matrix(X.s[-ncol(X.s)])
-y <- X.s$bct
-
-## Apply lasso regression to ames data
-test_lasso <- glmnet(
-  x = X,
-  y = y,
-  alpha = 1
-)
-
-plot(test_lasso, xvar = "lambda")
-
-## cross val glmnet
-test_lasso <- cv.glmnet(
-  x = X,
-  y = y,
-  alpha = 1
-)
-
-plot(test_lasso, xvar = "lambda")
-
-min(test_lasso$cvm) # minimum MSE
-
-test_lasso$lambda.min # lambda for this min MSE
-log(test_lasso$lambda.min)
-
-test_lasso$cvm[test_lasso$lambda == test_lasso$lambda.1se]  # 1 st.error of min MSE
-test_lasso$lambda.1se  # lambda for this MSE
-log(test_lasso$lambda.1se)
-
-attributes(test_lasso)
-coef(test_lasso, s = "lambda.1se")
-coef(test_lasso, s = "lambda.min")
-
-# extract coeficients
-coefs <- as.matrix(coef(test_lasso, s = "lambda.min"))
-
-# remove the intercept term
-coefs <- coefs[,1][-1]
-coefs <- coefs[coefs!=0]
-
-dim(X.s)
-dim(status.idx.d)
-names(coefs)
-colnames(X.s)
-X.s.lasso <- X.s[,match(names(coefs), colnames(X.s))]
-X.s.lasso$bct <- X.s$bct
-dim(X.s.lasso)
-
-
-###### PREDICTION ######
-# scale the transcript data
-# X.s <- data.frame(X.r)
+# scale data
 X.s<-data.frame(apply(X.dis, 2, scale01))
 X.s.val <-data.frame(apply(X.val, 2, scale01))
 dim(X.s)
@@ -667,8 +632,117 @@ print(paste0('bacterial cases: ', sum(train.fac$bct==TRUE)))
 # test.fac$bct <- as.factor(test.fac$bct)
 
 
+###### GLM FEATURE SELECTION ######
+dim(X.s)
+X.s$bct
+X <- as.matrix(X.s[-ncol(X.s)])
+y <- X.s$bct
 
-## CROSS VALIDATION
+
+test_lasso <- glmnet(
+  x = X,
+  y = y,
+  alpha = 0
+)
+plot(test_lasso, xvar = "lambda")
+
+test_lasso <- glmnet(
+  x = X,
+  y = y,
+  alpha = 1
+)
+plot(test_lasso, xvar = "lambda")
+
+lasso    <- glmnet(X, y, alpha = 1.0) 
+elastic1 <- glmnet(X, y, alpha = 0.25) 
+elastic2 <- glmnet(X, y, alpha = 0.75) 
+ridge    <- glmnet(X, y, alpha = 0.0)
+
+par(mfrow = c(2, 2), mar = c(6, 4, 6, 2) + 0.1)
+plot(lasso, xvar = "lambda", main = "Lasso (Alpha = 1)\n\n\n")
+plot(elastic1, xvar = "lambda", main = "Elastic Net (Alpha = .25)\n\n\n")
+plot(elastic2, xvar = "lambda", main = "Elastic Net (Alpha = .75)\n\n\n")
+plot(ridge, xvar = "lambda", main = "Ridge (Alpha = 0)\n\n\n")
+
+
+# maintain the same folds across all models
+fold_id <- sample(1:10, size = dim(X)[1], replace=TRUE)
+
+# search across a range of alphas
+tuning_grid <- tibble::tibble(
+  alpha      = seq(0, 1, by = .1),
+  mse_min    = NA,
+  mse_1se    = NA,
+  lambda_min = NA,
+  lambda_1se = NA
+)
+
+
+for(i in seq_along(tuning_grid$alpha)) {
+  print(i)
+  # fit CV model for each alpha value
+  fit <- cv.glmnet(X, y, alpha = tuning_grid$alpha[i], foldid = fold_id)
+  
+  # extract MSE and lambda values
+  tuning_grid$mse_min[i]    <- fit$cvm[fit$lambda == fit$lambda.min]
+  tuning_grid$mse_1se[i]    <- fit$cvm[fit$lambda == fit$lambda.1se]
+  tuning_grid$lambda_min[i] <- fit$lambda.min
+  tuning_grid$lambda_1se[i] <- fit$lambda.1se
+}
+
+tuning_grid
+
+tuning_grid %>%
+  mutate(se = mse_1se - mse_min) %>%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 2) +
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  ggtitle("MSE ± one standard error")
+
+
+## cross val glmnet
+test_lasso <- cv.glmnet(
+  x = X,
+  y = y,
+  alpha = 0.5
+)
+
+plot(test_lasso)
+min(test_lasso$cvm) # minimum MSE
+
+test_lasso$lambda.min # lambda for this min MSE
+log(test_lasso$lambda.min)
+
+# test_lasso$cvm[test_lasso$lambda == test_lasso$lambda.1se]  # 1 st.error of min MSE
+# test_lasso$lambda.1se  # lambda for this MSE
+# log(test_lasso$lambda.1se)
+
+attributes(test_lasso)
+coef(test_lasso, s = "lambda.1se")
+coef(test_lasso, s = "lambda.min")
+
+# extract coeficients
+coefs <- as.matrix(coef(test_lasso, s = "lambda.min"))
+
+# remove the intercept term
+coefs <- coefs[,1][-1]
+coefs <- coefs[coefs!=0]
+
+dim(X.s)
+dim(status.idx.d)
+names(coefs)
+colnames(X.s)
+X.s.e <- X.s[,match(names(coefs), colnames(X.s))]
+X.s.e$bct <- X.s$bct
+dim(X.s.e)
+
+
+# training setup either full or elasticnet features
+# X.s<-data.frame(apply(X.dis, 2, scale01))
+X.s <- X.s.e
+dim(X.s)
+
+## CROSS VALIDATION MODEL EVALUATION
 prop1 <- 0.75
 prop2 <- 0.7
 boot <- 16
@@ -693,14 +767,15 @@ for(j in 1:boot){
   for (k in 1:n_folds) {
     print(paste0('boot: ', j, ', fold: ', k))
     
-    # normal
     test.i <- which(folds.i == k)
-    train.cv <- X.s[-test.i, ]
-    test.cv <- X.s[test.i, ]
+    
+    # normal
+    # train.cv <- X.s[-test.i, ]
+    # test.cv <- X.s[test.i, ]
     
     # lasso
-    # train.cv <- X.s.lasso[-test.i, ]
-    # test.cv <- X.s.lasso[test.i, ]
+    train.cv <- X.s.lasso[-test.i, ]
+    test.cv <- X.s.lasso[test.i, ]
     
     # factoring cv data
     train.cv.fac <- train.cv
@@ -822,6 +897,28 @@ ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1
 df.3 %>%
   group_by(learner) %>%
   summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
+
+# elastic net
+# learner       roc.m roc.med roc.sd
+# 1 nn.m          0.895   0.902 0.107 
+# 2 randForrest.m 0.908   0.897 0.0543
+# 3 svm.m         0.905   0.929 0.0709
+
+# learner       roc.m roc.med roc.sd
+  # 1 nn.m          0.905   0.929 0.136 
+# 2 randForrest.m 0.912   0.930 0.0762
+# 3 svm.m         0.914   0.936 0.0646
+
+# full features
+# learner       roc.m roc.med roc.sd
+# 1 nn.m          0.886   0.897 0.0482
+# 2 randForrest.m 0.889   0.904 0.0490
+# 3 svm.m         0.895   0.934 0.0712
+
+# learner       roc.m roc.med roc.sd
+# 1 nn.m          0.897   0.908 0.0596
+# 2 randForrest.m 0.876   0.871 0.0595
+# 3 svm.m         0.879   0.922 0.0869
 
 
 ### train, val, test split function 
