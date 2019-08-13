@@ -27,9 +27,6 @@ library(glmnet)
 # install.packages("XYZ")
 
 
-plot(ames_lasso, xvar = "lambda")
-
-
 ip <- as.data.frame(installed.packages()[,c(1,3:4)])
 rownames(ip) <- NULL
 ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
@@ -508,7 +505,7 @@ bootstraps <- list(c(0, 1), # 1 full
                    c(2, 0.0001)) # 9
 
 
-boot <- 7
+boot <- 5
 lfc <- bootstraps[[boot]][1]
 pval <- bootstraps[[boot]][2]
 # pval <- 5.e-5
@@ -575,27 +572,26 @@ sum(ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1)
 # pass this vector to names to extract the sig genes
 sig.trans <- trans[ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1]
 
+# select sig transcripts from the dis and val dataset
 X.diff <- X.dis.fit[,match(sig.trans, colnames(X.dis.fit))]
 X.diff.val <- X.val[,match(sig.trans, colnames(X.val))]
-dim(X.diff)
-dim(X.diff.val)
-
 
 # filter out the healthy controls
-X.dis <- X.diff[status.idx$most_general != 'healthy_control',]
-X.val <- X.diff.val[status.i.idx$most_general != 'healthy_control',]
+X.diff <- X.diff[status.idx$most_general != 'healthy_control',]
+X.diff.val <- X.diff.val[status.i.idx$most_general != 'healthy_control',]
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
 status.i.idx.d <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
 
-dim(X.dis)
+dim(X.diff)
 dim(status.idx.d)
 
-dim(X.val)
+dim(X.diff.val)
 dim(status.i.idx.d)
 
+
 # scale data
-X.s<-data.frame(apply(X.dis, 2, scale01))
-X.s.val <-data.frame(apply(X.val, 2, scale01))
+X.s<-data.frame(apply(X.diff, 2, scale01))
+X.s.val <-data.frame(apply(X.diff.val, 2, scale01))
 dim(X.s)
 dim(X.s.val)
 
@@ -634,49 +630,21 @@ print(paste0('bacterial cases: ', sum(train.fac$bct==TRUE)))
 
 ###### GLM FEATURE SELECTION ######
 dim(X.s)
-X.s$bct
 X <- as.matrix(X.s[-ncol(X.s)])
 y <- X.s$bct
 
-
-test_lasso <- glmnet(
-  x = X,
-  y = y,
-  alpha = 0
-)
-plot(test_lasso, xvar = "lambda")
-
-test_lasso <- glmnet(
-  x = X,
-  y = y,
-  alpha = 1
-)
-plot(test_lasso, xvar = "lambda")
-
-lasso    <- glmnet(X, y, alpha = 1.0) 
-elastic1 <- glmnet(X, y, alpha = 0.25) 
-elastic2 <- glmnet(X, y, alpha = 0.75) 
-ridge    <- glmnet(X, y, alpha = 0.0)
-
-par(mfrow = c(2, 2), mar = c(6, 4, 6, 2) + 0.1)
-plot(lasso, xvar = "lambda", main = "Lasso (Alpha = 1)\n\n\n")
-plot(elastic1, xvar = "lambda", main = "Elastic Net (Alpha = .25)\n\n\n")
-plot(elastic2, xvar = "lambda", main = "Elastic Net (Alpha = .75)\n\n\n")
-plot(ridge, xvar = "lambda", main = "Ridge (Alpha = 0)\n\n\n")
-
-
-# maintain the same folds across all models
+# Elastic Net Selection of Alpha
 fold_id <- sample(1:10, size = dim(X)[1], replace=TRUE)
 
 # search across a range of alphas
 tuning_grid <- tibble::tibble(
-  alpha      = seq(0, 1, by = .1),
+  alpha      = seq(0, 1, by = 0.05),
   mse_min    = NA,
   mse_1se    = NA,
   lambda_min = NA,
   lambda_1se = NA
 )
-
+tuning_grid
 
 for(i in seq_along(tuning_grid$alpha)) {
   print(i)
@@ -688,48 +656,69 @@ for(i in seq_along(tuning_grid$alpha)) {
   tuning_grid$mse_1se[i]    <- fit$cvm[fit$lambda == fit$lambda.1se]
   tuning_grid$lambda_min[i] <- fit$lambda.min
   tuning_grid$lambda_1se[i] <- fit$lambda.1se
+  Sys.sleep(0.25)
 }
 
-tuning_grid
+tuning_grid$lambda_min
+fit$cvm
+plot(fit)
+
+fit$lambda
+which.min(fit$cvm)
+fit$cvm[which.min(fit$cvm)]
+fit$lambda[which.min(fit$cvm)]
+fit$lambda.min
+
+log(fit$lambda[which.min(fit$cvm)])
+abline(v=log(fit$lambda[which.min(fit$cvm)]))
+fit$lambda.min
 
 tuning_grid %>%
   mutate(se = mse_1se - mse_min) %>%
   ggplot(aes(alpha, mse_min)) +
-  geom_line(size = 2) +
+  geom_line(size = 1) +
   geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
   ggtitle("MSE ± one standard error")
 
+a<-as.data.frame(tuning_grid)
+opt.alpha <- which.min(a$mse_min)/100
+opt.alpha
 
-## cross val glmnet
-test_lasso <- cv.glmnet(
+tuning_grid %>%
+  mutate(se = mse_1se - mse_min) %>%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  geom_vline(xintercept = opt.alpha)+
+ggtitle("MSE ± one standard error")
+
+## opt elastic
+elastic.cv.opt <- cv.glmnet(
   x = X,
   y = y,
-  alpha = 0.5
+  alpha = opt.alpha
 )
 
-plot(test_lasso)
-min(test_lasso$cvm) # minimum MSE
+plot(elastic.cv.opt)
 
-test_lasso$lambda.min # lambda for this min MSE
-log(test_lasso$lambda.min)
+a <- as.data.frame(cbind(elastic.cv.opt$cvm, elastic.cv.opt$lambda))
+colnames(a) <- c('MSE', 'lambda')
+a[which.min(a$MSE),]
+opt.lambda <- a[which.min(a$MSE),][[2]]
+log(opt.lambda)
 
-# test_lasso$cvm[test_lasso$lambda == test_lasso$lambda.1se]  # 1 st.error of min MSE
-# test_lasso$lambda.1se  # lambda for this MSE
-# log(test_lasso$lambda.1se)
+elastic <- glmnet(X, y, alpha = 0.75)
+plot(elastic, xvar = "lambda")
+abline(v=log(opt.lambda), col="black")
 
-attributes(test_lasso)
-coef(test_lasso, s = "lambda.1se")
-coef(test_lasso, s = "lambda.min")
-
-# extract coeficients
-coefs <- as.matrix(coef(test_lasso, s = "lambda.min"))
+coefs <- coef(elastic.cv.opt, s = opt.lambda)
+# coefs2 <- coef(elastic.cv.opt, s = "lambda.min")
+# sum(coefs1 == coefs2)
 
 # remove the intercept term
 coefs <- coefs[,1][-1]
 coefs <- coefs[coefs!=0]
 
-dim(X.s)
-dim(status.idx.d)
 names(coefs)
 colnames(X.s)
 X.s.e <- X.s[,match(names(coefs), colnames(X.s))]
@@ -774,8 +763,8 @@ for(j in 1:boot){
     # test.cv <- X.s[test.i, ]
     
     # lasso
-    train.cv <- X.s.lasso[-test.i, ]
-    test.cv <- X.s.lasso[test.i, ]
+    train.cv <- X.s[-test.i, ]
+    test.cv <- X.s[test.i, ]
     
     # factoring cv data
     train.cv.fac <- train.cv
