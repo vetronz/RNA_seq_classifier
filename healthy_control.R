@@ -553,7 +553,6 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=max.lfc)) +
 p
 
 
-####### SELECTION OF TRANSCRIPTS #######
 # subset the disc and validation matrices by the sig genes
 dim(results)
 
@@ -574,11 +573,12 @@ sig.trans <- trans[ifelse(b.v.res == TRUE  | pb.v.res == TRUE, 1, 0) == 1]
 
 # select sig transcripts from the dis and val dataset
 X.diff <- X.dis.fit[,match(sig.trans, colnames(X.dis.fit))]
-X.diff.val <- X.val[,match(sig.trans, colnames(X.val))]
+X.diff.val <- as.data.frame(X.val[,match(sig.trans, colnames(X.val))])
 
 # filter out the healthy controls
 X.diff <- X.diff[status.idx$most_general != 'healthy_control',]
 X.diff.val <- X.diff.val[status.i.idx$most_general != 'healthy_control',]
+
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
 status.i.idx.d <- status.i.idx[status.i.idx$most_general != 'healthy_control',]
 
@@ -592,6 +592,10 @@ dim(status.i.idx.d)
 # scale data
 X.s<-data.frame(apply(X.diff, 2, scale01))
 X.s.val <-data.frame(apply(X.diff.val, 2, scale01))
+
+X.s$bct <- status.idx.d$most_general=='bacterial'
+X.s.val$bct <- status.i.idx.d$most_general=='bacterial'
+
 dim(X.s)
 dim(X.s.val)
 
@@ -600,14 +604,6 @@ bv.filt <- status.i.idx.d$most_general=='viral' | status.i.idx.d$most_general=='
 X.s.val.bv <- X.s.val[bv.filt,]
 dim(X.s.val.bv)
 
-# remove pseudo-labels
-status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
-table(status.idx.d$most_general)
-
-X.s$bct <- status.idx.d$most_general == 'bacterial'
-train.fac <- X.s
-train.fac$bct <- as.factor(train.fac$bct)
-print(paste0('bacterial cases: ', sum(train.fac$bct==TRUE)))
 
 ## STRATIFIED SAMPLING
 # set.seed(46)
@@ -638,16 +634,15 @@ fold_id <- sample(1:10, size = dim(X)[1], replace=TRUE)
 
 # search across a range of alphas
 tuning_grid <- tibble::tibble(
-  alpha      = seq(0, 1, by = 0.05),
+  alpha      = seq(0, 1, by = 0.1),
   mse_min    = NA,
   mse_1se    = NA,
   lambda_min = NA,
   lambda_1se = NA
 )
-tuning_grid
 
 for(i in seq_along(tuning_grid$alpha)) {
-  print(i)
+  print(paste0('alpha parameter search iter: ', i))
   # fit CV model for each alpha value
   fit <- cv.glmnet(X, y, alpha = tuning_grid$alpha[i], foldid = fold_id)
   
@@ -659,20 +654,6 @@ for(i in seq_along(tuning_grid$alpha)) {
   Sys.sleep(0.25)
 }
 
-tuning_grid$lambda_min
-fit$cvm
-plot(fit)
-
-fit$lambda
-which.min(fit$cvm)
-fit$cvm[which.min(fit$cvm)]
-fit$lambda[which.min(fit$cvm)]
-fit$lambda.min
-
-log(fit$lambda[which.min(fit$cvm)])
-abline(v=log(fit$lambda[which.min(fit$cvm)]))
-fit$lambda.min
-
 tuning_grid %>%
   mutate(se = mse_1se - mse_min) %>%
   ggplot(aes(alpha, mse_min)) +
@@ -680,10 +661,24 @@ tuning_grid %>%
   geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
   ggtitle("MSE ± one standard error")
 
-a<-as.data.frame(tuning_grid)
-opt.alpha <- which.min(a$mse_min)/100
-opt.alpha
+# select the alpha with the lowest associated mse
+opt.alpha <- tuning_grid$alpha[which.min(tuning_grid$mse_min)]
+opt.alpha <- 0.5
+print(paste0('optimal alpha for elastic-net: ', opt.alpha))
 
+# fit a cv model with opt alpha to assess lambda
+fit.cv <- cv.glmnet(X, y, alpha = opt.alpha, foldid = fold_id)
+plot(fit.cv)
+
+# opt lambda set using the lambda.min which is calc for us
+opt.lambda <- fit.cv$lambda.min
+opt.lambda
+
+# log and add to plot to make sure it looks reasonable
+log(opt.lambda)
+abline(v=log(opt.lambda))
+
+# check the opt.alpha looks correct
 tuning_grid %>%
   mutate(se = mse_1se - mse_min) %>%
   ggplot(aes(alpha, mse_min)) +
@@ -692,39 +687,31 @@ tuning_grid %>%
   geom_vline(xintercept = opt.alpha)+
 ggtitle("MSE ± one standard error")
 
+
 ## opt elastic
-elastic.cv.opt <- cv.glmnet(
-  x = X,
-  y = y,
-  alpha = opt.alpha
-)
+elastic <- glmnet(X, y, alpha = opt.alpha)
 
-plot(elastic.cv.opt)
-
-a <- as.data.frame(cbind(elastic.cv.opt$cvm, elastic.cv.opt$lambda))
-colnames(a) <- c('MSE', 'lambda')
-a[which.min(a$MSE),]
-opt.lambda <- a[which.min(a$MSE),][[2]]
-log(opt.lambda)
-
-elastic <- glmnet(X, y, alpha = 0.75)
 plot(elastic, xvar = "lambda")
 abline(v=log(opt.lambda), col="black")
 
-coefs <- coef(elastic.cv.opt, s = opt.lambda)
-# coefs2 <- coef(elastic.cv.opt, s = "lambda.min")
-# sum(coefs1 == coefs2)
+coefs <- coef(elastic, s = opt.lambda)
+# coefs1 <- coef(fit.cv, s = "lambda.min")
+# sum(coefs == coefs1) # 532
 
 # remove the intercept term
 coefs <- coefs[,1][-1]
 coefs <- coefs[coefs!=0]
 
+# filter the training and validation data by the selected genes
 names(coefs)
-colnames(X.s)
 X.s.e <- X.s[,match(names(coefs), colnames(X.s))]
 X.s.e$bct <- X.s$bct
-dim(X.s.e)
 
+X.s.e.val <- X.s.val[, match(names(coefs), colnames(X.s.val))]
+X.s.e.val$bct <- X.s.val$bct
+
+dim(X.s.e)
+dim(X.s.e.val)
 
 # training setup either full or elasticnet features
 # X.s<-data.frame(apply(X.dis, 2, scale01))
@@ -738,10 +725,6 @@ boot <- 16
 
 n_folds <- 5
 n.train <- round(nrow(X.s))
-
-# seeds <- c(42, 15, 75, 85, 1, 2)
-# my.seed <- seeds[6]
-# set.seed(my.seed)
 
 folds.i <- sample(rep(1:n_folds, length.out = n.train))
 
@@ -887,28 +870,6 @@ df.3 %>%
   group_by(learner) %>%
   summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
 
-# elastic net
-# learner       roc.m roc.med roc.sd
-# 1 nn.m          0.895   0.902 0.107 
-# 2 randForrest.m 0.908   0.897 0.0543
-# 3 svm.m         0.905   0.929 0.0709
-
-# learner       roc.m roc.med roc.sd
-  # 1 nn.m          0.905   0.929 0.136 
-# 2 randForrest.m 0.912   0.930 0.0762
-# 3 svm.m         0.914   0.936 0.0646
-
-# full features
-# learner       roc.m roc.med roc.sd
-# 1 nn.m          0.886   0.897 0.0482
-# 2 randForrest.m 0.889   0.904 0.0490
-# 3 svm.m         0.895   0.934 0.0712
-
-# learner       roc.m roc.med roc.sd
-# 1 nn.m          0.897   0.908 0.0596
-# 2 randForrest.m 0.876   0.871 0.0595
-# 3 svm.m         0.879   0.922 0.0869
-
 
 ### train, val, test split function 
 # split01 <- function(df, train.prop, val.prop, test.prop){
@@ -936,6 +897,7 @@ df.3 %>%
 #   xlab("Coefficient") +
 #   ylab(NULL)
 
+
 ###### NEURAL ######
 # remove pseudo labels
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
@@ -943,75 +905,6 @@ table(status.idx.d$most_general)
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 # X.s$bct <- as.factor(X.s$bct)
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
-
-j_train <- NULL
-j_test <- NULL
-roc.train <- NULL
-roc.test <- NULL
-roc.train.me <- NULL
-roc.test.me <- NULL
-learning_curve.df <- NULL
-p.h <- NULL
-boot<- 16
-props <- seq(from=10, to=90, by=5)/100
-
-for (j in 1:length(props)){
-  for(i in 1:boot){
-    prop <- props[j]
-    print(paste0('proportion: ', prop, ', bootstrap: ', i))
-    index <- sample(nrow(X.s), round(prop*nrow(X.s)))
-    train.cv <- X.s[index, ]
-    test.cv <- X.s[-index, ]
-    
-    model <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
-                       hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-    
-    pred_train <- predict(model, train.cv[-ncol(train.cv)])
-    pred_test <- predict(model, test.cv[-ncol(test.cv)])
-    
-    j_train[i] <- prediction(pred_train[,1], train.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    j_test[i] <- prediction(pred_test[,1], test.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values  
-  }
-  # class.calls <- c(j_test)
-  class.calls <- c(j_train, j_test)
-  full.list <- class.calls
-  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-  colnames(full.df) <- 'roc.A'
-  
-  full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/boot)), boot)))
-  
-  roc.stats <- full.df %>%
-    group_by(class) %>%
-    summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
-  
-  roc.stats <- roc.stats %>% mutate(
-    roc.se = roc.sd/sqrt(k),
-    z.stat = qnorm(0.975),
-    roc.me = z.stat * roc.se
-  )
-  roc.train[j] <- roc.stats$roc.m[1]
-  roc.train.me[j] <- roc.stats$roc.me[1]
-  roc.test[j] <- roc.stats$roc.m[2]
-  roc.test.me[j] <- roc.stats$roc.me[2]
-}
-
-learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me))
-learning_curve.df$prop <- props
-colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'prop')
-
-ggplot(learning_curve.df, aes(x=prop, y=train)) +
-  # scale_y_continuous(limits = c(0.5,1))+
-  geom_point(aes(y=train, color='train'))+
-  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me, color='train'), width=.02, alpha=0.75)+
-  geom_point(aes(y=test, color='test'))+
-  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me, color='test'), width=0.02, alpha=0.75)+
-  labs(title=paste0('Learning Curve with ', opt.h.n, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
-
 
 
 # PB SELECTION
@@ -1087,7 +980,6 @@ ppb.h.df <- as.data.frame(cbind(ppb.h, round(ppb.prob.h, 4)))
 # removes rows from dataframe where no greyb cases were added
 ppb.h.df <- ppb.h.df[complete.cases(ppb.h.df),]
 
-
 ppb.h.df$pb.case <- seq(1:dim(ppb.h.df)[1])
 colnames(ppb.h.df)[2] <- 'bct.prob'
 ppb.h.df$roc.a <- unlist(roc.h.psd)
@@ -1108,11 +1000,6 @@ plot(ycs.prime)
 which.max(ycs.prime)
 ppb.opt <- which.max(a$fitted.values)[[1]]
 ppb.opt
-# 22 
-# 23
-# 28
-# 20
-# 22
 
 ### NEURAL OPTIMIZATION
 # remove pseudo labels
@@ -1122,6 +1009,7 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 # OPTIMIZATION
+boot <- 16
 h.n <- 40
 roc.a <- NULL
 roc.t <- NULL
@@ -1192,12 +1080,12 @@ colnames(mod.complexity.df) <- c('train', 'test', 'train.me', 'test.me', 'h.n')
 
 pd <- position_dodge(0.2)
 ggplot(mod.complexity.df, aes(x=h.n, y=train, color='train')) +
-  # scale_y_continuous(limits = c(0.75,1))+
+  scale_y_continuous(limits = c(0.80,1))+
   geom_line(aes(y=train))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=.4, position=pd)+
   geom_line(aes(y=test, color='test'))+
   geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.4, color='red')+
-  labs(title=paste0('Bias-Variance Trade Off'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
+  labs(title=paste0('Bias-Variance Trade Off - Non Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
 
 which.max(mod.complexity.df$test)
 mod.complexity.df[which.max(mod.complexity.df$test),]
@@ -1209,30 +1097,60 @@ mod.complexity.df %>%
 opt.h.n <- which.max(mod.complexity.df$test)
 
 
+
+
+
+
+
+
 # neural opt, val
 f1.opt <- NULL
 roc.opt <- NULL
 for (i in 1:boot){
   print(i)
+  
   nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                       hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  pred.opt.val <- predict(nn.opt, X.s.val.bv)
+  pred.opt.val <- predict(nn.opt, X.s.val.bv[-ncol(X.s.val.bv)])
   pred.opt.val <- ifelse(pred.opt.val > 0.5, TRUE, FALSE)
-  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
-  # print(paste0('Opt NN Validation F1 Score: ',round(f1.score(
-  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
   f1.opt[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
   
-  prob.opt.val <- predict(nn.opt, X.s.val.bv)
+  prob.opt.val <- predict(nn.opt, X.s.val.bv[-ncol(X.s.val.bv)])
   pr <- prediction(prob.opt.val, status.i.idx.d[bv.filt,]$most_general=='bacterial')
   roc.opt[i] <- pr %>%
     performance(measure = "auc") %>%
     .@y.values
-  # print(paste0('Opt NN Validation ROCA: ', round(unlist(a),3)))
   Sys.sleep(0.3)
 }
 table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+mean(unlist(roc.opt))
+median(unlist(roc.opt))
 
+# neural opt, val, full
+f1.opt.psd <- NULL
+roc.opt.psd <- NULL
+for (i in 1:boot){
+  print(i)
+  nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                          hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+  
+  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
+  f1.opt.psd[i] <- f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
+  
+  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+  pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
+  roc.opt.psd[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  Sys.sleep(0.1)
+}
+table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
+f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
+mean(unlist(roc.opt))
+median(unlist(roc.opt))
 
 # tpr tnr threshold
 nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
@@ -1282,7 +1200,6 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 
 # OPTIMIZATION
-h.n <- 40
 roc.a <- NULL
 roc.t <- NULL
 j.train <- NULL
@@ -1344,7 +1261,7 @@ for(i in 1:h.n){
   roc.test.me[i] <- roc.stats$roc.me[1]
   roc.train[i] <- roc.stats$roc.med[2]
   roc.train.me[i] <- roc.stats$roc.me[2]
-  Sys.sleep(0.1)
+  Sys.sleep(0.2)
 }
 
 mod.complexity.psd.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, h.n.hx))
@@ -1352,15 +1269,15 @@ colnames(mod.complexity.psd.df) <- c('train', 'test', 'train.me', 'test.me', 'h.
 
 pd <- position_dodge(0.2)
 ggplot(mod.complexity.psd.df, aes(x=h.n, y=train, color='train')) +
-  # scale_y_continuous(limits = c(0.75,1))+
+  scale_y_continuous(limits = c(0.8,1))+
   geom_line(aes(y=train))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=.4, position=pd)+
   geom_line(aes(y=test, color='test'))+
   geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.4, color='red')+
-  labs(title=paste0('Bias-Variance Trade Off'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
+  labs(title=paste0('Bias-Variance Trade Off - Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
 
 which.max(mod.complexity.psd.df$test)
-mod.complexity.df[which.max(mod.complexity.psd.df$test),]
+mod.complexity.psd.df[which.max(mod.complexity.psd.df$test),]
 
 mod.complexity.psd.df %>%
   dplyr::arrange(desc(test))%>%
@@ -1369,7 +1286,9 @@ mod.complexity.psd.df %>%
 opt.h.n.psd <- which.max(mod.complexity.psd.df$test)
 
 
-# train the psd network
+
+
+# neural opt, val, pseud bct-vrl
 f1.opt.psd <- NULL
 roc.opt.psd <- NULL
 for (i in 1:boot){
@@ -1377,21 +1296,47 @@ for (i in 1:boot){
   nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                           hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
   
-  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
+  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv[-ncol(X.s.val.bv)])
   pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
-  # table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
-  # print(paste0('Opt Psd NN Validation F1 Score: ', round(f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)),3)))
   f1.opt.psd[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
   
-  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv)
+  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val.bv[-ncol(X.s.val.bv)])
   pr <- prediction(prob.opt.val.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
   roc.opt.psd[i] <- pr %>%
     performance(measure = "auc") %>%
     .@y.values
-  # print(paste0('Opt Psd NN Validation ROCA: ', round(unlist(a),4)))
+  
   Sys.sleep(0.1)
 }
 table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+
+
+# neural opt, val, pseud full
+f1.opt.psd <- NULL
+roc.opt.psd <- NULL
+for (i in 1:boot){
+  print(i)
+  nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                          hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+  
+  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
+  f1.opt.psd[i] <- f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
+  
+  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val)
+  pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
+  roc.opt.psd[i] <- pr %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  Sys.sleep(0.1)
+}
+table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
+f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
+
+
+
 
 # compare F1 scores between normal and psed bootstraps
 a <- as.data.frame(cbind(f1.opt, f1.opt.psd))
@@ -1406,13 +1351,22 @@ ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
 a <- as.data.frame(cbind(unlist(roc.opt), unlist(roc.opt.psd)))
 colnames(a) <- c('ROC_normal', 'ROC_pseudo_labeled')
 b<-gather(a, 'model', 'result')
+b %>% 
+  group_by(model)%>%
+  summarise(x.mean = mean(result), x.med = median(result))
+
 
 ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
 ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
   scale_y_continuous(limits = c(0.8,1))+
   labs(title = 'ROC Area Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='ROC Area')
-mean(a$ROC_normal)
-mean(a$ROC_pseudo_labeled)
+mean(unlist(roc.opt))
+median(unlist(roc.opt))
+
+mean(unlist(roc.opt.psd))
+median(unlist(roc.opt.psd))
+
+
 
 # PB and Unknown distributions
 pb.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='probable_bacterial',]),
@@ -1472,6 +1426,75 @@ table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
 pred.opt.val <- ifelse(prob.opt.val > (opt.thresh/100), TRUE, FALSE)
 table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
 
+
+### learning curves
+j_train <- NULL
+j_test <- NULL
+roc.train <- NULL
+roc.test <- NULL
+roc.train.me <- NULL
+roc.test.me <- NULL
+learning_curve.df <- NULL
+p.h <- NULL
+boot<- 16
+props <- seq(from=10, to=90, by=5)/100
+
+for (j in 1:length(props)){
+  for(i in 1:boot){
+    prop <- props[j]
+    print(paste0('proportion: ', prop, ', bootstrap: ', i))
+    index <- sample(nrow(X.s), round(prop*nrow(X.s)))
+    train.cv <- X.s[index, ]
+    test.cv <- X.s[-index, ]
+    
+    model <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
+                       hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+    
+    pred_train <- predict(model, train.cv[-ncol(train.cv)])
+    pred_test <- predict(model, test.cv[-ncol(test.cv)])
+    
+    j_train[i] <- prediction(pred_train[,1], train.cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
+    j_test[i] <- prediction(pred_test[,1], test.cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values  
+  }
+  # class.calls <- c(j_test)
+  class.calls <- c(j_train, j_test)
+  full.list <- class.calls
+  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+  colnames(full.df) <- 'roc.A'
+  
+  full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/boot)), boot)))
+  
+  roc.stats <- full.df %>%
+    group_by(class) %>%
+    summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
+  
+  roc.stats <- roc.stats %>% mutate(
+    roc.se = roc.sd/sqrt(k),
+    z.stat = qnorm(0.975),
+    roc.me = z.stat * roc.se
+  )
+  roc.train[j] <- roc.stats$roc.m[1]
+  roc.train.me[j] <- roc.stats$roc.me[1]
+  roc.test[j] <- roc.stats$roc.m[2]
+  roc.test.me[j] <- roc.stats$roc.me[2]
+}
+
+learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me))
+learning_curve.df$prop <- props
+colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'prop')
+
+ggplot(learning_curve.df, aes(x=prop, y=train)) +
+  # scale_y_continuous(limits = c(0.5,1))+
+  geom_point(aes(y=train, color='train'))+
+  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me, color='train'), width=.02, alpha=0.75)+
+  geom_point(aes(y=test, color='test'))+
+  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me, color='test'), width=0.02, alpha=0.75)+
+  labs(title=paste0('Learning Curve with ', opt.h.n, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
 
 
 
