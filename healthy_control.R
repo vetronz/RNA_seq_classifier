@@ -914,16 +914,16 @@ X.psd <- X.s
 X.psd$most_general <- status.idx.d$most_general
 dim(X.psd)
 
-boot <- 32
-b.thresh <- 0.998
+boot <- 3
+b.thresh <- 0.999
 nn.psd.df <- NULL
 ppb.h <- NULL
 ppb.prob.h <- NULL
 roc.h.psd <- NULL
 prop1 <- 0.75
 for(i in 1:250){
-  if (sum(status.idx.d$most_general == 'probable_bacterial') == 0) {
-    print(paste0('Breaking at iteration: ' , i, ', PB cases: ', sum(status.idx.d$most_general == 'probable_bacterial')))
+  if (sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct==FALSE) == 0) {
+    print(paste0('Breaking at iteration: ' , i, ', PB cases: ', sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct==FALSE)))
     break
   }
   index <- sample(nrow(X.psd), round(prop1*nrow(X.psd)))
@@ -933,16 +933,19 @@ for(i in 1:250){
   dim(train.cv)
   dim(test.cv)
   
-  pb.psd <- test.cv[which(test.cv$most_general == 'probable_bacterial' & test.cv$bct == TRUE),]
+  pb.psd <- which(test.cv$most_general == 'probable_bacterial' & test.cv$bct == TRUE)
+  # dim(test.cv[pb.psd,])
   
-  if(identical(pb.psd, integer(0)) == TRUE){
-    print('no pseudo labels')
+  if(identical(pb.psd, integer(0))){
+    print('pass')
   } else{
     print('some pseudo labels')
-    train.cv <- rbind(train.cv, pb.psd)
     
-    # select all rows except the matched pb.psd case
-    test.cv <- test.cv[-c(match(rownames(pb.psd), rownames(test.cv))),]
+    # add the pseudo-labaled PB cases to train set
+    train.cv <- rbind(train.cv, test.cv[pb.psd,])
+    
+    # select all rows except the matched pb.psd case and remove from test.cv
+    test.cv <- test.cv[-c(match(rownames(test.cv[pb.psd,]), rownames(test.cv))),]
   }
   
   model <- neuralnet(bct ~ . , train.cv[-ncol(train.cv)], linear.output = FALSE, act.fct = "logistic",
@@ -977,7 +980,7 @@ for(i in 1:250){
     # X.s$bct <- status.idx.d$most_general == 'bacterial'
     # X.s$bct <- as.factor(X.s$bct)
     print(paste0('PB Case: ', ppb, ' added with P: ', round(ppb.prob, 5)))
-    print(paste0('iteration: ', i, ', bacterial cases: ', sum(X.s$bct==TRUE), ', bac.threshold: ', b.thresh))
+    print(paste0('iteration: ', i, ', bacterial cases: ', sum(X.psd$bct==TRUE), ', bac.threshold: ', b.thresh))
     ppb.h[i] <- ppb
     ppb.prob.h[i] <- ppb.prob
     
@@ -994,8 +997,8 @@ for(i in 1:250){
   Sys.sleep(0.25)
 }
 
-print(paste0('bacterial cases: ', sum(X.s$bct==TRUE),
-             ', PB Cases: ', sum(status.idx.d$most_general == 'probable_bacterial'),
+print(paste0('bacterial cases: ', sum(X.psd$bct==TRUE),
+             ', PB Cases: ', sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct == FALSE),
              ', b.threshold: ', b.thresh))
 
 # options(scipen=999)
@@ -1008,8 +1011,7 @@ ppb.h.df <- ppb.h.df[complete.cases(ppb.h.df),]
 ppb.h.df$pb.case <- seq(1:dim(ppb.h.df)[1])
 colnames(ppb.h.df)[2] <- 'bct.prob'
 ppb.h.df$roc.a <- unlist(roc.h.psd)
-ppb.h.df[1:5,]
-
+ppb.h.df
 
 ggplot(ppb.h.df, aes(pb.case, roc.a))+geom_point()+
   labs(title='Iterative Pseudo-labeling Error', x='PB', y='ROCA')+
@@ -1017,12 +1019,12 @@ ggplot(ppb.h.df, aes(pb.case, roc.a))+geom_point()+
 
 a <- lm(formula = roc.a ~ splines::bs(pb.case, 3), data=ppb.h.df)
 
-x <- seq(1:dim(ppb.h.df)[1])
-y <- a$fitted.values
-ycs <- cumsum(y)
-ycs.prime <- diff(ycs)/diff(x)
-plot(ycs.prime)
-which.max(ycs.prime)
+# x <- seq(1:dim(ppb.h.df)[1])
+# y <- a$fitted.values
+# ycs <- cumsum(y)
+# ycs.prime <- diff(ycs)/diff(x)
+# plot(ycs.prime)
+# which.max(ycs.prime)
 ppb.opt <- which.max(a$fitted.values)[[1]]
 ppb.opt
 
@@ -1035,7 +1037,7 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 # OPTIMIZATION
 boot <- 16
-h.n <- 30
+h.n <- 20
 roc.a <- NULL
 roc.t <- NULL
 j.train <- NULL
@@ -1123,11 +1125,6 @@ opt.h.n <- which.max(mod.complexity.df$test)
 
 
 
-
-
-
-
-
 # neural opt, val
 f1.opt <- NULL
 roc.opt <- NULL
@@ -1152,30 +1149,7 @@ f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.va
 mean(unlist(roc.opt))
 median(unlist(roc.opt))
 
-# neural opt, val, full
-f1.opt.psd <- NULL
-roc.opt.psd <- NULL
-for (i in 1:boot){
-  print(i)
-  nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                          hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  
-  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val)
-  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
-  f1.opt.psd[i] <- f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
-  
-  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val)
-  pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
-  roc.opt.psd[i] <- pr %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  
-  Sys.sleep(0.1)
-}
-table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
-f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
-mean(unlist(roc.opt))
-median(unlist(roc.opt))
+
 
 # tpr tnr threshold
 nn.opt <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
@@ -1220,6 +1194,7 @@ status.idx.d$most_general[ppb.pos]
 
 # change the labels and add to X.s
 status.idx.d$most_general[ppb.pos] <- 'bacterial'
+# status.idx.d$most_general[ppb.pos[1:20]] <- 'bacterial' # add only top 10 pbs to bct labels
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
@@ -1309,8 +1284,7 @@ mod.complexity.psd.df %>%
   head(10)
 
 opt.h.n.psd <- which.max(mod.complexity.psd.df$test)
-
-
+print(paste0('optimal hidden nodes Pseudo Model: ', opt.h.n.psd))
 
 
 # neural opt, val, pseud bct-vrl
@@ -1333,33 +1307,9 @@ for (i in 1:boot){
   
   Sys.sleep(0.1)
 }
+
 table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
 f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
-
-
-# neural opt, val, pseud full
-f1.opt.psd <- NULL
-roc.opt.psd <- NULL
-for (i in 1:boot){
-  print(i)
-  nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                          hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  
-  pred.opt.val.psd <- predict(nn.opt.psd, X.s.val)
-  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
-  f1.opt.psd[i] <- f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
-  
-  prob.opt.val.psd <- predict(nn.opt.psd, X.s.val)
-  pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
-  roc.opt.psd[i] <- pr %>%
-    performance(measure = "auc") %>%
-    .@y.values
-  
-  Sys.sleep(0.1)
-}
-table(status.i.idx.d$most_general == 'bacterial', pred.opt.val)
-f1.score(table(status.i.idx.d$most_general == 'bacterial', pred.opt.val))
-
 
 
 
@@ -1379,7 +1329,6 @@ b<-gather(a, 'model', 'result')
 b %>% 
   group_by(model)%>%
   summarise(x.mean = mean(result), x.med = median(result))
-
 
 ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
 ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
@@ -1413,7 +1362,7 @@ hist2 <- ggplot(unknown.dist.df, aes(value))+geom_histogram(bins = 10)
 hist2 + facet_wrap(model ~ .)
 
 
-# tpr tnr threshold
+ # tpr tnr threshold
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                         hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
 prob.opt.val <- predict(nn.opt.psd, X.s.val.bv)
@@ -1520,6 +1469,14 @@ ggplot(learning_curve.df, aes(x=prop, y=train)) +
   geom_point(aes(y=test, color='test'))+
   geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me, color='test'), width=0.02, alpha=0.75)+
   labs(title=paste0('Learning Curve with ', opt.h.n, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
+
+
+
+
+
+
+
+
 
 
 
