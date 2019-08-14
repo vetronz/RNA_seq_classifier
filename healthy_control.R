@@ -627,7 +627,9 @@ dim(X.s.val.bv)
 ###### GLM FEATURE SELECTION ######
 dim(X.s)
 X <- as.matrix(X.s[-ncol(X.s)])
-y <- X.s$bct
+
+y <- X.s$bct # feature selection for b.v split
+# y <- status.idx.d$most_general == 'bacterial' | status.idx.d$most_general == 'probable_bacterial' # feature selection for b.v pb.v split
 
 # Elastic Net Selection of Alpha
 fold_id <- sample(1:10, size = dim(X)[1], replace=TRUE)
@@ -663,7 +665,7 @@ tuning_grid %>%
 
 # select the alpha with the lowest associated mse
 opt.alpha <- tuning_grid$alpha[which.min(tuning_grid$mse_min)]
-opt.alpha <- 0.5
+# opt.alpha <- 0.5
 print(paste0('optimal alpha for elastic-net: ', opt.alpha))
 
 # fit a cv model with opt alpha to assess lambda
@@ -908,8 +910,12 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 
 # PB SELECTION
+X.psd <- X.s
+X.psd$most_general <- status.idx.d$most_general
+dim(X.psd)
+
 boot <- 32
-b.thresh <- 0.995
+b.thresh <- 0.998
 nn.psd.df <- NULL
 ppb.h <- NULL
 ppb.prob.h <- NULL
@@ -920,42 +926,61 @@ for(i in 1:250){
     print(paste0('Breaking at iteration: ' , i, ', PB cases: ', sum(status.idx.d$most_general == 'probable_bacterial')))
     break
   }
-  index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-  train.cv <- X.s[index, ]
-  test.cv <- X.s[-index, ]
+  index <- sample(nrow(X.psd), round(prop1*nrow(X.psd)))
+  train.cv <- X.psd[index, ]
+  test.cv <- X.psd[-index, ]
   
-  model <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
+  dim(train.cv)
+  dim(test.cv)
+  
+  pb.psd <- test.cv[which(test.cv$most_general == 'probable_bacterial' & test.cv$bct == TRUE),]
+  
+  if(identical(pb.psd, integer(0)) == TRUE){
+    print('no pseudo labels')
+  } else{
+    print('some pseudo labels')
+    train.cv <- rbind(train.cv, pb.psd)
+    
+    # select all rows except the matched pb.psd case
+    test.cv <- test.cv[-c(match(rownames(pb.psd), rownames(test.cv))),]
+  }
+  
+  model <- neuralnet(bct ~ . , train.cv[-ncol(train.cv)], linear.output = FALSE, act.fct = "logistic",
                      hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
   
-  pred <- predict(model, test.cv[-ncol(test.cv)])
-  # pred and status.idx.d -index are same dim
-  # dim(pred)
-  # length(status.idx.d$my_category_2[-index])
+  pred <- predict(model, test.cv[-((ncol(test.cv)-1):ncol(test.cv))])
   
   # create a filter to extract the pb cases from both
-  pb.filt <- status.idx.d$most_general[-index]=='probable_bacterial'
-  
-  # pred[pb.filt,]
-  # status.idx.d$my_category_2[-index][pb.filt]
+  pb.filt <- test.cv$most_general == 'probable_bacterial'
   
   # which.max(pred[pb.filt,])
   ppb <- names(which.max(pred[pb.filt,]))
   ppb.prob <- max(pred[pb.filt])
   
   if(ppb.prob > b.thresh){
+    # check ROC performance BEFORE changing PB label
+    # this is despite the fact we trained the network outside of if statement
+    # this prevents the PB pseudolabels in to train set arrtificially elevating ROC
+    # by improving detection of PB case.
+    pr <- prediction(pred, test.cv$bct)
+    roc.h.psd[i] <- pr %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
     # pseudo label the ppb case
-    status.idx.d$most_general[which(status.idx.d$my_category_2 == ppb)] <- 'bacterial'
-    X.s$bct <- status.idx.d$most_general == 'bacterial'
+    X.psd$most_general[match(ppb, rownames(X.psd))]
+    X.psd$bct[match(ppb, rownames(X.psd))]
+    X.psd$bct[match(ppb, rownames(X.psd))] <- TRUE
+    
+    # pseudo label the ppb case
+    # status.idx.d$most_general[which(status.idx.d$my_category_2 == ppb)] <- 'bacterial'
+    # X.s$bct <- status.idx.d$most_general == 'bacterial'
     # X.s$bct <- as.factor(X.s$bct)
     print(paste0('PB Case: ', ppb, ' added with P: ', round(ppb.prob, 5)))
     print(paste0('iteration: ', i, ', bacterial cases: ', sum(X.s$bct==TRUE), ', bac.threshold: ', b.thresh))
     ppb.h[i] <- ppb
     ppb.prob.h[i] <- ppb.prob
     
-    pr <- prediction(pred, test.cv$bct)
-    roc.h.psd[i] <- pr %>%
-      performance(measure = "auc") %>%
-      .@y.values
   } else if(i < 90){
     b.thresh = b.thresh-0.001
   } else if(i < 125){
@@ -966,7 +991,7 @@ for(i in 1:250){
   else{
     b.thresh = b.thresh-0.09
   }
-  Sys.sleep(0.5)
+  Sys.sleep(0.25)
 }
 
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE),
@@ -1010,7 +1035,7 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 # OPTIMIZATION
 boot <- 16
-h.n <- 40
+h.n <- 30
 roc.a <- NULL
 roc.t <- NULL
 j.train <- NULL
