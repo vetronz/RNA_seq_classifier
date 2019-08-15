@@ -26,7 +26,7 @@ library(glmnet)
 
 # install.packages("XYZ")
 
-library('lumi')
+# library('lumi')
 # library("illuminaHumanv4.db")
 # library(lumiHumanIDMapping)
 
@@ -639,7 +639,7 @@ fold_id <- sample(1:10, size = dim(X)[1], replace=TRUE)
 
 # search across a range of alphas
 tuning_grid <- tibble::tibble(
-  alpha      = seq(0, 1, by = 0.05),
+  alpha      = seq(0, 1, by = 0.02),
   mse_min    = NA,
   mse_1se    = NA,
   lambda_min = NA,
@@ -998,10 +998,10 @@ for(i in 1:250){
     else {
       if(i < 90){
         b.thresh = b.thresh-0.001
-      } else if(i < 125){
-        b.thresh = b.thresh-0.003
+      } else if(i < 150){
+        b.thresh = b.thresh-0.002
       } else {
-        b.thresh = b.thresh-0.06
+        b.thresh = b.thresh-0.04
       } 
     }
   }
@@ -1037,15 +1037,19 @@ ppb.h.df
 # select the abs max jump to set as a query pseudo labeling cut off
 psd.opt <- which.max(abs(diff(ppb.h.df$bct.prob)))
 
-ggplot(ppb.h.df, aes(pb.case, bct.prob))+geom_point()+
-  geom_vline(xintercept = psd.opt + 0.5)
+ggplot(ppb.h.df, aes(pb.case, bct.prob))+
+  geom_vline(xintercept = psd.opt + 0.5)+
+  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=3.2)
+
+
 
 # select ROC derivative as query pseudo labeling cut off
 a <- lm(formula = roc.a ~ splines::bs(pb.case, 3), data=ppb.h.df)
 
 ppb.opt <- which.max(a$fitted.values)[[1]]
 ppb.opt
-ggplot(ppb.h.df, aes(pb.case, roc.a))+geom_point()+
+ggplot(ppb.h.df, aes(pb.case, roc.a))+
+  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2.7)+
   labs(title='Iterative Pseudo-labeling Error', x='PB', y='ROCA')+
   geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE)+
   geom_vline(xintercept = ppb.opt)
@@ -1053,7 +1057,7 @@ ggplot(ppb.h.df, aes(pb.case, roc.a))+geom_point()+
 ppb.opt
 psd.opt
 
-ppb.opt <- psd.opt # if we use the P drop cutoff
+# ppb.opt <- psd.opt # if we use the P drop cutoff
 
 ### NEURAL OPTIMIZATION
 # remove pseudo labels
@@ -1207,6 +1211,11 @@ f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.va
 
 
 ####### nrl psd #######
+status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
+table(status.idx.d$most_general)
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
+
 # select the optimal pb labels
 # ppb.opt <- 10
 ppb.h.df[1:ppb.opt,]$ppb.h
@@ -1219,8 +1228,8 @@ status.idx.d$my_category_2[ppb.pos]
 status.idx.d$most_general[ppb.pos]
 
 # change the labels and add to X.s
-status.idx.d$most_general[ppb.pos] <- 'bacterial'
-# status.idx.d$most_general[ppb.pos[1:20]] <- 'bacterial' # add only top 20 pbs to bct labels
+status.idx.d$most_general[ppb.pos] <- 'bacterial' # add all pseudo labeled bct cases
+# status.idx.d$most_general[ppb.pos[1:22]] <- 'bacterial' # add only top 20 pbs to bct labels
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
@@ -1321,9 +1330,9 @@ for (i in 1:boot){
   nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                           hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
   
-  # pred.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
-  # pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
-  # f1.opt.psd[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+  pred.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
+  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
+  f1.opt.psd[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
   
   prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
   pr <- prediction(prob.opt.val.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
