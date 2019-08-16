@@ -1347,7 +1347,6 @@ table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
 f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
 
 
-
 # compare F1 scores between normal and psed bootstraps
 a <- as.data.frame(cbind(f1.opt, f1.opt.psd))
 colnames(a) <- c('f1_normal', 'f1_pseudo_labeled')
@@ -1506,7 +1505,7 @@ ggplot(learning_curve.df, aes(x=prop, y=train)) +
 ###### 2 TRANSCRIPT COMPARISON ######
 # install.packages("pROC")
 library(pROC)
-
+library(gmodels)
 setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/DRS')
 
 drs.val = read.table("DRS_results_on_validation-2.6266572_probes.txt", 
@@ -1523,8 +1522,6 @@ drs.val$most_general <- ifelse(drs.val$most_general==1, 'viral',
 
 rownames(drs.val)
 
-drs.val
-
 dim(drs.val)
 dim(X.s.e.val)
 
@@ -1534,58 +1531,9 @@ sum(rownames(drs.val) == rownames(X.s.e.val))
 drs.val$bct <- drs.val$most_general == 'bacterial'
 
 # filter only bv cases
-drs.val <- drs.val[bv.filt,]
+# drs.val <- drs.val[bv.filt,]
 dim(drs.val)
 
-p <- ggplot(drs.val, aes(most_general, DRS, fill=most_general))+geom_boxplot()
-p + geom_dotplot(binaxis='y', stackdir='center', dotsize=0.6, alpha=0.5)
-
-
-# roc 2 transcript signature
-a <- roc(drs.val, bct, DRS, ci=TRUE, conf.level=0.95, boot.n=1000)
-
-attributes(a)
-pe <- a$auc[1]
-ci.lower <- a$ci[1]
-
-me <- pe-ci.lower
-me
-z.stat <- qnorm(0.975)
-sem <- me/z.stat
-
-n <- dim(drs.val)[1]
-sd.est <- sem/sqrt(n)
-
-
-plot(a)
-
-auc(drs.val$bct, drs.val$DRS)
-
-pred <- predict(model, test.cv[-((ncol(test.cv)-1):ncol(test.cv))])
-prediction(pred, test.cv$bct)
-
- 
-roc.df <- b %>%
-  group_by(model)%>%
-  summarise(x.m = mean(result), x.med = median(result), x.sd = sd(result))
-
-roc.df
-
-ggplot(roc.df, aes(model, x.med, colour=model, fill=model))+
-  geom_boxplot(aes(model, x.med))+
-  geom_boxplot(aes(model, x.med+x.sd))+
-  geom_boxplot(aes(model, x.med-x.sd))
-  scale_y_continuous(limits = c(0.8,1))+
-  labs(title = 'ROC Area Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='ROC Area')
-
-
-ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
-  scale_y_continuous(limits = c(0.8,1))+
-  labs(title = 'ROC Area Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='ROC Area')
-
-
-
-###############################################################
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                         hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
 
@@ -1599,8 +1547,28 @@ nn.psd.val <- as.data.frame(prob.opt.val.psd)
 colnames(nn.psd.val) <- 'prob'
 nn.psd.val$most_general <- status.i.idx.d$most_general
 
-p <- ggplot(nn.psd.val, aes(most_general, prob, fill=most_general)) +geom_boxplot()
-p + geom_dotplot(binaxis='y', stackdir='center', dotsize=0.6, alpha=0.5)
+# p <- ggplot(nn.psd.val, aes(most_general, prob, fill=most_general)) +geom_boxplot()
+# p + geom_dotplot(binaxis='y', stackdir='center', dotsize=0.6, alpha=0.5)
+
+# p <- ggplot(drs.val, aes(most_general, DRS, fill=most_general))+geom_boxplot()
+# p + geom_dotplot(binaxis='y', stackdir='center', dotsize=0.6, alpha=0.5)
+
+
+ggplot(nn.psd.val, aes(most_general, prob, color=most_general)) +
+  geom_jitter(width = 0.3, height = 0.002)
+  # geom_text(label=rownames(nn.psd.val))
+ggplot(drs.val, aes(most_general, DRS, color=most_general)) +
+  geom_jitter(width = 0.3, height = 0.002)
+
+
+
+# roc 2 transcript signature
+a <- roc(drs.val, bct, DRS, ci=TRUE, conf.level=0.95, boot.n=100)
+attributes(a)
+a
+plot(a)
+
+
 
 # coefs are the same as colnames in validation iris set
 names(coefs) == colnames(X.s.e.val[-ncol(X.s.e.val)])
@@ -1637,17 +1605,102 @@ df.1[match(myrsini.sig, df.1$ensembl_gene_id),]
 
 
 
+###### CLUSTERING ######
 
-# conversion <- illuminaHumanv4ENSEMBL
-# conversion <- illuminaHumanv4GENENAME
-# x <- illuminaHumanv4CHR
-# x <- illuminaHumanv4NUID
-# x <- illuminaHumanv4ALIAS2PROBE
-# x <- illuminaHumanv4GO
-# x <- illuminaHumanv4MAP
-# x <- illuminaHumanv4REFSEQ
-# con <- mget(x = c('ENSG00000182118', 'ENSG00000137959'), envir = conversion)
-# con <- mget(x = coefs.probe, envir = conversion)
+dim(X.s.e.val)
+
+X.s.e.val
+
+
+k.max <- 15
+X <- as.matrix(X.s.e.val[-ncol(X.s.e.val)])
+X
+
+X <- X.s.e.val[-ncol(X.s.e.val)]
+dim(X)
+# stats::as.dist(X)
+# dist(t(X))
+
+# Get total within sum of square
+.get_withinSS <- function(d, cluster){
+  # d <- stats::as.dist(d)
+  d <- dist(d)
+  cn <- max(cluster)
+  clusterf <- as.factor(cluster)
+  clusterl <- levels(clusterf)
+  cnn <- length(clusterl)
+
+  if (cn != cnn) {
+    warning("cluster renumbered because maximum != number of clusters")
+    for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
+    cn <- cnn
+  }
+  cwn <- cn
+  
+  # Compute total within sum of square
+  dmat <- as.matrix(d)
+  within.cluster.ss <- 0
+  for (i in 1:cn) {
+    cluster.size <- sum(cluster == i)
+    di <- as.dist(dmat[cluster == i, cluster == i])
+    within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
+  }
+  within.cluster.ss
+}
+
+
+k.max <- 15
+v <- rep(0, k.max)
+for (i in 2:k.max) {
+  print(paste0('iter: ', i))
+  clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
+                  method="cmeans", m=m1, rate.par = NULL)
+  v[i] <- .get_withinSS(diss, clust$cluster)
+}
+plot(v[-1])
+# 
+# 
+# 
+# # distance metrix investigations
+# x <- mtcars["Honda Civic",] 
+# y <- mtcars["Camaro Z28",] 
+# dist(rbind(x, y))
+# 
+# # custom functions to evaluate the cluster assignments
+# # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
+# norm_vec <- function(x) sqrt(sum(x^2))
+# norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
+# 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ### end
