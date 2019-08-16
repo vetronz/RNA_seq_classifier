@@ -1504,6 +1504,8 @@ ggplot(learning_curve.df, aes(x=prop, y=train)) +
 
 
 ###### 2 TRANSCRIPT COMPARISON ######
+# install.packages("pROC")
+library(pROC)
 
 setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/DRS')
 
@@ -1514,7 +1516,10 @@ drs.val = read.table("DRS_results_on_validation-2.6266572_probes.txt",
 
 class(drs.val)
 colnames(drs.val) <- c('DRS', 'most_general')
-drs.val$most_general <- ifelse(drs.val$most_general==1, 'viral', ifelse(drs.val$most_general==2, 'probable_viral', ifelse(drs.val$most_general==3, 'unknown', ifelse(drs.val$most_general==4, 'probable_bacterial', 'bacterial'))))
+drs.val$most_general <- ifelse(drs.val$most_general==1, 'viral',
+                               ifelse(drs.val$most_general==2, 'probable_viral',
+                                      ifelse(drs.val$most_general==3, 'unknown',
+                                             ifelse(drs.val$most_general==4, 'probable_bacterial', 'bacterial'))))
 
 rownames(drs.val)
 
@@ -1525,15 +1530,62 @@ dim(X.s.e.val)
 
 sum(rownames(drs.val) == rownames(X.s.e.val))
 
+# add bct vector
+drs.val$bct <- drs.val$most_general == 'bacterial'
 
-drs.val
+# filter only bv cases
+drs.val <- drs.val[bv.filt,]
+dim(drs.val)
+
 p <- ggplot(drs.val, aes(most_general, DRS, fill=most_general))+geom_boxplot()
 p + geom_dotplot(binaxis='y', stackdir='center', dotsize=0.6, alpha=0.5)
 
 
+# roc 2 transcript signature
+a <- roc(drs.val, bct, DRS, ci=TRUE, conf.level=0.95, boot.n=1000)
+
+attributes(a)
+pe <- a$auc[1]
+ci.lower <- a$ci[1]
+
+me <- pe-ci.lower
+me
+z.stat <- qnorm(0.975)
+sem <- me/z.stat
+
+n <- dim(drs.val)[1]
+sd.est <- sem/sqrt(n)
+
+
+plot(a)
+
+auc(drs.val$bct, drs.val$DRS)
+
+pred <- predict(model, test.cv[-((ncol(test.cv)-1):ncol(test.cv))])
+prediction(pred, test.cv$bct)
+
+ 
+roc.df <- b %>%
+  group_by(model)%>%
+  summarise(x.m = mean(result), x.med = median(result), x.sd = sd(result))
+
+roc.df
+
+ggplot(roc.df, aes(model, x.med, colour=model, fill=model))+
+  geom_boxplot(aes(model, x.med))+
+  geom_boxplot(aes(model, x.med+x.sd))+
+  geom_boxplot(aes(model, x.med-x.sd))
+  scale_y_continuous(limits = c(0.8,1))+
+  labs(title = 'ROC Area Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='ROC Area')
+
+
+ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
+  scale_y_continuous(limits = c(0.8,1))+
+  labs(title = 'ROC Area Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='ROC Area')
 
 
 
+###############################################################
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                         hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
 
