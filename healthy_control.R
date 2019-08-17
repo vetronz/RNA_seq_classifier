@@ -88,7 +88,12 @@ tnr <- function(x){
   return(tnr)
 }
 
-# 
+euclidean_distance <- function(p,q){
+  sqrt(sum((p - q)^2))
+}
+
+norm_vec <- function(x) sqrt(sum(x^2))
+
 # n = 8
 # cols.8 = gg_color_hue(n)
 # 
@@ -1067,8 +1072,8 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 # OPTIMIZATION
-boot <- 16
-h.n <- 20
+boot <- 8
+h.n <- 15
 roc.a <- NULL
 roc.t <- NULL
 j.train <- NULL
@@ -1606,22 +1611,45 @@ df.1[match(myrsini.sig, df.1$ensembl_gene_id),]
 
 
 ###### CLUSTERING ######
-
+dim(e.set.i)
 dim(X.s.e.val)
 
-X.s.e.val
+e.set.i.d <- t(e.set.i)[status.i$most_general != 'HC',]
+dim(e.set.i.d)
+
+k.test <- cmeans(e.set.i.d, centers = 2, iter.max=10, verbose=FALSE, dist="euclidean",
+       method="cmeans", rate.par = NULL)
 
 
-k.max <- 15
-X <- as.matrix(X.s.e.val[-ncol(X.s.e.val)])
-X
+cluster <- k.test$cluster
+cluster
 
-X <- X.s.e.val[-ncol(X.s.e.val)]
-dim(X)
-# stats::as.dist(X)
-# dist(t(X))
+d <- dist(e.set.i.d)
+d
+clusterf <- as.factor(cluster)
+clusterl <- levels(clusterf)
+cnn <- length(clusterl)
+cn <- max(cluster)
+cn
 
-# Get total within sum of square
+if (cn != cnn) {
+  warning("cluster renumbered because maximum != number of clusters")
+  for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
+  cn <- cnn
+}
+cwn <- cn
+
+dmat <- as.matrix(d)
+within.cluster.ss <- 0
+for (i in 1:cn) {
+  cluster.size <- sum(cluster == i)
+  di <- as.dist(dmat[cluster == i, cluster == i])
+  within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
+  print(paste0('iteration: ', i, ', total WSS: ', round(within.cluster.ss, 3)))
+}
+within.cluster.ss
+
+
 .get_withinSS <- function(d, cluster){
   # d <- stats::as.dist(d)
   d <- dist(d)
@@ -1629,7 +1657,7 @@ dim(X)
   clusterf <- as.factor(cluster)
   clusterl <- levels(clusterf)
   cnn <- length(clusterl)
-
+  
   if (cn != cnn) {
     warning("cluster renumbered because maximum != number of clusters")
     for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
@@ -1648,6 +1676,50 @@ dim(X)
   within.cluster.ss
 }
 
+# vec norm is the basis of euclidian distance
+abs(norm_vec(c(2,2)) - norm_vec(c(5,5)))
+
+euclidean_distance(c(2,2), c(5,5))
+
+# in the above the diff of the vector norm is equal to the euclidean distance.
+# this is because extending a line through the origin from 0,0 to 2,2 to 5,5
+# is a straight line
+# therefore the difference in magnitude between the vector norms is also the euclidean_distance
+
+test <- data.frame(x=sample(1:10,7), 
+                   y=sample(1:10,7)
+                   # z=sample(1:10000,7)
+                   )
+test
+
+a<-test[1,]
+b<-test[2,]
+
+norm_vec(a)
+norm_vec(b)
+
+euclidean_distance(a,b)
+sqrt(10)
+
+
+
+
+
+
+
+
+k.max <- 15
+X <- as.matrix(X.s.e.val[-ncol(X.s.e.val)])
+X
+
+X <- X.s.e.val[-ncol(X.s.e.val)]
+dim(X)
+# stats::as.dist(X)
+# dist(t(X))
+
+# Get total within sum of square
+
+
 
 k.max <- 15
 v <- rep(0, k.max)
@@ -1658,20 +1730,30 @@ for (i in 2:k.max) {
   v[i] <- .get_withinSS(diss, clust$cluster)
 }
 plot(v[-1])
-# 
-# 
-# 
-# # distance metrix investigations
-# x <- mtcars["Honda Civic",] 
-# y <- mtcars["Camaro Z28",] 
-# dist(rbind(x, y))
-# 
-# # custom functions to evaluate the cluster assignments
-# # norm vec to calc euclidian dist and then 2BitBios version which i think is actually for sum sq error
-# norm_vec <- function(x) sqrt(sum(x^2))
-# norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
-# 
 
+
+
+# distance metrix investigations
+x <- mtcars["Honda Civic",]
+y <- mtcars["Camaro Z28",]
+a <- rbind(x, y)
+dist(a)
+
+
+
+norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
+
+dist(c(3,5))
+x <- matrix(rnorm(100), nrow = 5, ncol=1)
+x
+dist(x)
+dist(x, method = "euclidean", diag = TRUE, upper = FALSE, p = 2)
+
+x[1:2]
+norm_vec(x[1:2])
+
+norm_vec(c(1,2,3,4))
+dist(c(1,2,3,4))
 
 
 
