@@ -1565,6 +1565,35 @@ ggplot(nn.psd.val, aes(most_general, prob, color=most_general)) +
 ggplot(drs.val, aes(most_general, DRS, color=most_general)) +
   geom_jitter(width = 0.3, height = 0.002)
 
+# create pb and unknown filter
+pb.filt <- status.i.idx.d$most_general=='probable_bacterial'
+u.filt <- status.i.idx.d$most_general=='unknown'
+
+# extract pos and neg nn predictions from these
+pb.pos <- rownames(nn.psd.val[pb.filt,][nn.psd.val[pb.filt,]$prob > 0.5,])
+pb.neg <- rownames(nn.psd.val[pb.filt,][nn.psd.val[pb.filt,]$prob < 0.5,])
+
+u.pos <- rownames(nn.psd.val[u.filt,][nn.psd.val[u.filt,]$prob > 0.5,])
+u.neg <- rownames(nn.psd.val[u.filt,][nn.psd.val[u.filt,]$prob < 0.5,])
+
+# index to pass to View
+match(u.pos, status.i.idx.d$My_code)
+
+# PB partitions
+View(status.i.idx.d[match(pb.pos, status.i.idx.d$My_code),])
+View(status.i.idx.d[match(pb.neg, status.i.idx.d$My_code),])
+
+# Unknown Partitions
+View(status.i.idx.d[match(u.pos, status.i.idx.d$My_code),])
+View(status.i.idx.d[match(u.neg, status.i.idx.d$My_code),])
+
+# lots of unknows in neg group could well have had abx therapy
+# perhaps not required?
+
+
+
+# cannot see any easy partition of these cases
+# all PBs look sick from the limited clinical information in the iris dataset
 
 
 # roc 2 transcript signature
@@ -1620,53 +1649,15 @@ dim(e.set.i.d)
 k.test <- cmeans(e.set.i.d, centers = 2, iter.max=10, verbose=FALSE, dist="euclidean",
        method="cmeans", rate.par = NULL)
 
-
-cluster <- k.test$cluster
-cluster
-
-d <- dist(e.set.i.d)
-d
-clusterf <- as.factor(cluster)
-clusterl <- levels(clusterf)
-cnn <- length(clusterl)
-cn <- max(cluster)
-cn
-
-if (cn != cnn) {
-  warning("cluster renumbered because maximum != number of clusters")
-  for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
-  cn <- cnn
-}
-cwn <- cn
-
-dmat <- as.matrix(d)
-within.cluster.ss <- 0
-for (i in 1:cn) {
-  cluster.size <- sum(cluster == i)
-  di <- as.dist(dmat[cluster == i, cluster == i])
-  within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
-  print(paste0('iteration: ', i, ', total WSS: ', round(within.cluster.ss, 3)))
-}
-within.cluster.ss
-
-
-.get_withinSS <- function(d, cluster){
-  # d <- stats::as.dist(d)
-  d <- dist(d)
+wss <- function(d, cluster){
+  # d <- dist(d, method='euclidean', diag=TRUE)
+  dmat <- as.matrix(d)
+  
   cn <- max(cluster)
   clusterf <- as.factor(cluster)
   clusterl <- levels(clusterf)
   cnn <- length(clusterl)
   
-  if (cn != cnn) {
-    warning("cluster renumbered because maximum != number of clusters")
-    for (i in 1:cnn) cluster[clusterf == clusterl[i]] <- i
-    cn <- cnn
-  }
-  cwn <- cn
-  
-  # Compute total within sum of square
-  dmat <- as.matrix(d)
   within.cluster.ss <- 0
   for (i in 1:cn) {
     cluster.size <- sum(cluster == i)
@@ -1676,87 +1667,85 @@ within.cluster.ss
   within.cluster.ss
 }
 
-# vec norm is the basis of euclidian distance
-abs(norm_vec(c(2,2)) - norm_vec(c(5,5)))
 
-euclidean_distance(c(2,2), c(5,5))
-
-# in the above the diff of the vector norm is equal to the euclidean distance.
-# this is because extending a line through the origin from 0,0 to 2,2 to 5,5
-# is a straight line
-# therefore the difference in magnitude between the vector norms is also the euclidean_distance
-
-test <- data.frame(x=sample(1:10,7), 
-                   y=sample(1:10,7)
-                   # z=sample(1:10000,7)
-                   )
-test
-
-a<-test[1,]
-b<-test[2,]
-
-norm_vec(a)
-norm_vec(b)
-
-euclidean_distance(a,b)
-sqrt(10)
-
-
-
-
-
-
-
-
-k.max <- 15
-X <- as.matrix(X.s.e.val[-ncol(X.s.e.val)])
-X
-
-X <- X.s.e.val[-ncol(X.s.e.val)]
-dim(X)
-# stats::as.dist(X)
-# dist(t(X))
-
-# Get total within sum of square
-
-
-
-k.max <- 15
+k.max <- 8
 v <- rep(0, k.max)
+# x <- iris[-ncol(iris)]
+# x <- e.set.i.d
+x <- X.s.e.val
+dim(x)
+x <- dist(x, method='euclidean', diag=TRUE)
+
+
 for (i in 2:k.max) {
   print(paste0('iter: ', i))
-  clust <- cmeans(df.1, centers = i, iter.max=30, verbose=FALSE, dist="euclidean",
-                  method="cmeans", m=m1, rate.par = NULL)
-  v[i] <- .get_withinSS(diss, clust$cluster)
+  clust <- cmeans(x, centers = i, iter.max=300, verbose=FALSE, dist="euclidean",
+                  method="cmeans", rate.par = NULL)
+  v[i] <- wss(x, clust$cluster)
 }
 plot(v[-1])
+v
+
+clust <- cmeans(x, centers = 2, iter.max=300, verbose=FALSE, dist="euclidean",
+                method="cmeans", m = 1.2, rate.par = NULL)
+
+clust$membership
+df.1 <- clust$centers
+
+df.1 <- as.data.frame(clust$membership)
+df.1$cluster <- clust$cluster
+
+ggplot(df.1, aes(cluster, fill=status.i.idx.d$most_general)) + 
+  geom_bar()
+
+# compare the fuzzy cluster results with the nn results
+# create PB filter
+pb.filt <- status.i.idx.d$most_general=='probable_bacterial'
 
 
-
-# distance metrix investigations
-x <- mtcars["Honda Civic",]
-y <- mtcars["Camaro Z28",]
-a <- rbind(x, y)
-dist(a)
-
-
-
-norm_vec(as.numeric(y))-norm_vec(as.numeric(x)) # think the dist function performs euclid dist on matrix
-
-dist(c(3,5))
-x <- matrix(rnorm(100), nrow = 5, ncol=1)
-x
-dist(x)
-dist(x, method = "euclidean", diag = TRUE, upper = FALSE, p = 2)
-
-x[1:2]
-norm_vec(x[1:2])
-
-norm_vec(c(1,2,3,4))
-dist(c(1,2,3,4))
+nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                        hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
+pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
+pr %>%
+  performance(measure = "auc") %>%
+  .@y.values
 
 
+dim(prob.opt.val.psd)
 
+# nn pb probabilities
+prob.opt.val.psd[pb.filt,]
+
+# fuzzy pb probabilities
+clust$membership[pb.filt,][,2]
+
+
+full.pca <- prcomp(x[pb.filt,])
+
+pair1 <- as.data.frame(full.pca$x[,1:2])
+pair2 <- as.data.frame(full.pca$x[,3:4])
+pair3D <- as.data.frame(full.pca$x[,1:3])
+
+# fviz_eig(full.pca)
+
+ve <- full.pca$sdev^2
+pve <- ve/sum(ve)*100
+pve[1:5]
+
+
+dim(pair1)
+# separation based on batch effect
+ggplot(data = pair1, aes(PC1, PC2, color = clust$membership[pb.filt,][,1]>0.5))+geom_point() + 
+  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
+  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
+ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
+  scale_color_manual(values=cols[c(3,5)])+
+  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
+  scale_color_manual(values=cols[c(3,5)])+
+  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
 
 
 
