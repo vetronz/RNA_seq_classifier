@@ -92,6 +92,10 @@ euclidean_distance <- function(p,q){
   sqrt(sum((p - q)^2))
 }
 
+logistic.func <- function(x){
+  1/(1+(exp(-(x))))
+}
+
 norm_vec <- function(x) sqrt(sum(x^2))
 
 # n = 8
@@ -374,8 +378,8 @@ cell.lines <- cell.lines[-c(which(as.character(cell.lines$p.val)=='NaN')),]
 cell.lines$p.val <- as.numeric(as.character(cell.lines$p.val))
 
 # select significantly differentially expressed cell lines between b.v
-cell.lines[cell.lines$p.val <0.1 ,]
-sig.cells <- as.character(cell.lines[cell.lines$p.val <0.1 ,]$cell)
+cell.lines[cell.lines$p.val <0.05 ,]
+sig.cells <- as.character(cell.lines[cell.lines$p.val <0.05 ,]$cell)
 sig.cells
 
 # filter df.1 by sig genes
@@ -386,7 +390,7 @@ a<-gather(df.1.sig)
 dim(a)
 
 # create a label colup to split boxplot on
-label.col <- rep(c(rep('bacterial', dim(split.df[[1]])[1]), rep('viral', dim(split.df[[2]])[1])), 10)
+label.col <- rep(c(rep('bacterial', dim(split.df[[1]])[1]), rep('viral', dim(split.df[[2]])[1])), length(sig.cells))
 length(label.col)
 a$label <- label.col
 
@@ -441,6 +445,35 @@ ggplot(df, aes(V2, V1)) +
 X.dis.fit <- as.data.frame(X.dis[,x_mean > 5])
 dim(X.dis.fit)
 
+
+# # adding CRP to limma
+# status.cyber.idx$array.contemporary.CRP <- as.numeric(as.character(status.cyber.idx$array.contemporary.CRP))
+# a <- as.numeric(as.character(status.cyber.idx$array.contemporary.CRP))
+# b<-is.na(a)
+# b
+# 
+# # empty crp cases, HC and Viral
+# status.cyber.idx$most_general[b]
+# 
+# # empty viral crp index, reverse it to select vrl with crp values
+# is.na(a[status.cyber.idx$most_general=='viral'])==FALSE
+# 
+# # define median viral crp
+# vrl.crp.med <- median(a[status.cyber.idx$most_general=='viral'][is.na(a[status.cyber.idx$most_general=='viral'])==FALSE])
+# vrl.crp.med
+# 
+# # set empty viral crp values to vrl.crp.med
+# is.na(a[status.cyber.idx$most_general=='viral'])
+# status.cyber.idx$array.contemporary.CRP[status.cyber.idx$most_general=='viral'][is.na(a[status.cyber.idx$most_general=='viral'])] <- vrl.crp.med
+# 
+# # define HC NA index, pass status.cyber.idx and set na values to 1
+# is.na(status.cyber.idx$array.contemporary.CRP[status.cyber.idx$most_general == 'HC'])
+# status.cyber.idx$array.contemporary.CRP[is.na(status.cyber.idx$array.contemporary.CRP)] <- 1
+# 
+# # check no NA values
+# sum(is.na(status.cyber.idx$array.contemporary.CRP))
+
+
 # initialize d.dis.lim to add the cybersort covariates
 X.dis.lim <- X.dis.fit
 sig.cells
@@ -457,7 +490,10 @@ X.dis.lim$T.cells.CD4.memory.activated <- status.cyber.idx$T.cells.CD4.memory.ac
 X.dis.lim$NK.cells.resting <- status.cyber.idx$NK.cells.resting
 X.dis.lim$Monocytes <- status.cyber.idx$Monocytes
 X.dis.lim$Macrophages.M0 <- status.cyber.idx$Macrophages.M0
-X.dis.lim$Neutrophils <- status.cyber.idx$Neutrophils
+# X.dis.lim$Neutrophils <- status.cyber.idx$Neutrophils
+
+# X.dis.lim$crp <- status.cyber.idx$array.contemporary.CRP
+
 
 # check 8 columns added
 dim(X.dis.lim)
@@ -466,11 +502,15 @@ dim(X.dis.lim)
 design <- model.matrix(~label + sex + age + B.cells.naive + B.cells.memory +
                          Plasma.cells + T.cells.CD8 + T.cells.CD4.naive +
                          T.cells.CD4.memory.activated + NK.cells.resting +
-                         Monocytes + Macrophages.M0 + Neutrophils + 0,
+                         Monocytes + Macrophages.M0 + 0,
+                         # Monocytes + Macrophages.M0 + Neutrophils + 0,
+                         # Monocytes + Macrophages.M0 + Neutrophils + crp + 0, # crp line
                        data = X.dis.lim)
 colnames(design)<- c("bct","greyb",'greyu', "greyv", 'vrl', 'HC', 'sexM', 'age',
                      'b.naive', 'b.mem', 'plasma', 'CD8', 'CD4.naive', 'CD4.mem',
-                     'nk.rest', 'mono', 'macrophage', 'neut')
+                     'nk.rest', 'mono', 'macrophage')
+                     # 'nk.rest', 'mono', 'macrophage', 'neut')
+                     # 'nk.rest', 'mono', 'macrophage', 'neut', 'crp') # crp line
 
 # check preserved order between cyber and X.dis.lim
 design[1:5,]
@@ -644,7 +684,7 @@ fold_id <- sample(1:10, size = dim(X)[1], replace=TRUE)
 
 # search across a range of alphas
 tuning_grid <- tibble::tibble(
-  alpha      = seq(0, 1, by = 0.02),
+  alpha      = seq(0, 1, by = 0.05),
   mse_min    = NA,
   mse_1se    = NA,
   lambda_min = NA,
@@ -664,17 +704,18 @@ for(i in seq_along(tuning_grid$alpha)) {
   Sys.sleep(0.25)
 }
 
-tuning_grid %>%
-  mutate(se = mse_1se - mse_min) %>%
-  ggplot(aes(alpha, mse_min)) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
-  ggtitle("MSE ± one standard error")
-
 # select the alpha with the lowest associated mse
 opt.alpha <- tuning_grid$alpha[which.min(tuning_grid$mse_min)]
 # opt.alpha <- 0.5
 print(paste0('optimal alpha for elastic-net: ', opt.alpha))
+
+tuning_grid %>%
+  mutate(se = mse_1se - mse_min) %>%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 1) +
+  geom_vline(xintercept = opt.alpha)+
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  ggtitle("MSE ± one standard error")
 
 # fit a cv model with opt alpha to assess lambda
 fit.cv <- cv.glmnet(X, y, alpha = opt.alpha, foldid = fold_id)
@@ -687,16 +728,6 @@ opt.lambda
 # log and add to plot to make sure it looks reasonable
 log(opt.lambda)
 abline(v=log(opt.lambda))
-
-# check the opt.alpha looks correct
-tuning_grid %>%
-  mutate(se = mse_1se - mse_min) %>%
-  ggplot(aes(alpha, mse_min)) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
-  geom_vline(xintercept = opt.alpha)+
-ggtitle("MSE ± one standard error")
-
 
 ## opt elastic
 elastic <- glmnet(X, y, alpha = opt.alpha)
@@ -921,7 +952,6 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 # X.s$bct <- as.factor(X.s$bct)
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
-
 # PB SELECTION
 X.psd <- X.s
 X.psd$most_general <- status.idx.d$most_general
@@ -1004,9 +1034,9 @@ for(i in 1:250){
       if(i < 90){
         b.thresh = b.thresh-0.001
       } else if(i < 150){
-        b.thresh = b.thresh-0.002
+        b.thresh = b.thresh-0.001
       } else {
-        b.thresh = b.thresh-0.04
+        b.thresh = b.thresh-0.02
       } 
     }
   }
@@ -1039,15 +1069,6 @@ ppb.h.df$b.thresh.h[ppb.h.df$b.thresh.h == min(ppb.h.df$b.thresh.h)] <- 0
 
 ppb.h.df
 
-# select the abs max jump to set as a query pseudo labeling cut off
-psd.opt <- which.max(abs(diff(ppb.h.df$bct.prob)))
-
-ggplot(ppb.h.df, aes(pb.case, bct.prob))+
-  geom_vline(xintercept = psd.opt + 0.5)+
-  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=3.2)
-
-
-
 # select ROC derivative as query pseudo labeling cut off
 a <- lm(formula = roc.a ~ splines::bs(pb.case, 3), data=ppb.h.df)
 
@@ -1058,6 +1079,13 @@ ggplot(ppb.h.df, aes(pb.case, roc.a))+
   labs(title='Iterative Pseudo-labeling Error', x='PB', y='ROCA')+
   geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE)+
   geom_vline(xintercept = ppb.opt)
+
+# select the abs max jump to set as a query pseudo labeling cut off
+psd.opt <- which.max(abs(diff(ppb.h.df$bct.prob)))
+ggplot(ppb.h.df, aes(pb.case, bct.prob))+
+  geom_vline(xintercept = psd.opt + 0.5)+
+  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2.7)
+
 
 ppb.opt
 psd.opt
@@ -1222,7 +1250,7 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 # select the optimal pb labels
-# ppb.opt <- 10
+ppb.opt <- psd.opt
 ppb.h.df[1:ppb.opt,]$ppb.h
 
 # find optimal pb labels in status.idx.d
@@ -1350,6 +1378,45 @@ for (i in 1:boot){
 
 table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
 f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+
+nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+                        hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+
+prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
+prob.opt.val.b.v.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
+
+pr.all <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
+pr.b.v <- prediction(prob.opt.val.b.v.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
+
+roc.perf.all <- performance(pr.all, measure = "tpr", x.measure = "fpr")
+pr.all %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+roc.perf.b.v <- performance(pr.b.v, measure = "tpr", x.measure = "fpr")
+pr.b.v %>%
+  performance(measure = "auc") %>%
+  .@y.values
+
+roc.perf.all
+x <- attr(roc.perf.all, 'x.values')
+x <- x[[1]]
+y <- attr(roc.perf.all, 'y.values')
+y <- y[[1]]
+
+df.1 <- as.data.frame(cbind(x,y))
+
+x <- attr(roc.perf.b.v, 'x.values')
+x <- x[[1]]
+y <- attr(roc.perf.b.v, 'y.values')
+y <- y[[1]]
+
+df.2 <- as.data.frame(cbind(x,y))
+
+ggplot(df.1, aes(x,y))+
+  geom_line()+
+  geom_line(data = df.2, aes(x,y), color='red')+
+  labs(title='ROC Curve for Pseudo-labeled Network', x='1 - TNR', y='TPR')
 
 
 # compare F1 scores between normal and psed bootstraps
@@ -1535,9 +1602,6 @@ sum(rownames(drs.val) == rownames(X.s.e.val))
 # add bct vector
 drs.val$bct <- drs.val$most_general == 'bacterial'
 
-# filter only bv cases
-# drs.val <- drs.val[bv.filt,]
-dim(drs.val)
 
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                         hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
@@ -1559,11 +1623,45 @@ nn.psd.val$most_general <- status.i.idx.d$most_general
 # p + geom_dotplot(binaxis='y', stackdir='center', dotsize=0.6, alpha=0.5)
 
 
+
 ggplot(nn.psd.val, aes(most_general, prob, color=most_general)) +
-  geom_jitter(width = 0.3, height = 0.002)
-  # geom_text(label=rownames(nn.psd.val))
+  geom_violin(alpha=0.2)+
+  geom_jitter(width = 0.25, height = 0.002)+
+  stat_summary(fun.y = "mean", geom = "point", 
+               shape = 8, size = 3, color = "black" ) +
+  stat_summary(fun.y = "median", geom = "point", 
+               shape = 2, size = 3, color = "black" )
+
 ggplot(drs.val, aes(most_general, DRS, color=most_general)) +
-  geom_jitter(width = 0.3, height = 0.002)
+  geom_violin(alpha=0.2)+
+  geom_jitter(width = 0.2, height = 0.002)+
+  stat_summary(fun.y = "mean", geom = "point", 
+               shape = 8, size = 3, color = "black" ) +
+  stat_summary(fun.y = "median", geom = "point", 
+               shape = 2, size = 3, color = "black" )
+
+a <- cbind(nn.psd.val, drs.val)
+
+dim(a)
+
+a <- cbind(nn.psd.val, drs.val)
+
+a[,c(2,4,5)] <- NULL
+
+range01(a$DRS)
+logistic.func(a$DRS)
+a$scale.drs <- scale01(a$DRS)
+
+a
+b <- a[status.i.idx.d$most_general=='probable_viral',]
+
+b$DRS <- NULL
+c<-gather(b, 'model', 'result')
+ggplot(c, aes(result, fill=model))+geom_density(alpha=0.2)
+
+
+
+
 
 # create pb and unknown filter
 pb.filt <- status.i.idx.d$most_general=='probable_bacterial'
