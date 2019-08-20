@@ -761,14 +761,17 @@ X.s <- X.s.e
 dim(X.s)
 
 
-## CROSS VALIDATION MODEL EVALUATION
+###### CROSS VALIDATION MODEL EVALUATION ######
+print(paste0('bacterial cases: ', sum(X.s$bct)))
+
 prop1 <- 0.75
 prop2 <- 0.7
-boot <- 8
+boot <- 1
 
 n_folds <- 5
 n.train <- round(nrow(X.s))
 
+set.seed(2)
 folds.i <- sample(rep(1:n_folds, length.out = n.train))
 
 logistic.m <- NULL
@@ -778,23 +781,20 @@ nn.m <- NULL
 svm.m <- NULL
 df.2.list <- NULL
 df.3 <- NULL
+
 for(j in 1:boot){
   for (k in 1:n_folds) {
     print(paste0('boot: ', j, ', fold: ', k))
     
     test.i <- which(folds.i == k)
     
-    # normal
-    # train.cv <- X.s[-test.i, ]
-    # test.cv <- X.s[test.i, ]
-    
-    # lasso
     train.cv <- X.s[-test.i, ]
     test.cv <- X.s[test.i, ]
     
     # factoring cv data
     train.cv.fac <- train.cv
     train.cv.fac$bct <- as.factor(train.cv$bct)
+    
     test.cv.fac <- test.cv
     test.cv.fac$bct <- as.factor(test.cv$bct)
     
@@ -815,50 +815,29 @@ for(j in 1:boot){
     model <- train(bct ~., data = train.cv.fac, method = "knn",
                    trControl=trctrl,
                    tuneLength = 10)
-
     knn.opt <- model$results$k[which.max(model$results$Accuracy)]
-    # train
     p <- knn(train.cv[-ncol(train.cv)], test.cv[-ncol(test.cv)], train.cv$bct,  k=knn.opt, prob=TRUE)
-
-    # display the confusion matrix
-    # table(p, test$bct)
-    # attributes(pred)
     p<-attr(p, "prob")
     p<-1-p
-
-    # plot(model, print.thres = 0.5, type="S")
-    # confusionMatrix(p, test$bct)
     pr <- prediction(p, test.cv$bct)
-
-    # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-    # plot(prf)
-
     knn.m[k] <- pr %>%
       performance(measure = "auc") %>%
       .@y.values
-    
-  
+
     ### RANDOM FORREST
-    model <- randomForest(bct ~ . , data = train.cv.fac, sample_size=1)
-    # plot(model)
-    # attributes(model)
-    # model$mtry # number of variables considered by each tree
+    model <- randomForest(bct ~ . , data = train.cv.fac,
+                          nodesize = 1)
     pred<-predict(model , test.cv.fac[-ncol(test.cv.fac)])
-    # attributes(pred)
-    # model=randomForest(x,y,xtest=x,ytest=y,keep.forest=TRUE)
     model.prob <- predict(model, test.cv.fac, type="prob")
     p <- model.prob[,2]
     pr <- prediction(p, test.cv$bct)
-    # prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-    # plot(prf)
     randForrest.m[k] <- pr %>%
       performance(measure = "auc") %>%
       .@y.values
     
     ### Neural Net
     nn <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
-                       hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-    
+                       hidden = 1, rep = 5, stepmax = 1e+07, startweights = NULL, err.fct = "sse")
     
     p <- predict(nn, test.cv[-ncol(test.cv)])
     pr <- prediction(p, test.cv$bct)
@@ -866,20 +845,19 @@ for(j in 1:boot){
       performance(measure = "auc") %>%
       .@y.values
     
-    
     ### SVM
-    model <- svm(bct ~ . , train.cv.fac, probability = TRUE)
+    model <- svm(bct ~ . , train.cv.fac, kernel = "linear", probability = TRUE)
     pred <- predict(model, test.cv.fac, probability = TRUE)
-    p<-attr(pred, "prob")
-    pr <- prediction(p[,2], test.cv$bct)
-    # plot(prf)
+    p <- attr(pred, "prob")[,2]
+    pr <- prediction(p, test.cv$bct)
     svm.m[k] <- pr %>%
       performance(measure = "auc") %>%
       .@y.values
     Sys.sleep(1)
   }
-# df.1 <- as.data.frame(cbind(randForrest.m, nn.m, svm.m))
+
 df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
+# df.1 <- as.data.frame(cbind(randForrest.m, nn.m, svm.m))
 df.2 <- gather(df.1, learner, roc)
 df.2$roc <- unlist(df.2$roc)
 df.2$learner <- factor(df.2$learner)
@@ -887,14 +865,30 @@ df.2.list[[j]] <- df.2
 }
 
 print(paste0('boots: ', boot))
-# df.3 <- rbind(df.2.list[[1]])
-              
-# df.3 <- rbind(df.2.list[[1]], df.2.list[[2]], df.2.list[[3]],
-              # df.2.list[[4]])
 
-df.3 <- rbind(df.2.list[[1]], df.2.list[[2]], df.2.list[[3]],
-df.2.list[[4]], df.2.list[[5]], df.2.list[[6]],
-df.2.list[[7]], df.2.list[[8]])
+df.3 <- rbind(df.2.list[[1]])
+
+dim(df.3)
+5*n_folds*boot
+
+ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
+  labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
+     x ="density", y = "roc area")
+ggplot(df.3, aes(learner, roc, color = learner)) + geom_boxplot()
+
+# detach("package:plyr", unload=TRUE)
+df.3 %>%
+  group_by(learner) %>%
+  summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
+
+
+
+# df.3 <- rbind(df.2.list[[1]], df.2.list[[2]], df.2.list[[3]],
+# df.2.list[[4]])
+
+# df.3 <- rbind(df.2.list[[1]], df.2.list[[2]], df.2.list[[3]],
+# df.2.list[[4]], df.2.list[[5]], df.2.list[[6]],
+# df.2.list[[7]], df.2.list[[8]])
 
 # df.3 <- rbind(df.2.list[[1]], df.2.list[[2]], df.2.list[[3]],
 #               df.2.list[[4]], df.2.list[[5]], df.2.list[[6]],
@@ -902,19 +896,6 @@ df.2.list[[7]], df.2.list[[8]])
 #               df.2.list[[10]], df.2.list[[11]], df.2.list[[12]],
 #               df.2.list[[13]], df.2.list[[14]], df.2.list[[15]],
 #               df.2.list[[16]])
-
-dim(df.3)
-3*n_folds*boot
-
-ggplot(df.3, aes(learner, roc, color = learner)) + geom_boxplot()
-ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
-  labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
-     x ="density", y = "roc area")
-
-# detach("package:plyr", unload=TRUE)
-df.3 %>%
-  group_by(learner) %>%
-  summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
 
 
 ### train, val, test split function 
@@ -1051,22 +1032,25 @@ print(paste0('bacterial cases: ', sum(X.psd$bct==TRUE),
 # options(scipen=999)
 # construct the ppb dataframe
 
-ppb.h.df <- as.data.frame(cbind(ppb.h, round(ppb.prob.h, 4), b.thresh.h))
+# ppb.h.df <- as.data.frame(cbind(ppb.h, round(ppb.prob.h, 4), b.thresh.h))
+# 
+# # removes rows from dataframe where no greyb cases were added
+# ppb.h.df <- ppb.h.df[complete.cases(ppb.h.df),]
+# 
+# ppb.h.df$pb.case <- seq(1:dim(ppb.h.df)[1])
+# colnames(ppb.h.df)[2] <- 'bct.prob'
+# ppb.h.df$roc.a <- unlist(roc.h.psd)
+# 
+# # convert factors to numbers
+# ppb.h.df$bct.prob <- as.numeric(as.character(ppb.h.df$bct.prob))
+# ppb.h.df$b.thresh.h <- as.numeric(as.character(ppb.h.df$b.thresh.h))
+# 
+# # set the minimum bac.thresh to 0
+# ppb.h.df$b.thresh.h[ppb.h.df$b.thresh.h == min(ppb.h.df$b.thresh.h)] <- 0
 
-# removes rows from dataframe where no greyb cases were added
-ppb.h.df <- ppb.h.df[complete.cases(ppb.h.df),]
-
-ppb.h.df$pb.case <- seq(1:dim(ppb.h.df)[1])
-colnames(ppb.h.df)[2] <- 'bct.prob'
-ppb.h.df$roc.a <- unlist(roc.h.psd)
-
-# convert factors to numbers
-ppb.h.df$bct.prob <- as.numeric(as.character(ppb.h.df$bct.prob))
-ppb.h.df$b.thresh.h <- as.numeric(as.character(ppb.h.df$b.thresh.h))
-
-# set the minimum bac.thresh to 0
-ppb.h.df$b.thresh.h[ppb.h.df$b.thresh.h == min(ppb.h.df$b.thresh.h)] <- 0
-
+setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
+# saveRDS(ppb.h.df, "ppb.h.df.rds")
+ppb.h.df <- readRDS("ppb.h.df.rds")
 ppb.h.df
 
 # select ROC derivative as query pseudo labeling cut off
@@ -1083,7 +1067,8 @@ ggplot(ppb.h.df, aes(pb.case, roc.a))+
 # select the abs max jump to set as a query pseudo labeling cut off
 psd.opt <- which.max(abs(diff(ppb.h.df$bct.prob)))
 ggplot(ppb.h.df, aes(pb.case, bct.prob))+
-  geom_vline(xintercept = psd.opt + 0.5)+
+  # geom_vline(xintercept = psd.opt + 0.5)+
+  geom_vline(xintercept = ppb.opt + 0.5)+
   geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2.7)
 
 
@@ -1100,7 +1085,7 @@ X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 # OPTIMIZATION
-boot <- 8
+boot <- 32
 h.n <- 15
 roc.a <- NULL
 roc.t <- NULL
@@ -1186,6 +1171,67 @@ mod.complexity.df %>%
   head(10)
 
 opt.h.n <- which.max(mod.complexity.df$test)
+
+
+
+# neural net grid search
+hyper_grid <- NULL
+hyper_grid <- expand.grid(
+  h.n = seq(1:10),
+  activation = c('logistic', 'tanh'),
+  error = c('sse', 'ce')
+)
+
+head(hyper_grid)
+dim(hyper_grid)
+
+index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+train.cv <- X.s[index,]
+test.cv <- X.s[-index,]
+
+j.train <- NULL
+j.test <- NULL
+for(i in 1:nrow(hyper_grid)) {
+  print(i)
+  # train model
+  nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE,
+                   act.fct = hyper_grid$activation[i],
+                   err.fct = hyper_grid$error[i],
+                   hidden = hyper_grid$h.n[i],
+                   rep = 3, stepmax = 1e+06, startweights = NULL)
+  
+  pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
+  pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
+
+  # extract error
+  j.train[i] <- prediction(pred.train[,1], train.cv$bct) %>%
+    performance(measure = "auc") %>%
+    .@y.values
+  
+  j.test[i] <- prediction(pred.test[,1], test.cv$bct) %>%
+    performance(measure = "auc") %>%
+    .@y.values
+}
+
+a <- as.data.frame(cbind(unlist(j.train),unlist(j.test)))
+
+hyper_grid$j.test <- a$V1
+hyper_grid$j.train <- a$V2
+
+hyper_grid
+
+hyper_grid$j.test
+
+order(hyper_grid$j.test, decreasing = TRUE)
+hyper_grid[order(hyper_grid$j.test, decreasing = TRUE),]
+
+
+
+# plot_ly(hyper_grid, x = ~mtry, y = ~node_size, z = ~OOB_MSE, color = ~OOB_MSE)
+
+
+
+
 
 
 # neural opt, val
