@@ -1174,60 +1174,139 @@ opt.h.n <- which.max(mod.complexity.df$test)
 
 
 
-# neural net grid search
+### neural net grid search
+h.n <- 15
 hyper_grid <- NULL
 hyper_grid <- expand.grid(
-  h.n = seq(1:10),
+  h.n = seq(1:h.n),
   activation = c('logistic', 'tanh'),
   error = c('sse', 'ce')
 )
 
+# tanh activation with cross entropy does not work so remove
+hyper_grid
+hyper_grid <- hyper_grid[1:(h.n * 3),]
+
 head(hyper_grid)
 dim(hyper_grid)
 
-index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-train.cv <- X.s[index,]
-test.cv <- X.s[-index,]
-
+roc.a <- NULL
+roc.t <- NULL
 j.train <- NULL
 j.test <- NULL
-for(i in 1:nrow(hyper_grid)) {
-  print(i)
-  # train model
-  nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE,
-                   act.fct = hyper_grid$activation[i],
-                   err.fct = hyper_grid$error[i],
-                   hidden = hyper_grid$h.n[i],
-                   rep = 3, stepmax = 1e+06, startweights = NULL)
-  
-  pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
-  pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
+h.n.hx <- NULL
+roc.train <- NULL
+roc.train.me <- NULL
+roc.test <- NULL
+roc.test.me <- NULL
 
-  # extract error
-  j.train[i] <- prediction(pred.train[,1], train.cv$bct) %>%
-    performance(measure = "auc") %>%
-    .@y.values
+for(i in 1:nrow(hyper_grid)) {
+  # for (k in 1:n_folds) {
+  for (k in 1:boot) {
+    print(paste0('hyper: ', i, ', fold/boot: ', k))
+    
+    # boot
+    index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+    train.cv <- X.s[index,]
+    test.cv <- X.s[-index,]
+    
+    # CV
+    # test.i <- which(folds.i == k)
+    # train.cv <- X.s[-test.i, ]
+    # test.cv <- X.s[test.i, ]
+    
+    # dim(train.cv)
+    
+    # train model
+    nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE,
+                     act.fct = hyper_grid$activation[i],
+                     err.fct = hyper_grid$error[i],
+                     hidden = hyper_grid$h.n[i],
+                     rep = 3, stepmax = 1e+06, startweights = NULL)
+    
+    pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
+    pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
   
-  j.test[i] <- prediction(pred.test[,1], test.cv$bct) %>%
-    performance(measure = "auc") %>%
-    .@y.values
+    # extract error
+    j.train[k] <- prediction(pred.train[,1], train.cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
+    j.test[k] <- prediction(pred.test[,1], test.cv$bct) %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    Sys.sleep(0.5)
+  }
+  
+  full.list <- c(j.train, j.test)
+  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+  colnames(full.df) <- 'roc.A'
+  
+  full.df$class <- as.factor(sort(rep(seq(1:(length(full.list)/k)), k)))
+  full.df$class <- ifelse(full.df$class == 1, 'j.train', 'j.test')
+  
+  roc.stats <- full.df %>%
+    group_by(class) %>%
+    summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
+  
+  roc.stats <- roc.stats %>% mutate(
+    roc.se = roc.sd/sqrt(k),
+    z.stat = qnorm(0.975),
+    roc.me = z.stat * roc.se
+  )
+  h.n.hx[i] <- i
+  roc.test[i] <- roc.stats$roc.med[1]
+  roc.test.me[i] <- roc.stats$roc.me[1]
+  roc.train[i] <- roc.stats$roc.med[2]
+  roc.train.me[i] <- roc.stats$roc.me[2]
+  Sys.sleep(2)
 }
 
-a <- as.data.frame(cbind(unlist(j.train),unlist(j.test)))
+hyper_grid$roc.train <- roc.train
+hyper_grid$roc.train.me <- roc.train.me
 
-hyper_grid$j.test <- a$V1
-hyper_grid$j.train <- a$V2
+hyper_grid$roc.test <- roc.test
+hyper_grid$roc.test.me <- roc.test.me
 
+
+hyper_grid$funcs <- ifelse(hyper_grid$activation == 'tanh', 'tanh_sse',
+                           ifelse(hyper_grid$error == 'ce',
+                                  'logistic_ce', 'logistic_sse'))
 hyper_grid
+hyper.split <- split(hyper_grid, hyper_grid$funcs)
+hyper.split[[1]]
 
-hyper_grid$j.test
+pd <- position_dodge(0.3)
+ggplot(hyper_grid, aes(h.n, roc.test, group=funcs))+
+  scale_y_continuous(limits = c(0.75,1))+
+  geom_line(aes(color=funcs))+
+    geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color=funcs), width=.3, position=pd)
 
-order(hyper_grid$j.test, decreasing = TRUE)
-hyper_grid[order(hyper_grid$j.test, decreasing = TRUE),]
 
+hyper_grid[order(hyper_grid$roc.test, decreasing = TRUE),][1:5,]
 
+ggplot(hyper.split[[1]], aes(x=h.n, y=roc.train, color='roc.train')) +
+  geom_line(aes(y=roc.train))+
+  geom_errorbar(aes(ymin=roc.train-roc.train.me, ymax=roc.train+roc.train.me), width=.4, position=pd)+
+  geom_line(aes(y=roc.test, color='roc.test'))+
+  geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color='roc.test'), width=0.4)+
+  labs(title=paste0('Bias-Variance Trade Off, ', hyper.split[[1]]$funcs[1],  ' NeuralNet - Non Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
 
-# plot_ly(hyper_grid, x = ~mtry, y = ~node_size, z = ~OOB_MSE, color = ~OOB_MSE)
+ggplot(hyper.split[[2]], aes(x=h.n, y=roc.train, color='roc.train')) +
+  geom_line(aes(y=roc.train))+
+  geom_errorbar(aes(ymin=roc.train-roc.train.me, ymax=roc.train+roc.train.me), width=.4, position=pd)+
+  geom_line(aes(y=roc.test, color='roc.test'))+
+  geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color='roc.test'), width=0.4)+
+  labs(title=paste0('Bias-Variance Trade Off, ', hyper.split[[2]]$funcs[1],  ' NeuralNet - Non Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
+
+ggplot(hyper.split[[3]], aes(x=h.n, y=roc.train, color='roc.train')) +
+  scale_y_continuous(limits = c(.8,1))+
+  geom_line(aes(y=roc.train))+
+  geom_errorbar(aes(ymin=roc.train-roc.train.me, ymax=roc.train+roc.train.me), width=.4, position=pd)+
+  geom_line(aes(y=roc.test, color='roc.test'))+
+  geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color='roc.test'), width=0.4)+
+  labs(title=paste0('Bias-Variance Trade Off, ', hyper.split[[3]]$funcs[1],  ' NeuralNet - Non Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
+
 
 
 
