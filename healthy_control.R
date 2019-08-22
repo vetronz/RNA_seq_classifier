@@ -23,6 +23,7 @@ library(sva)
 library(splitstackshape) # stratified sampling
 library(plotly)
 library(glmnet)
+library(ggrepel)
 
 # install.packages("XYZ")
 
@@ -52,6 +53,7 @@ clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FA
 
 # Sys.setenv("plotly_username"="vetronz")
 # Sys.setenv("plotly_api_key"="OhacJkwCAaZOcC0wHPhp")
+
 
 
 # 
@@ -926,157 +928,6 @@ df.3 %>%
 
 
 ###### NEURAL ######
-# remove pseudo labels
-status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
-table(status.idx.d$most_general)
-X.s$bct <- status.idx.d$most_general == 'bacterial'
-# X.s$bct <- as.factor(X.s$bct)
-print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
-
-# PB SELECTION
-X.psd <- X.s
-X.psd$most_general <- status.idx.d$most_general
-dim(X.psd)
-
-prop1 <- 0.75
-
-b.thresh <- 0.999
-nn.psd.df <- NULL
-ppb.h <- NULL
-ppb.prob.h <- NULL
-roc.h.psd <- NULL
-b.thresh.h <- NULL
-for(i in 1:250){
-  if (sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct==FALSE) == 0) {
-    print(paste0('Breaking at iteration: ' , i, ', PB cases: ', sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct==FALSE)))
-    break
-  }
-  index <- sample(nrow(X.psd), round(prop1*nrow(X.psd)))
-  train.cv <- X.psd[index, ]
-  test.cv <- X.psd[-index, ]
-  
-  dim(train.cv)
-  dim(test.cv)
-  
-  pb.psd <- which(test.cv$most_general == 'probable_bacterial' & test.cv$bct == TRUE)
-  # dim(test.cv[pb.psd,])
-  
-  if(identical(pb.psd, integer(0))){
-    print('pass')
-  } else{
-    print('some pseudo labels')
-    
-    # add the pseudo-labaled PB cases to train set
-    train.cv <- rbind(train.cv, test.cv[pb.psd,])
-    
-    # select all rows except the matched pb.psd case and remove from test.cv
-    test.cv <- test.cv[-c(match(rownames(test.cv[pb.psd,]), rownames(test.cv))),]
-  }
-  
-  model <- neuralnet(bct ~ . , train.cv[-ncol(train.cv)], linear.output = FALSE, act.fct = "logistic",
-                     hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-  
-  pred <- predict(model, test.cv[-((ncol(test.cv)-1):ncol(test.cv))])
-  
-  # create a filter to extract the pb cases from both
-  pb.filt <- test.cv$most_general == 'probable_bacterial'
-  
-  # which.max(pred[pb.filt,])
-  ppb <- names(which.max(pred[pb.filt,]))
-  ppb.prob <- max(pred[pb.filt])
-  
-  if(ppb.prob > b.thresh){
-    # check ROC performance BEFORE changing PB label
-    # this is despite the fact we trained the network outside of if statement
-    # this prevents the PB pseudolabels in to train set arrtificially elevating ROC
-    # by improving detection of PB case.
-    pr <- prediction(pred, test.cv$bct)
-    roc.h.psd[i] <- pr %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    # pseudo label the ppb case
-    X.psd$most_general[match(ppb, rownames(X.psd))]
-    X.psd$bct[match(ppb, rownames(X.psd))]
-    X.psd$bct[match(ppb, rownames(X.psd))] <- TRUE
-    
-    # pseudo label the ppb case
-    # status.idx.d$most_general[which(status.idx.d$my_category_2 == ppb)] <- 'bacterial'
-    # X.s$bct <- status.idx.d$most_general == 'bacterial'
-    # X.s$bct <- as.factor(X.s$bct)
-    print(paste0('PB Case: ', ppb, ' added with P: ', round(ppb.prob, 5)))
-    print(paste0('iteration: ', i, ', bacterial cases: ', sum(X.psd$bct==TRUE), ', bac.threshold: ', b.thresh))
-    ppb.h[i] <- ppb
-    ppb.prob.h[i] <- ppb.prob
-    b.thresh.h[i] <- b.thresh
-  }  else {
-    if (b.thresh <= 0) {print(paste0('passing - B.Thresh: ', b.thresh)) }
-    else {
-      if(i < 90){
-        b.thresh = b.thresh-0.001
-      } else if(i < 150){
-        b.thresh = b.thresh-0.001
-      } else {
-        b.thresh = b.thresh-0.02
-      } 
-    }
-  }
-  Sys.sleep(0.25)
-}
-
-
-print(paste0('bacterial cases: ', sum(X.psd$bct==TRUE),
-             ', PB Cases: ', sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct == FALSE),
-             ', b.threshold: ', b.thresh))
-
-# options(scipen=999)
-# construct the ppb dataframe
-
-# ppb.h.df <- as.data.frame(cbind(ppb.h, round(ppb.prob.h, 4), b.thresh.h))
-# 
-# # removes rows from dataframe where no greyb cases were added
-# ppb.h.df <- ppb.h.df[complete.cases(ppb.h.df),]
-# 
-# ppb.h.df$pb.case <- seq(1:dim(ppb.h.df)[1])
-# colnames(ppb.h.df)[2] <- 'bct.prob'
-# ppb.h.df$roc.a <- unlist(roc.h.psd)
-# 
-# # convert factors to numbers
-# ppb.h.df$bct.prob <- as.numeric(as.character(ppb.h.df$bct.prob))
-# ppb.h.df$b.thresh.h <- as.numeric(as.character(ppb.h.df$b.thresh.h))
-# 
-# # set the minimum bac.thresh to 0
-# ppb.h.df$b.thresh.h[ppb.h.df$b.thresh.h == min(ppb.h.df$b.thresh.h)] <- 0
-
-setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
-# saveRDS(ppb.h.df, "ppb.h.df.rds")
-ppb.h.df <- readRDS("ppb.h.df.rds")
-ppb.h.df
-
-# select ROC derivative as query pseudo labeling cut off
-a <- lm(formula = roc.a ~ splines::bs(pb.case, 3), data=ppb.h.df)
-
-ppb.opt <- which.max(a$fitted.values)[[1]]
-ppb.opt
-ggplot(ppb.h.df, aes(pb.case, roc.a))+
-  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2.7)+
-  labs(title='Iterative Pseudo-labeling Error', x='PB', y='ROCA')+
-  geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE)+
-  geom_vline(xintercept = ppb.opt)
-
-# select the abs max jump to set as a query pseudo labeling cut off
-psd.opt <- which.max(abs(diff(ppb.h.df$bct.prob)))
-ggplot(ppb.h.df, aes(pb.case, bct.prob))+
-  # geom_vline(xintercept = psd.opt + 0.5)+
-  geom_vline(xintercept = ppb.opt + 0.5)+
-  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2.7)
-
-
-ppb.opt
-psd.opt
-
-# ppb.opt <- psd.opt # if we use the P drop cutoff
-
 ### NEURAL OPTIMIZATION
 # remove pseudo labels
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
@@ -1084,97 +935,8 @@ table(status.idx.d$most_general)
 X.s$bct <- status.idx.d$most_general == 'bacterial'
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
-# OPTIMIZATION
-boot <- 32
-h.n <- 15
-roc.a <- NULL
-roc.t <- NULL
-j.train <- NULL
-j.test <- NULL
-h.n.hx <- NULL
-roc.train <- NULL
-roc.train.me <- NULL
-roc.test <- NULL
-roc.test.me <- NULL
-
-for(i in 1:h.n){
-  for (k in 1:boot) {
-    # for (k in 1:n_folds) {
-    # print(paste0('hidden_nodes: ', i, ', fold: ', k))
-    
-    # test.i <- which(folds.i == k)
-    # train.cv <- X.s[-test.i, ]
-    # test.cv <- X.s[test.i, ]
-    
-    print(paste0('hidden Nodes: ', i, ', bootstrap: ', k))
-    index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-    train.cv <- X.s[index,]
-    test.cv <- X.s[-index,]
-    # dim(train.cv)
-    # dim(test.cv)
-    nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
-                     hidden = c(i), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-    
-    pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
-    pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
-    
-    j.train[k] <- prediction(pred.train[,1], train.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    j.test[k] <- prediction(pred.test[,1], test.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-  }
-  full.list <- c(j.train, j.test)
-  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-  colnames(full.df) <- 'roc.A'
-  
-  full.df$class <- as.factor(sort(rep(seq(1:(length(full.list)/k)), k)))
-  full.df$class <- ifelse(full.df$class == 1, 'j.train', 'j.test')
-  
-  roc.stats <- full.df %>%
-    group_by(class) %>%
-    summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
-  
-  roc.stats <- roc.stats %>% mutate(
-    roc.se = roc.sd/sqrt(k),
-    z.stat = qnorm(0.975),
-    roc.me = z.stat * roc.se
-  )
-  h.n.hx[i] <- i
-  roc.test[i] <- roc.stats$roc.med[1]
-  roc.test.me[i] <- roc.stats$roc.me[1]
-  roc.train[i] <- roc.stats$roc.med[2]
-  roc.train.me[i] <- roc.stats$roc.me[2]
-  Sys.sleep(0.1)
-}
-
-mod.complexity.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, h.n.hx))
-colnames(mod.complexity.df) <- c('train', 'test', 'train.me', 'test.me', 'h.n')
-
-pd <- position_dodge(0.2)
-ggplot(mod.complexity.df, aes(x=h.n, y=train, color='train')) +
-  scale_y_continuous(limits = c(0.80,1))+
-  geom_line(aes(y=train))+
-  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=.4, position=pd)+
-  geom_line(aes(y=test, color='test'))+
-  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.4, color='red')+
-  labs(title=paste0('Bias-Variance Trade Off - Non Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
-
-which.max(mod.complexity.df$test)
-mod.complexity.df[which.max(mod.complexity.df$test),]
-
-mod.complexity.df %>%
-  dplyr::arrange(desc(test))%>%
-  head(10)
-
-opt.h.n <- which.max(mod.complexity.df$test)
-
-
-
 ### neural net grid search
+boot <- 16
 h.n <- 15
 hyper_grid <- NULL
 hyper_grid <- expand.grid(
@@ -1368,7 +1130,140 @@ table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
 f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
 
 
-####### nrl psd #######
+###### PSEUDO LABELING ######
+# remove pseudo labels
+status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
+table(status.idx.d$most_general)
+X.s$bct <- status.idx.d$most_general == 'bacterial'
+# X.s$bct <- as.factor(X.s$bct)
+print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
+
+# Pseudo Labels
+X.psd <- X.s
+X.psd$most_general <- status.idx.d$most_general
+dim(X.psd)
+
+prop1 <- 0.75
+
+b.thresh <- 0.999
+nn.psd.df <- NULL
+ppb.h <- NULL
+ppb.prob.h <- NULL
+roc.h.psd <- NULL
+b.thresh.h <- NULL
+for(i in 1:250){
+  if (sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct==FALSE) == 0) {
+    print(paste0('Breaking at iteration: ' , i, ', PB cases: ', sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct==FALSE)))
+    break
+  }
+  index <- sample(nrow(X.psd), round(prop1*nrow(X.psd)))
+  train.cv <- X.psd[index, ]
+  test.cv <- X.psd[-index, ]
+  
+  dim(train.cv)
+  dim(test.cv)
+  
+  pb.psd <- which(test.cv$most_general == 'probable_bacterial' & test.cv$bct == TRUE)
+  # dim(test.cv[pb.psd,])
+  
+  if(identical(pb.psd, integer(0))){
+    print('pass')
+  } else{
+    print('some pseudo labels')
+    
+    # add the pseudo-labaled PB cases to train set
+    train.cv <- rbind(train.cv, test.cv[pb.psd,])
+    
+    # select all rows except the matched pb.psd case and remove from test.cv
+    test.cv <- test.cv[-c(match(rownames(test.cv[pb.psd,]), rownames(test.cv))),]
+  }
+  
+  model <- neuralnet(bct ~ . , train.cv[-ncol(train.cv)], linear.output = FALSE, act.fct = "logistic",
+                     hidden = 2, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+  
+  pred <- predict(model, test.cv[-((ncol(test.cv)-1):ncol(test.cv))])
+  
+  # create a filter to extract the pb cases from both
+  pb.filt <- test.cv$most_general == 'probable_bacterial'
+  
+  # which.max(pred[pb.filt,])
+  ppb <- names(which.max(pred[pb.filt,]))
+  ppb.prob <- max(pred[pb.filt])
+  
+  if(ppb.prob > b.thresh){
+    # check ROC performance BEFORE changing PB label
+    # this is despite the fact we trained the network outside of if statement
+    # this prevents the PB pseudolabels in to train set arrtificially elevating ROC
+    # by improving detection of PB case.
+    pr <- prediction(pred, test.cv$bct)
+    roc.h.psd[i] <- pr %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    
+    # pseudo label the ppb case
+    X.psd$most_general[match(ppb, rownames(X.psd))]
+    X.psd$bct[match(ppb, rownames(X.psd))]
+    X.psd$bct[match(ppb, rownames(X.psd))] <- TRUE
+    
+    # pseudo label the ppb case
+    # status.idx.d$most_general[which(status.idx.d$my_category_2 == ppb)] <- 'bacterial'
+    # X.s$bct <- status.idx.d$most_general == 'bacterial'
+    # X.s$bct <- as.factor(X.s$bct)
+    print(paste0('PB Case: ', ppb, ' added with P: ', round(ppb.prob, 5)))
+    print(paste0('iteration: ', i, ', bacterial cases: ', sum(X.psd$bct==TRUE), ', bac.threshold: ', b.thresh))
+    ppb.h[i] <- ppb
+    ppb.prob.h[i] <- ppb.prob
+    b.thresh.h[i] <- b.thresh
+  }  else {
+    if (b.thresh <= 0) {print(paste0('passing - B.Thresh: ', b.thresh)) }
+    else {
+      if(i < 90){
+        b.thresh = b.thresh-0.001
+      } else if(i < 150){
+        b.thresh = b.thresh-0.001
+      } else {
+        b.thresh = b.thresh-0.02
+      } 
+    }
+  }
+  Sys.sleep(0.25)
+}
+
+
+print(paste0('bacterial cases: ', sum(X.psd$bct==TRUE),
+             ', PB Cases: ', sum(X.psd$most_general == 'probable_bacterial' & X.psd$bct == FALSE),
+             ', b.threshold: ', b.thresh))
+
+setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
+# saveRDS(ppb.h.df, "ppb.h.df.rds")
+ppb.h.df <- readRDS("ppb.h.df.rds")
+ppb.h.df
+
+# select ROC derivative as query pseudo labeling cut off
+a <- lm(formula = roc.a ~ splines::bs(pb.case, 3), data=ppb.h.df)
+
+ppb.opt <- which.max(a$fitted.values)[[1]]
+ppb.opt
+ggplot(ppb.h.df, aes(pb.case, roc.a))+
+  geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2.7)+
+  labs(title='Iterative Pseudo-labeling Error', x='PB', y='ROCA')+
+  geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE)+
+  geom_vline(xintercept = ppb.opt)
+
+# select the abs max jump to set as a query pseudo labeling cut off
+psd.opt <- which.max(abs(diff(ppb.h.df$bct.prob)))
+ggplot(ppb.h.df, aes(pb.case, bct.prob))+
+  geom_vline(xintercept = ppb.opt + 0.5)+
+  # geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2)
+  geom_text_repel(aes(label=ppb.h), size=2, segment.colour=NA)
+
+
+ppb.opt
+psd.opt
+
+# ppb.opt <- psd.opt # if we use the P drop cutoff
+
+# remove pseudo labels
 status.idx.d <- status.idx[status.idx$most_general != 'healthy_control', ]
 table(status.idx.d$most_general)
 X.s$bct <- status.idx.d$most_general == 'bacterial'
@@ -1389,6 +1284,7 @@ status.idx.d$most_general[ppb.pos]
 status.idx.d$most_general[ppb.pos] <- 'bacterial' # add all pseudo labeled bct cases
 # status.idx.d$most_general[ppb.pos[1:22]] <- 'bacterial' # add only top 20 pbs to bct labels
 X.s$bct <- status.idx.d$most_general == 'bacterial'
+table(status.idx.d$most_general)
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 
