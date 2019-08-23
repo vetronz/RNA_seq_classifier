@@ -35,7 +35,7 @@ ip <- as.data.frame(installed.packages()[,c(1,3:4)])
 rownames(ip) <- NULL
 ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
 ip[which(ip$Package == 'sva'),]
-ip[which(ip$Package == 'glmnet'),]
+ip[which(ip$Package == 'limma'),]
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -47,16 +47,14 @@ cyber.s <- read.table('CIBERSORT.Output_Job14.csv', sep = ',', stringsAsFactors 
 setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data')
 clin <- read.table('Mega_sub1_Demographic.csv', sep = ',', stringsAsFactors = FALSE, fill = TRUE, header = TRUE)
 
-
 # Sys.setenv("plotly_username"="vetronz1992")
 # Sys.setenv("plotly_api_key"="Wtx9CzYqbl9iC8EzXp2B")
 
 # Sys.setenv("plotly_username"="vetronz")
 # Sys.setenv("plotly_api_key"="OhacJkwCAaZOcC0wHPhp")
 
+table(status$most_general)
 
-
-# 
 gg_color_hue <- function(n) {
   hues = seq(15, 375, length = n + 1)
   hcl(h = hues, l = 65, c = 100)[1:n]
@@ -114,7 +112,7 @@ norm_vec <- function(x) sqrt(sum(x^2))
 # clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
 
 
-###### COMBI ######
+###### Merge ######
 # discovery prep
 idx <- status$most_general == 'bacterial' |
   status$most_general == 'viral' |
@@ -234,37 +232,54 @@ dim(status.idx)[1]
 dim(status.i.idx)[1]
 
 # construct batch and response vectors
-batch <- as.factor(ifelse(c(rep(1, dim(status.idx)[1]),
-                            rep(2, dim(status.i.idx)[1])) == 1, 'discovery', 'iris'))
-bct.vec <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
+cohort <- as.factor(ifelse(c(rep(1, dim(status.idx)[1]),
+                            rep(2, dim(status.i.idx)[1])) == 1, 'dis', 'val'))
+bacterial <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
 
 ### PCA
-# full.pca <- prcomp(X.c.t, scale=TRUE)
+full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
-pair2 <- as.data.frame(full.pca$x[,3:4])
-pair3D <- as.data.frame(full.pca$x[,1:3])
-
-# fviz_eig(full.pca)
+pcs <- as.data.frame(full.pca$x[,1:4])
+pcs$cohort <- cohort
+pcs$bacterial <- bct.vec
+pcs[1:5,]
 
 ve <- full.pca$sdev^2
 pve <- ve/sum(ve)*100
 pve[1:5]
 
-# separation based on batch effect
-ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point() + 
-  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
-  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
-  scale_color_manual(values=cols[c(3,5)])+
-  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
-  scale_color_manual(values=cols[c(3,5)])+
-  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+# cohort and bacterial colors
+cohort.cols <- c('#ADB814', '#9A0794')
+bct.cols <- c('#283EA9', '#B43C22')
+
+# PCA Non Combat
+ggplot(data = pcs, aes(PC1, PC2, color=cohort))+geom_point(alpha=0.8)+
+scale_color_manual(values=cohort.cols)+
+  labs(x =paste0('PC1: ', round(pve[1]), ' % Variance '),
+       y = paste0('PC2: ', round(pve[2]), ' % Variance '))+
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18))+
+  guides(color = guide_legend(override.aes = list(size=4)))
 
 
-# COMBAT
+                           
+ggplot(data = pcs, aes(PC1, PC2, color=bacterial))+geom_point(alpha=0.8)+
+  scale_color_manual(values=bct.cols)+
+  labs(x =paste0('PC1: ', round(pve[1]), ' % Variance '),
+       y = paste0('PC2: ', round(pve[2]), ' % Variance '))+
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18))+
+  guides(color = guide_legend(override.aes = list(size=4)))
+
+
+###### ComBat ######
 # mod <- model.matrix(~label, data = X.c.t)
 # mod0 <- model.matrix(~1, data=X.c.t)
 modcombat <- model.matrix(~1, data=as.data.frame(X.c.t))
@@ -272,11 +287,11 @@ modcombat <- model.matrix(~1, data=as.data.frame(X.c.t))
 class(modcombat)
 
 dim(X.c)
-length(batch)
+length(cohort)
 # needed to transpose the matrix to work
 
-X.comb <- ComBat(X.c, batch=batch, mod=NULL)
-# ComBat(X.c.t, batch=batch, mod=mod0, par.prior=TRUE, prior.plots=FALSE)
+X.comb <- ComBat(X.c, batch=cohort, mod=NULL)
+# ComBat(X.c.t, batch=cohort, mod=mod0, par.prior=TRUE, prior.plots=FALSE)
 
 dim(X.comb)
 
@@ -287,34 +302,49 @@ X.c[1:5,1:5]
 # transpose for PCA
 X.comb <- as.data.frame(X.comb)
 X.comb.t <- t(X.comb)
-# pca.comb <- prcomp(X.comb.t, scale=TRUE)
+pca.comb <- prcomp(X.comb.t, scale=TRUE)
 
-pair1 <- as.data.frame(pca.comb$x[,1:2])
-pair2 <- as.data.frame(pca.comb$x[,3:4])
+pcs.comb <- as.data.frame(pca.comb$x[,1:4])
 
-ve <- full.pca$sdev^2
+# add partition vectors to the PCs
+pcs.comb$cohort <- cohort
+pcs.comb$bacterial <- bct.vec
+
+ve <- pca.comb$sdev^2
 pve <- ve/sum(ve)*100
 pve[1:5]
 
 # holy hell its worked
-ggplot(data = pair1, aes(PC1, PC2, color=batch))+geom_point() + 
-  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
-  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
-  scale_color_manual(values=cols[c(3,5)])+
-  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
-  scale_color_manual(values=cols[c(3,5)])+
-  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
+ggplot(data = pcs.comb, aes(PC1, PC2, color=cohort))+geom_point(alpha=0.8) + 
+  scale_color_manual(values=cohort.cols)+
+  labs(x =paste0('PC1: ', round(pve[1]), ' % Variance '),
+       y = paste0('PC2: ', round(pve[2]), ' % Variance '))+
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20))+
+  guides(color = guide_legend(override.aes = list(size=4)))
+
+ggplot(data = pcs.comb, aes(PC1, PC2, color=bacterial))+geom_point(alpha=0.8)+
+  scale_color_manual(values=bct.cols)+
+  labs(x =paste0('PC1: ', round(pve[1]), ' % Variance '),
+       y = paste0('PC2: ', round(pve[2]), ' % Variance '))+
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18))+
+  guides(color = guide_legend(override.aes = list(size=4)))
+
 
 
 # split the combat normalized matrix back into discovery and val datasets
 dim(status.idx)[1]
 dim(status.i.idx)[1]
 dim(X.comb.t)
-X.dis <- X.c.t[batch == 'discovery',]
-X.val <- X.c.t[batch == 'iris',]
+X.dis <- X.c.t[cohort == 'dis',]
+X.val <- X.c.t[cohort == 'val',]
 dim(X.dis)
 dim(X.val)
 
@@ -440,9 +470,14 @@ colnames(df) <- c('V1', 'V2')
 
 ggplot(df, aes(V2, V1)) +
   geom_vline(xintercept=log2(5))+
-  geom_point(size = 0.2, stroke = 0, shape = 16)+
-  labs(title="Mean Variance Scatter Plot",
-       x ="log2 Mean Expressioin", y = "log2 Variance")
+  geom_point(size = 0.4, stroke = 0, shape = 16)+
+  labs(x ="log2 Mean Expressioin", y = "log2 Variance")+
+  theme(axis.title=element_text(size=21),
+      # legend.title=element_text(size=21),
+      # legend.text=element_text(size=20),
+      axis.text.x = element_text(size = 18),
+      axis.text.y = element_text(size = 18))
+  # guides(color = guide_legend(override.aes = list(size=4)))
 
 X.dis.fit <- as.data.frame(X.dis[,x_mean > 5])
 dim(X.dis.fit)
@@ -522,7 +557,7 @@ round(status.cyber.idx[1:5,c('Neutrophils', 'Monocytes')],3)
 dim(design)
 colSums(design)
 
-contrast.matrix <- makeContrasts("bct-vrl", levels=design)
+# contrast.matrix <- makeContrasts("bct-vrl", levels=design)
 contrast.matrix<- makeContrasts("vrl-bct", 'vrl-greyb', levels=design)
 # contrast.matrix<- makeContrasts("((bct+vrl+greyb+greyv+greyu)/5)-HC", levels=design)
 contrast.matrix
@@ -566,6 +601,7 @@ results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'B
 dim(results)
 head(results)
 summary(results)
+colnames(results) <- c('DV-DB', 'DV-PB')
 vennDiagram(results, include = 'both')
 
 # peek at the top 10 in each group
@@ -783,105 +819,105 @@ nn.m <- NULL
 svm.m <- NULL
 df.2.list <- NULL
 df.3 <- NULL
-
-for(j in 1:boot){
-  for (k in 1:n_folds) {
-    print(paste0('boot: ', j, ', fold: ', k))
-    
-    test.i <- which(folds.i == k)
-    
-    train.cv <- X.s[-test.i, ]
-    test.cv <- X.s[test.i, ]
-    
-    # factoring cv data
-    train.cv.fac <- train.cv
-    train.cv.fac$bct <- as.factor(train.cv$bct)
-    
-    test.cv.fac <- test.cv
-    test.cv.fac$bct <- as.factor(test.cv$bct)
-    
-    ### LOGISTIC REGRESSION
-    model <- glm(bct~ ., data=train.cv, family=binomial(link='logit'), maxit = 128)
-    # summary(model)
-    # anova(model, test="Chisq")
-    pred.test <- predict(model, test.cv[-ncol(test.cv)])
-    pr.test <- prediction(pred.test, test.cv$bct)
-
-    logistic.m[k] <- pr.test %>%
-      performance(measure = "auc") %>%
-      .@y.values
-
-
-    ### KNN
-    trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
-    model <- train(bct ~., data = train.cv.fac, method = "knn",
-                   trControl=trctrl,
-                   tuneLength = 10)
-    knn.opt <- model$results$k[which.max(model$results$Accuracy)]
-    p <- knn(train.cv[-ncol(train.cv)], test.cv[-ncol(test.cv)], train.cv$bct,  k=knn.opt, prob=TRUE)
-    p<-attr(p, "prob")
-    p<-1-p
-    pr <- prediction(p, test.cv$bct)
-    knn.m[k] <- pr %>%
-      performance(measure = "auc") %>%
-      .@y.values
-
-    ### RANDOM FORREST
-    model <- randomForest(bct ~ . , data = train.cv.fac,
-                          nodesize = 1)
-    pred<-predict(model , test.cv.fac[-ncol(test.cv.fac)])
-    model.prob <- predict(model, test.cv.fac, type="prob")
-    p <- model.prob[,2]
-    pr <- prediction(p, test.cv$bct)
-    randForrest.m[k] <- pr %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    ### Neural Net
-    nn <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
-                       hidden = 1, rep = 5, stepmax = 1e+07, startweights = NULL, err.fct = "sse")
-    
-    p <- predict(nn, test.cv[-ncol(test.cv)])
-    pr <- prediction(p, test.cv$bct)
-    nn.m[k] <- pr %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    ### SVM
-    model <- svm(bct ~ . , train.cv.fac, kernel = "linear", probability = TRUE)
-    pred <- predict(model, test.cv.fac, probability = TRUE)
-    p <- attr(pred, "prob")[,2]
-    pr <- prediction(p, test.cv$bct)
-    svm.m[k] <- pr %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    Sys.sleep(1)
-  }
-
-df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
-# df.1 <- as.data.frame(cbind(randForrest.m, nn.m, svm.m))
-df.2 <- gather(df.1, learner, roc)
-df.2$roc <- unlist(df.2$roc)
-df.2$learner <- factor(df.2$learner)
-df.2.list[[j]] <- df.2
-}
-
-print(paste0('boots: ', boot))
-
-df.3 <- rbind(df.2.list[[1]])
-
-dim(df.3)
-5*n_folds*boot
-
-ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
-  labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
-     x ="density", y = "roc area")
-ggplot(df.3, aes(learner, roc, color = learner)) + geom_boxplot()
-
-# detach("package:plyr", unload=TRUE)
-df.3 %>%
-  group_by(learner) %>%
-  summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
+# 
+# for(j in 1:boot){
+#   for (k in 1:n_folds) {
+#     print(paste0('boot: ', j, ', fold: ', k))
+#     
+#     test.i <- which(folds.i == k)
+#     
+#     train.cv <- X.s[-test.i, ]
+#     test.cv <- X.s[test.i, ]
+#     
+#     # factoring cv data
+#     train.cv.fac <- train.cv
+#     train.cv.fac$bct <- as.factor(train.cv$bct)
+#     
+#     test.cv.fac <- test.cv
+#     test.cv.fac$bct <- as.factor(test.cv$bct)
+#     
+#     ### LOGISTIC REGRESSION
+#     model <- glm(bct~ ., data=train.cv, family=binomial(link='logit'), maxit = 128)
+#     # summary(model)
+#     # anova(model, test="Chisq")
+#     pred.test <- predict(model, test.cv[-ncol(test.cv)])
+#     pr.test <- prediction(pred.test, test.cv$bct)
+# 
+#     logistic.m[k] <- pr.test %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+# 
+# 
+#     ### KNN
+#     trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+#     model <- train(bct ~., data = train.cv.fac, method = "knn",
+#                    trControl=trctrl,
+#                    tuneLength = 10)
+#     knn.opt <- model$results$k[which.max(model$results$Accuracy)]
+#     p <- knn(train.cv[-ncol(train.cv)], test.cv[-ncol(test.cv)], train.cv$bct,  k=knn.opt, prob=TRUE)
+#     p<-attr(p, "prob")
+#     p<-1-p
+#     pr <- prediction(p, test.cv$bct)
+#     knn.m[k] <- pr %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+# 
+#     ### RANDOM FORREST
+#     model <- randomForest(bct ~ . , data = train.cv.fac,
+#                           nodesize = 1)
+#     pred<-predict(model , test.cv.fac[-ncol(test.cv.fac)])
+#     model.prob <- predict(model, test.cv.fac, type="prob")
+#     p <- model.prob[,2]
+#     pr <- prediction(p, test.cv$bct)
+#     randForrest.m[k] <- pr %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     
+#     ### Neural Net
+#     nn <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
+#                        hidden = 1, rep = 5, stepmax = 1e+07, startweights = NULL, err.fct = "sse")
+#     
+#     p <- predict(nn, test.cv[-ncol(test.cv)])
+#     pr <- prediction(p, test.cv$bct)
+#     nn.m[k] <- pr %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     
+#     ### SVM
+#     model <- svm(bct ~ . , train.cv.fac, kernel = "linear", probability = TRUE)
+#     pred <- predict(model, test.cv.fac, probability = TRUE)
+#     p <- attr(pred, "prob")[,2]
+#     pr <- prediction(p, test.cv$bct)
+#     svm.m[k] <- pr %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     Sys.sleep(1)
+#   }
+# 
+# df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
+# # df.1 <- as.data.frame(cbind(randForrest.m, nn.m, svm.m))
+# df.2 <- gather(df.1, learner, roc)
+# df.2$roc <- unlist(df.2$roc)
+# df.2$learner <- factor(df.2$learner)
+# df.2.list[[j]] <- df.2
+# }
+# 
+# print(paste0('boots: ', boot))
+# 
+# df.3 <- rbind(df.2.list[[1]])
+# 
+# dim(df.3)
+# 5*n_folds*boot
+# 
+# ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
+#   labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
+#      x ="density", y = "roc area")
+# ggplot(df.3, aes(learner, roc, color = learner)) + geom_boxplot()
+# 
+# # detach("package:plyr", unload=TRUE)
+# df.3 %>%
+#   group_by(learner) %>%
+#   summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
 
 
 
@@ -1857,7 +1893,7 @@ dim(pair1)
 # separation based on batch effect
 ggplot(data = pair1, aes(PC1, PC2, color = clust$membership[pb.filt,][,1]>0.5))+geom_point() + 
   labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color=batch))+geom_point()+
+ggplot(data = pair2, aes(PC3, PC4, color=cohort))+geom_point()+
   labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
 ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
   scale_color_manual(values=cols[c(3,5)])+
