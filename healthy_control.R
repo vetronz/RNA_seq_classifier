@@ -98,16 +98,15 @@ logistic.func <- function(x){
 
 norm_vec <- function(x) sqrt(sum(x^2))
 
-# n = 8
-# cols.8 = gg_color_hue(n)
-# 
-# n = 10
-# cols.10 = gg_color_hue(n)
-# 
-# n = 14
-# cols.14 = gg_color_hue(n)
-# 
-# dx.cols <- c('#D81D22', '#FF3A3A', '#AD4187' , '#776BB9' , '#4A8AC3', '#32A46A')
+
+
+###### COLORS ######
+
+cohort.cols <- c('#ADB814', '#9A0794')
+bv.cols <- c('#B43C22', '#283EA9') # red, blue
+
+bv.cols.drawio <- c('#F8A9A4', '#7E9ABF')
+
 # sex.cols <- c('#fc1676', '#16acfc')
 # clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
 
@@ -237,7 +236,7 @@ cohort <- as.factor(ifelse(c(rep(1, dim(status.idx)[1]),
 bacterial <- as.factor(c(ifelse(status.idx$most_general == 'bacterial', 'pos', 'neg'), ifelse(status.i.idx$most_general == 'bacterial', 'pos', 'neg')))
 
 ### PCA
-full.pca <- prcomp(X.c.t, scale=TRUE)
+# full.pca <- prcomp(X.c.t, scale=TRUE)
 
 pair1 <- as.data.frame(full.pca$x[,1:2])
 pcs <- as.data.frame(full.pca$x[,1:4])
@@ -248,10 +247,6 @@ pcs[1:5,]
 ve <- full.pca$sdev^2
 pve <- ve/sum(ve)*100
 pve[1:5]
-
-# cohort and bacterial colors
-cohort.cols <- c('#ADB814', '#9A0794')
-bct.cols <- c('#283EA9', '#B43C22')
 
 # PCA Non Combat
 ggplot(data = pcs, aes(PC1, PC2, color=cohort))+geom_point(alpha=0.8)+
@@ -268,7 +263,7 @@ scale_color_manual(values=cohort.cols)+
 
                            
 ggplot(data = pcs, aes(PC1, PC2, color=bacterial))+geom_point(alpha=0.8)+
-  scale_color_manual(values=bct.cols)+
+  scale_color_manual(values=bv.cols)+
   labs(x =paste0('PC1: ', round(pve[1]), ' % Variance '),
        y = paste0('PC2: ', round(pve[2]), ' % Variance '))+
   theme(axis.title=element_text(size=21),
@@ -302,7 +297,7 @@ X.c[1:5,1:5]
 # transpose for PCA
 X.comb <- as.data.frame(X.comb)
 X.comb.t <- t(X.comb)
-pca.comb <- prcomp(X.comb.t, scale=TRUE)
+# pca.comb <- prcomp(X.comb.t, scale=TRUE)
 
 pcs.comb <- as.data.frame(pca.comb$x[,1:4])
 
@@ -327,7 +322,7 @@ ggplot(data = pcs.comb, aes(PC1, PC2, color=cohort))+geom_point(alpha=0.8) +
   guides(color = guide_legend(override.aes = list(size=4)))
 
 ggplot(data = pcs.comb, aes(PC1, PC2, color=bacterial))+geom_point(alpha=0.8)+
-  scale_color_manual(values=bct.cols)+
+  scale_color_manual(values=bv.cols)+
   labs(x =paste0('PC1: ', round(pve[1]), ' % Variance '),
        y = paste0('PC2: ', round(pve[2]), ' % Variance '))+
   theme(axis.title=element_text(size=21),
@@ -410,8 +405,9 @@ cell.lines <- cell.lines[-c(which(as.character(cell.lines$p.val)=='NaN')),]
 cell.lines$p.val <- as.numeric(as.character(cell.lines$p.val))
 
 # select significantly differentially expressed cell lines between b.v
-cell.lines[cell.lines$p.val <0.05 ,]
-sig.cells <- as.character(cell.lines[cell.lines$p.val <0.05 ,]$cell)
+cell.thresh <- 0.05
+cell.lines[cell.lines$p.val < cell.thresh ,]
+sig.cells <- as.character(cell.lines[cell.lines$p.val < cell.thresh ,]$cell)
 sig.cells
 
 # filter df.1 by sig genes
@@ -425,10 +421,23 @@ dim(a)
 label.col <- rep(c(rep('bacterial', dim(split.df[[1]])[1]), rep('viral', dim(split.df[[2]])[1])), length(sig.cells))
 length(label.col)
 a$label <- label.col
+a$key[a$key == 'T.cells.CD4.memory.activated'] <- 'T.cells.CD4.activated' # rename for space
+# cibersort boxplot
+ggplot(a, aes(key, value, fill=label.col))+geom_boxplot()+
+  scale_fill_manual(values=bv.cols)+
+  labs(x='Cell Subset', y='Proportion')+
+  guides(fill=guide_legend(title="Diagnosis")) + # legend title
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 18))+
+  guides(color = guide_legend(override.aes = list(size=4)))
 
-ggplot(a, aes(key, value, color=label.col, fill=label.col))+geom_boxplot()+
-  labs(title='Significantly Differentially Expressed Cell Lines Between Bacterial and Viral Cases',
-       x='Cell Line', y='Proportion')
+
+# remove the renamed CD4 cells
+a<-gather(df.1.sig)
+a$label <- label.col
 
 
 ### check correlation
@@ -449,8 +458,12 @@ dim(df.4)
 ggplot(df.4, aes(x=Neutrophils*100, y=perc_neut)) + 
   scale_y_continuous(limits = c(1,100))+
   geom_point()+
-  labs('Scatter Plot of Cybersort Neutrophil % Prediction against Clinical Data', x='Cybersort Prediction', y='Clinical Neut Count')+
-  geom_smooth(method=lm, level=0.95)
+  labs(x='Cybersort Predicted Neutrophil Proportion', y='Clinical Data Neutrophil Proportion')+
+  geom_smooth(method=lm, level=0.95)+
+  theme(axis.title=element_text(size=21),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18))
+
 
 lin.mod <- lm(Neutrophils ~ perc_neut, data = df.4)
 attributes(lin.mod)
@@ -477,7 +490,6 @@ ggplot(df, aes(V2, V1)) +
       # legend.text=element_text(size=20),
       axis.text.x = element_text(size = 18),
       axis.text.y = element_text(size = 18))
-  # guides(color = guide_legend(override.aes = list(size=4)))
 
 X.dis.fit <- as.data.frame(X.dis[,x_mean > 5])
 dim(X.dis.fit)
@@ -597,6 +609,18 @@ pval <- bootstraps[[boot]][2]
 lfc
 pval
 
+
+
+
+
+
+
+
+all.hits <- topTable(fit2, adjust.method = 'BH', number=nrow(fit2))
+all.hits[1:5,]
+colnames(all.hits)[1]
+
+
 results <- decideTests(fit2, method='global', p.value = pval, adjust.method = 'BH', lfc=lfc)
 dim(results)
 head(results)
@@ -637,6 +661,13 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=max.lfc)) +
   labs(title=paste0('Volcano Plot of Log Fold Change (', lfc, ') Against -log10 P Value (', pval, ')'),
        x ="Log Fold Change", y = "log10 P-value")
 p
+
+
+
+
+
+
+
 
 
 # subset the disc and validation matrices by the sig genes

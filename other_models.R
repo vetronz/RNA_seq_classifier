@@ -1,3 +1,113 @@
+# Colours
+
+# DB
+#F8A9A4
+
+# PB
+#F5C3B8
+
+# U
+#E1D5E7
+
+# PV
+#DAE8FC
+
+# V
+#7E9ABF
+
+# HC
+#D5E8D4
+
+
+# discovery
+# validation
+
+
+# train
+#9A0794
+
+# test
+#E4F132
+
+
+###
+# messing around with the DEG
+
+results <- decideTests(fit2, p.value = pval, adjust.method = 'BH', lfc=lfc, method = 'global')
+dim(results)
+head(results)
+summary(results)
+# colnames(results) <- c('DV-DB', 'DV-PB')
+vennDiagram(results, include = 'both') # total sig 462
+
+# check the ven diagram maths
+sum(ifelse(results[,1]==0,0,1))
+# 248+126 = 374
+sum(ifelse(results[,2]==0,0,1))
+# 126+88 = 214
+
+sum(ifelse(results[,1]==0,0,1)) + sum(ifelse(results[,2]==0,0,1)) - 126
+
+ifelse(results[,1]==0,0,1)
+rownames(results[ifelse(results[,2]==0,0,1),])
+
+
+results.mat <- as.matrix(results)
+results.df <- as.data.frame(results.mat)
+colnames(results.df) <- c('v.b', 'v.pb')
+
+v.b.sig <- rownames(results.df[results.df$v.b == 1 | results.df$v.b == -1,])
+v.pb.sig <- rownames(results.df[results.df$v.pb == 1 | results.df$v.pb == -1,])
+
+length(union(v.b.sig, v.pb.sig))
+length(v.b.sig) + length(v.pb.sig) - length(intersect(v.b.sig, v.pb.sig))
+
+
+decide.hits <- union(v.b.sig, v.pb.sig)
+
+
+# pull all genes passing number=nrow(fit2)
+toptable.df <- topTable(fit2, adjust.method = 'BH', number=nrow(fit2),
+                        p.value = pval, lfc=lfc)
+
+toptable.df <- topTable(fit2, adjust.method = 'BH', number=nrow(fit2),
+                        coef = c(1,2))
+
+# not equal to the 462 genes id above
+dim(toptable.df)
+
+
+toptable.hits <- rownames(toptable.df)
+
+# check the intersection to ensure not a completely different set
+length(intersect(toptable.hits, decide.hits)) # all decide hits in top table hits
+length(intersect(toptable.hits, decide.hits)) / length(decide.hits)
+
+# it appears 96% of the genes ID using decide test are also picked up using filtered top table
+
+# locate the 445 COMMON hits in toptable.hits
+match(intersect(decide.hits, toptable.hits), toptable.hits)
+
+# select them from toptable.df
+filtered.toptable.df <- toptable.df[match(intersect(decide.hits, toptable.hits), toptable.hits),]
+dim(filtered.toptable.df)
+
+filtered.toptable.df[1:5,]
+
+# we set max.lfc to the vrl.bct value 
+# we then overwrite this if abs gb.v > abs b.v
+filtered.toptable.df$max.lfc <- filtered.toptable.df$vrl.bct
+for(i in 1:nrow(filtered.toptable.df)){
+  v.b <- filtered.toptable.df$vrl.bct[i]
+  v.pb <- filtered.toptable.df$vrl.greyb[i]
+  if(abs(v.pb) > abs(v.b)){
+    filtered.toptable.df$max.lfc[i] <- v.pb
+  }
+}
+
+
+
+
 
 
 # OPTIMIZATION
