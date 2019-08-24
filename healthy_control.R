@@ -612,10 +612,6 @@ pval
 
 
 
-
-
-
-
 all.hits <- topTable(fit2, adjust.method = 'BH', number=nrow(fit2))
 all.hits[1:5,]
 colnames(all.hits)[1]
@@ -652,14 +648,18 @@ for(i in 1:nrow(all.hits)){
 all.filt <- all.hits[abs(all.hits$max.lfc) > lfc & all.hits$adj.P.Val < pval,]
 dim(all.filt)
 
+# volcano
 p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=max.lfc)) +
-  geom_point(size = 1, stroke = 0, shape = 16) +
-  # text = ~paste("<br>Ensembl: ", ensemb, '<br>Gene: ', gene)
+  geom_point(size = 2, stroke = 0, shape = 16) +
+  scale_x_continuous(limits = c(-1.5,1.5))+
+  scale_y_continuous(limits = c(0, 10))+
   geom_hline(yintercept = -log10(pval), linetype="longdash", colour="grey", size=1) +
   geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
-  labs(title=paste0('Volcano Plot of Log Fold Change (', lfc, ') Against -log10 P Value (', pval, ')'),
-       x ="Log Fold Change", y = "log10 P-value")
+  labs(x ="Log Fold Change", y = "log10 P-value")+
+  theme(axis.title=element_text(size=30),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30))
 p
 
 
@@ -782,12 +782,30 @@ tuning_grid %>%
   mutate(se = mse_1se - mse_min) %>%
   ggplot(aes(alpha, mse_min)) +
   geom_line(size = 1) +
-  geom_vline(xintercept = opt.alpha)+
-  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
-  ggtitle("MSE ± one standard error")
+  # geom_vline(xintercept = opt.alpha)+
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25)+
+  theme(axis.title=element_text(size=30),
+      axis.text.x = element_text(size = 30),
+      axis.text.y = element_text(size = 30))
+
 
 # fit a cv model with opt alpha to assess lambda
 fit.cv <- cv.glmnet(X, y, alpha = opt.alpha, foldid = fold_id)
+attributes(fit.cv)
+fit.cv$lambda.1se
+fit.cv$cvm
+fit.cv$lambda
+# fit.cv$glmnet.fit
+
+alpha.df <- as.data.frame(cbind(fit.cv$lambda, fit.cv$cvm))
+colnames(alpha.df) <- c('lambda', 'mse')
+alpha.df$log.lambda <- log(alpha.df$lambda)
+
+fit.cv$lambda.1se
+ggplot(alpha.df, aes(lambda, mse))+
+  geom_point()+
+  geom_errorbar()
+
 plot(fit.cv)
 
 # opt lambda set using the lambda.min which is calc for us
