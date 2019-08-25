@@ -35,7 +35,7 @@ ip <- as.data.frame(installed.packages()[,c(1,3:4)])
 rownames(ip) <- NULL
 ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
 ip[which(ip$Package == 'sva'),]
-ip[which(ip$Package == 'limma'),]
+ip[which(ip$Package == 'glmnet'),]
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -657,9 +657,9 @@ p<-ggplot(all.hits, aes(y=-log10(adj.P.Val), x=max.lfc)) +
   geom_vline(xintercept = lfc, linetype="longdash", colour="#BE684D", size=1) +
   geom_vline(xintercept = -(lfc), linetype="longdash", colour="#2C467A", size=1)+
   labs(x ="Log Fold Change", y = "log10 P-value")+
-  theme(axis.title=element_text(size=30),
-        axis.text.x = element_text(size = 30),
-        axis.text.y = element_text(size = 30))
+  theme(axis.title=element_text(size=35),
+        axis.text.x = element_text(size = 35),
+        axis.text.y = element_text(size = 35))
 p
 
 
@@ -778,50 +778,65 @@ opt.alpha <- tuning_grid$alpha[which.min(tuning_grid$mse_min)]
 # opt.alpha <- 0.5
 print(paste0('optimal alpha for elastic-net: ', opt.alpha))
 
+tuning_grid$mse_1se # gives the upper bound (mse estimate + 1 SE)
+tuning_grid$mse_min # gives the mse estimate
+
 tuning_grid %>%
   mutate(se = mse_1se - mse_min) %>%
   ggplot(aes(alpha, mse_min)) +
   geom_line(size = 1) +
-  # geom_vline(xintercept = opt.alpha)+
+  geom_vline(xintercept = opt.alpha, linetype="dashed")+
+  scale_y_continuous(limits = c(0.07, 0.11))+
   geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25)+
-  theme(axis.title=element_text(size=30),
-      axis.text.x = element_text(size = 30),
-      axis.text.y = element_text(size = 30))
+  labs(x='alpha', y='mse')+
+  theme(axis.title=element_text(size=35),
+        axis.text.x = element_text(size = 35),
+        axis.text.y = element_text(size = 35))
 
 
 # fit a cv model with opt alpha to assess lambda
 fit.cv <- cv.glmnet(X, y, alpha = opt.alpha, foldid = fold_id)
-attributes(fit.cv)
-fit.cv$lambda.1se
-fit.cv$cvm
-fit.cv$lambda
-# fit.cv$glmnet.fit
-
-alpha.df <- as.data.frame(cbind(fit.cv$lambda, fit.cv$cvm))
-colnames(alpha.df) <- c('lambda', 'mse')
-alpha.df$log.lambda <- log(alpha.df$lambda)
-
-fit.cv$lambda.1se
-ggplot(alpha.df, aes(lambda, mse))+
-  geom_point()+
-  geom_errorbar()
-
 plot(fit.cv)
+attributes(fit.cv)
+
+alpha.df <- as.data.frame(cbind(fit.cv$lambda, fit.cv$cvm, fit.cv$cvsd, fit.cv$cvup, fit.cv$cvlo))
+colnames(alpha.df) <- c('lambda', 'mse', 'mse.sd', 'cvup', 'cvlo')
+alpha.df$log.lambda <- log(alpha.df$lambda)
+alpha.df[1:5,]
 
 # opt lambda set using the lambda.min which is calc for us
 opt.lambda <- fit.cv$lambda.min
 opt.lambda
 
-# log and add to plot to make sure it looks reasonable
-log(opt.lambda)
-abline(v=log(opt.lambda))
+ggplot(alpha.df, aes(log.lambda, mse))+
+  geom_line(size = 1)+
+  geom_vline(xintercept =log(opt.lambda) ,linetype="dashed")+
+  geom_ribbon(aes(ymax = mse + mse.sd, ymin = mse - mse.sd), alpha = .25)+
+  labs(x='log lambda', y='mse')+
+  theme(axis.title=element_text(size=35),
+        axis.text.x = element_text(size = 35),
+        axis.text.y = element_text(size = 35))
+
+
+axis(1, seq(0,30, 1),las=2, font=2,cex.axis=0.8)
 
 ## opt elastic
 elastic <- glmnet(X, y, alpha = opt.alpha)
 
-plot(elastic, xvar = "lambda")
-abline(v=log(opt.lambda), col="black")
+options(scipen=999)
+plot(elastic, xvar = "lambda", ann=FALSE,
+     xaxt="none", yaxt="none")
+abline(v=log(opt.lambda), col="black", lwd = 1.5, lty=2)
+axis(1, seq(-6,-2,1) ,cex.axis=1.8)
+axis(2, round(seq(-0.6, 0.6, 0.1),2), cex.axis=1.5)
+mtext(side=1, line=2.5, "Log Lambda", cex=1.7)
+mtext(side=2, line=2.5, "Coefficients", cex=1.7)
 
+
+
+
+elastic
+attributes(elastic)
 coefs <- coef(elastic, s = opt.lambda)
 length(coefs)
 # coefs1 <- coef(fit.cv, s = "lambda.min")
@@ -868,105 +883,105 @@ nn.m <- NULL
 svm.m <- NULL
 df.2.list <- NULL
 df.3 <- NULL
-# 
-# for(j in 1:boot){
-#   for (k in 1:n_folds) {
-#     print(paste0('boot: ', j, ', fold: ', k))
-#     
-#     test.i <- which(folds.i == k)
-#     
-#     train.cv <- X.s[-test.i, ]
-#     test.cv <- X.s[test.i, ]
-#     
-#     # factoring cv data
-#     train.cv.fac <- train.cv
-#     train.cv.fac$bct <- as.factor(train.cv$bct)
-#     
-#     test.cv.fac <- test.cv
-#     test.cv.fac$bct <- as.factor(test.cv$bct)
-#     
-#     ### LOGISTIC REGRESSION
-#     model <- glm(bct~ ., data=train.cv, family=binomial(link='logit'), maxit = 128)
-#     # summary(model)
-#     # anova(model, test="Chisq")
-#     pred.test <- predict(model, test.cv[-ncol(test.cv)])
-#     pr.test <- prediction(pred.test, test.cv$bct)
-# 
-#     logistic.m[k] <- pr.test %>%
-#       performance(measure = "auc") %>%
-#       .@y.values
-# 
-# 
-#     ### KNN
-#     trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
-#     model <- train(bct ~., data = train.cv.fac, method = "knn",
-#                    trControl=trctrl,
-#                    tuneLength = 10)
-#     knn.opt <- model$results$k[which.max(model$results$Accuracy)]
-#     p <- knn(train.cv[-ncol(train.cv)], test.cv[-ncol(test.cv)], train.cv$bct,  k=knn.opt, prob=TRUE)
-#     p<-attr(p, "prob")
-#     p<-1-p
-#     pr <- prediction(p, test.cv$bct)
-#     knn.m[k] <- pr %>%
-#       performance(measure = "auc") %>%
-#       .@y.values
-# 
-#     ### RANDOM FORREST
-#     model <- randomForest(bct ~ . , data = train.cv.fac,
-#                           nodesize = 1)
-#     pred<-predict(model , test.cv.fac[-ncol(test.cv.fac)])
-#     model.prob <- predict(model, test.cv.fac, type="prob")
-#     p <- model.prob[,2]
-#     pr <- prediction(p, test.cv$bct)
-#     randForrest.m[k] <- pr %>%
-#       performance(measure = "auc") %>%
-#       .@y.values
-#     
-#     ### Neural Net
-#     nn <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
-#                        hidden = 1, rep = 5, stepmax = 1e+07, startweights = NULL, err.fct = "sse")
-#     
-#     p <- predict(nn, test.cv[-ncol(test.cv)])
-#     pr <- prediction(p, test.cv$bct)
-#     nn.m[k] <- pr %>%
-#       performance(measure = "auc") %>%
-#       .@y.values
-#     
-#     ### SVM
-#     model <- svm(bct ~ . , train.cv.fac, kernel = "linear", probability = TRUE)
-#     pred <- predict(model, test.cv.fac, probability = TRUE)
-#     p <- attr(pred, "prob")[,2]
-#     pr <- prediction(p, test.cv$bct)
-#     svm.m[k] <- pr %>%
-#       performance(measure = "auc") %>%
-#       .@y.values
-#     Sys.sleep(1)
-#   }
-# 
-# df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
-# # df.1 <- as.data.frame(cbind(randForrest.m, nn.m, svm.m))
-# df.2 <- gather(df.1, learner, roc)
-# df.2$roc <- unlist(df.2$roc)
-# df.2$learner <- factor(df.2$learner)
-# df.2.list[[j]] <- df.2
-# }
-# 
-# print(paste0('boots: ', boot))
-# 
-# df.3 <- rbind(df.2.list[[1]])
-# 
-# dim(df.3)
-# 5*n_folds*boot
-# 
-# ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
-#   labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
-#      x ="density", y = "roc area")
-# ggplot(df.3, aes(learner, roc, color = learner)) + geom_boxplot()
-# 
-# # detach("package:plyr", unload=TRUE)
-# df.3 %>%
-#   group_by(learner) %>%
-#   summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
+ 
+for(j in 1:boot){
+  for (k in 1:n_folds) {
+    print(paste0('boot: ', j, ', fold: ', k))
+
+    test.i <- which(folds.i == k)
+
+    train.cv <- X.s[-test.i, ]
+    test.cv <- X.s[test.i, ]
+
+    # factoring cv data
+    train.cv.fac <- train.cv
+    train.cv.fac$bct <- as.factor(train.cv$bct)
+
+    test.cv.fac <- test.cv
+    test.cv.fac$bct <- as.factor(test.cv$bct)
+
+    ### LOGISTIC REGRESSION
+    model <- glm(bct~ ., data=train.cv, family=binomial(link='logit'), maxit = 128)
+    # summary(model)
+    # anova(model, test="Chisq")
+    pred.test <- predict(model, test.cv[-ncol(test.cv)])
+    pr.test <- prediction(pred.test, test.cv$bct)
+
+    logistic.m[k] <- pr.test %>%
+      performance(measure = "auc") %>%
+      .@y.values
+
+
+    ### KNN
+    trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+    model <- train(bct ~., data = train.cv.fac, method = "knn",
+                   trControl=trctrl,
+                   tuneLength = 10)
+    knn.opt <- model$results$k[which.max(model$results$Accuracy)]
+    p <- knn(train.cv[-ncol(train.cv)], test.cv[-ncol(test.cv)], train.cv$bct,  k=knn.opt, prob=TRUE)
+    p<-attr(p, "prob")
+    p<-1-p
+    pr <- prediction(p, test.cv$bct)
+    knn.m[k] <- pr %>%
+      performance(measure = "auc") %>%
+      .@y.values
+
+    ### RANDOM FORREST
+    model <- randomForest(bct ~ . , data = train.cv.fac,
+                          nodesize = 1)
+    pred<-predict(model , test.cv.fac[-ncol(test.cv.fac)])
+    model.prob <- predict(model, test.cv.fac, type="prob")
+    p <- model.prob[,2]
+    pr <- prediction(p, test.cv$bct)
+    randForrest.m[k] <- pr %>%
+      performance(measure = "auc") %>%
+      .@y.values
+
+    ### Neural Net
+    nn <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
+                       hidden = 1, rep = 5, stepmax = 1e+07, startweights = NULL, err.fct = "sse")
+
+    p <- predict(nn, test.cv[-ncol(test.cv)])
+    pr <- prediction(p, test.cv$bct)
+    nn.m[k] <- pr %>%
+      performance(measure = "auc") %>%
+      .@y.values
+
+    ### SVM
+    model <- svm(bct ~ . , train.cv.fac, kernel = "linear", probability = TRUE)
+    pred <- predict(model, test.cv.fac, probability = TRUE)
+    p <- attr(pred, "prob")[,2]
+    pr <- prediction(p, test.cv$bct)
+    svm.m[k] <- pr %>%
+      performance(measure = "auc") %>%
+      .@y.values
+    Sys.sleep(1)
+  }
+
+df.1 <- as.data.frame(cbind(logistic.m, knn.m, randForrest.m, nn.m, svm.m))
+# df.1 <- as.data.frame(cbind(randForrest.m, nn.m, svm.m))
+df.2 <- gather(df.1, learner, roc)
+df.2$roc <- unlist(df.2$roc)
+df.2$learner <- factor(df.2$learner)
+df.2.list[[j]] <- df.2
+}
+
+print(paste0('boots: ', boot))
+
+df.3 <- rbind(df.2.list[[1]])
+
+dim(df.3)
+5*n_folds*boot
+
+ggplot(df.3, aes(roc, fill= learner, color = learner)) + geom_density( alpha=0.1)+
+  labs(title=paste0('Roc Area Density with pval: ', pval, ' and lfc: ', lfc),
+     x ="density", y = "roc area")
+ggplot(df.3, aes(learner, roc, color = learner)) + geom_boxplot()
+
+# detach("package:plyr", unload=TRUE)
+df.3 %>%
+  group_by(learner) %>%
+  summarise(roc.m = mean(roc), roc.med = median(roc), roc.sd = sd(roc))
 
 
 

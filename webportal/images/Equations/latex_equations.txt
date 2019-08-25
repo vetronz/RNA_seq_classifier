@@ -11,6 +11,12 @@ tot.withiness = \sum_{k=1}^kW(C_k) = \sum_{k=1}^k\sum_{x_i\setx \in C_k}(x_i-\mu
 # t.stat
 t =  \frac{\widehat{\beta}}{\frac{s}{\sqrt{n}}}
 
+# elastic net
+minimize
+\left\{
+SSE + \lambda_{1}\sum_{j=1}^p\beta^{2}_{j} +
+\lambda_{2}\sum_{j=1}^p|\beta_{j}|
+\right\}
 
 https://csdn.codecogs.com/eqneditor/editor.php
 
