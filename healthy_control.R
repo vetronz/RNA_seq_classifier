@@ -24,6 +24,7 @@ library(splitstackshape) # stratified sampling
 library(plotly)
 library(glmnet)
 library(ggrepel)
+library(gridExtra)
 
 options(scipen=999)
 
@@ -37,7 +38,7 @@ ip <- as.data.frame(installed.packages()[,c(1,3:4)])
 rownames(ip) <- NULL
 ip <- ip[is.na(ip$Priority),1:2,drop=FALSE]
 ip[which(ip$Package == 'sva'),]
-ip[which(ip$Package == 'limma'),]
+ip[which(ip$Package == 'gridExtra'),]
 
 getwd()
 setwd('/home/patrick/Code/R')
@@ -1412,29 +1413,37 @@ print(paste0('bacterial cases: ', sum(X.psd$bct==TRUE),
 # setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
 # saveRDS(ppb.h.df, "ppb.h.df.rds")
 ppb.h.df <- readRDS("ppb.h.df.rds")
-ppb.h.df
+
 
 # select ROC derivative as query pseudo labeling cut off
 a <- lm(formula = roc.a ~ splines::bs(index, 3), data=ppb.h.df)
 
 ppb.opt <- which.max(a$fitted.values)[[1]]
 ppb.opt
-ggplot(ppb.h.df, aes(index, roc.a))+
-  geom_text(aes(label=pb.case), check_overlap = TRUE, size=2.7)+
-  labs(title='Iterative Pseudo-labeling Error', x='PB', y='ROCA')+
-  geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE)+
-  geom_vline(xintercept = ppb.opt)
+ppb.h.df$pb.cutoff <- as.factor(c(rep('improves',ppb.opt), rep('degrades', 42-ppb.opt)))
 
-# select the abs max jump to set as a query pseudo labeling cut off
-psd.opt <- which.max(abs(diff(ppb.h.df$prob)))
-ggplot(ppb.h.df, aes(index, prob))+
-  geom_vline(xintercept = ppb.opt + 0.5)+
-  # geom_text(aes(label=ppb.h), check_overlap = TRUE, size=2)
-  geom_text_repel(aes(label=pb.case), size=2, segment.colour=NA)
+a<-c(rep('#ef2f09', 21), rep('#7E9ABF', 21))
+ggplot(ppb.h.df, aes(index, roc.a))+
+  geom_point()+
+  # geom_text(aes(label=paste0(pb.case, ': ', round(prob,3))), check_overlap = TRUE, size=6)+
+  geom_label_repel(aes(label = round(prob,2), color=pb.cutoff),
+                   box.padding   = 0.35, 
+                   point.padding = 0.3,
+                   size=8, color=a)+
+  labs(x='PB Case', y='AUC')+
+  geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE)+
+  geom_vline(xintercept = (ppb.opt+0.5), linetype='dashed', size=0.35)+
+  theme(axis.title=element_text(size=21),
+      legend.title=element_text(size=21),
+      legend.text=element_text(size=20),
+      axis.text.x = element_text(size = 20),
+      axis.text.y = element_text(size = 20))+
+  guides(color=FALSE)
 
 
 ppb.opt
 psd.opt
+
 
 
 ###  ADD PSEUDO LABELS FOR TRAINING
@@ -1531,25 +1540,47 @@ ggplot(df.1, aes(x,y))+
 
 # compare F1 scores between normal and psed bootstraps
 a <- as.data.frame(cbind(f1.opt, f1.opt.psd))
-colnames(a) <- c('f1_normal', 'f1_pseudo_labeled')
+colnames(a) <- c('Network_one', 'Network_two')
 b<-gather(a, 'model', 'result')
-ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)+
-  labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='F1 Score', y='Density')
-ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
-  labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='F1 Score')
+
+ggplot(b, aes(model, result, fill=model))+geom_boxplot(alpha=0.7)+
+  scale_y_continuous(limits = c(0.8,1))+
+  scale_fill_manual(values = network.cols)+
+  labs(x='', y='F1 Score')+
+  theme(axis.title=element_text(size=40),
+        legend.title=element_text(size=40),
+        legend.text=element_text(size=40),
+        legend.key.size = unit(5,"line"),
+        axis.text.x = element_text(size = 40),
+        axis.text.y = element_text(size = 40))
+
+# ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)+
+  # labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='F1 Score', y='Density')
+# ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
+  # labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='F1 Score')
 
 # compare ROC.A scores between normal and psed bootstraps
 a <- as.data.frame(cbind(unlist(roc.opt), unlist(roc.opt.psd)))
-colnames(a) <- c('ROC_normal', 'ROC_pseudo_labeled')
+colnames(a) <- c('Network_one', 'Network_two')
 b<-gather(a, 'model', 'result')
 b %>% 
   group_by(model)%>%
   summarise(x.mean = mean(result), x.med = median(result))
 
-ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
-ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
+
+network.cols <- c('#EB287D', '#5D27BA')
+# ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
+ggplot(b, aes(model, result, fill=model))+geom_boxplot(alpha=0.8)+
   scale_y_continuous(limits = c(0.8,1))+
-  labs(title = 'ROC Area Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='ROC Area')
+  scale_fill_manual(values = network.cols)+
+  labs(x='', y='AUC')+
+  theme(axis.title=element_text(size=40),
+        legend.title=element_text(size=40),
+        legend.text=element_text(size=40),
+        legend.key.size = unit(5,"line"),
+        axis.text.x = element_text(size = 40),
+        axis.text.y = element_text(size = 40))+
+  guides(fill=FALSE)
 
 
 # PB and Unknown distributions
