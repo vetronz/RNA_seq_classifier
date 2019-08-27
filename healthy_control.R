@@ -428,13 +428,13 @@ a$key[a$key == 'T.cells.CD4.memory.activated'] <- 'T.cells.CD4.activated' # rena
 ggplot(a, aes(key, value, fill=label.col))+geom_boxplot()+
   scale_fill_manual(values=bv.cols)+
   labs(x='Cell Subset', y='Proportion')+
-  guides(fill=guide_legend(title="Diagnosis")) + # legend title
+  guides(fill=guide_legend(title="Diagnosis"),
+         color = guide_legend(override.aes = list(size=4))) + # legend title
   theme(axis.title=element_text(size=21),
         legend.title=element_text(size=21),
         legend.text=element_text(size=20),
         axis.text.x = element_text(size = 15),
         axis.text.y = element_text(size = 18))+
-  guides(color = guide_legend(override.aes = list(size=4)))
 
 
 # remove the renamed CD4 cells
@@ -1151,37 +1151,65 @@ grid_search<-as.data.frame(rbind(logistic_sse_lineSearch, tanh_sse_lineSearch, l
 rownames(grid_search) <- seq(1:dim(grid_search)[1])
 
 grid_search
-grid_search[order(grid_search$roc.test, decreasing = TRUE),][1:10,]
+grid_search[order(grid_search$AUC.test, decreasing = TRUE),][1:10,]
 
 opt.h.n <- grid_search[order(grid_search$roc.test, decreasing = TRUE),][1,][[1]]
 opt.error <- as.character(grid_search[order(grid_search$roc.test, decreasing = TRUE),][1,][[3]])
 
-### override the opt error
-# opt.error <- 'sse'
+# rename the columns for plotting
+colnames(logistic_sse_lineSearch)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
+colnames(tanh_sse_lineSearch)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
+colnames(logistic_ce_lineSearch)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
 
-ggplot(logistic_sse_lineSearch, aes(x=h.n, y=roc.train, color='roc.train')) +
-  geom_line(aes(y=roc.train))+
-  scale_y_continuous(limits = c(.8,1))+
-  geom_errorbar(aes(ymin=roc.train-roc.train.me, ymax=roc.train+roc.train.me), width=.4, position=pd)+
-  geom_line(aes(y=roc.test, color='roc.test'))+
-  geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color='roc.test'), width=0.4)+
-  labs(x =paste0('1 - ', h.n, ' hidden nodes'), y = "AUC")
+# complexity plots
+ggplot(logistic_sse_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
+  geom_line(aes(y=AUC.train))+
+  scale_y_continuous(limits = c(.65,1))+
+  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4, position=pd)+
+  geom_line(aes(y=AUC.test, color='AUC.test'))+
+  geom_errorbar(aes(ymin=AUC.test-AUC.test.me, ymax=AUC.test+AUC.test.me, color='AUC.test'), width=0.4)+
+  scale_colour_manual(values = train.test.cols)+
+  labs(x =paste0('1 - ', h.n, ' hidden nodes'), y = "AUC", color='Cohort')+
+  guides(color = guide_legend(override.aes = list(size=4))) +
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20))
+ 
 
-ggplot(logistic_ce_lineSearch, aes(x=h.n, y=roc.train, color='roc.train')) +
-  geom_line(aes(y=roc.train))+
-  scale_y_continuous(limits = c(.8,1))+
-  geom_errorbar(aes(ymin=roc.train-roc.train.me, ymax=roc.train+roc.train.me), width=.4, position=pd)+
-  geom_line(aes(y=roc.test, color='roc.test'))+
-  geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color='roc.test'), width=0.4)+
-  labs(x =paste0('1 - ', h.n, ' hidden nodes'), y = "AUC")
+ggplot(tanh_sse_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
+  geom_line(aes(y=AUC.train))+
+  scale_y_continuous(limits = c(.65,1))+
+  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4, position=pd)+
+  geom_line(aes(y=AUC.test, color='AUC.test'))+
+  geom_errorbar(aes(ymin=AUC.test-AUC.test.me, ymax=AUC.test+AUC.test.me, color='AUC.test'), width=0.4)+
+  scale_colour_manual(values = train.test.cols)+
+  labs(x =paste0('1 - ', h.n, ' hidden nodes'), y = "AUC", color='Cohort')+
+  guides(color = guide_legend(override.aes = list(size=4))) +
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20))
 
-ggplot(tanh_sse_lineSearch, aes(x=h.n, y=roc.train, color='roc.train')) +
-  geom_line(aes(y=roc.train))+
-  scale_y_continuous(limits = c(.6,1))+
-  geom_errorbar(aes(ymin=roc.train-roc.train.me, ymax=roc.train+roc.train.me), width=.4, position=pd)+
-  geom_line(aes(y=roc.test, color='roc.test'))+
-  geom_errorbar(aes(ymin=roc.test-roc.test.me, ymax=roc.test+roc.test.me, color='roc.test'), width=0.4)+
-  labs(x =paste0('1 - ', h.n, ' hidden nodes'), y = "AUC")
+
+ggplot(logistic_ce_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
+  geom_line(aes(y=AUC.train))+
+  scale_y_continuous(limits = c(.65,1))+
+  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4, position=pd)+
+  geom_line(aes(y=AUC.test, color='AUC.test'))+
+  geom_errorbar(aes(ymin=AUC.test-AUC.test.me, ymax=AUC.test+AUC.test.me, color='AUC.test'), width=0.4)+
+  scale_colour_manual(values = train.test.cols)+
+  labs(x =paste0('1 - ', h.n, ' hidden nodes'), y = "AUC", color='Cohort')+
+  guides(color = guide_legend(override.aes = list(size=4))) +
+  theme(axis.title=element_text(size=21),
+        legend.title=element_text(size=21),
+        legend.text=element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20))
+
+
 
 
 # neural opt, val
