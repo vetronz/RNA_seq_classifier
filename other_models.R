@@ -109,10 +109,9 @@ for(i in 1:nrow(filtered.toptable.df)){
 
 
 
-
-# OPTIMIZATION
-boot <- 32
-h.n <- 15
+# PSD OPTIMIZATION
+# only required if i was getting much worse performance after psd
+# as it happens i can just use network archetecture opt for non psd dataset
 roc.a <- NULL
 roc.t <- NULL
 j.train <- NULL
@@ -139,7 +138,7 @@ for(i in 1:h.n){
     # dim(train.cv)
     # dim(test.cv)
     nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE, act.fct = "logistic",
-                     hidden = c(i), rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+                     hidden = c(i), rep = 4, stepmax = 1e+06, startweights = NULL, err.fct = opt.error)
     
     pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
     pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
@@ -174,29 +173,32 @@ for(i in 1:h.n){
   roc.test.me[i] <- roc.stats$roc.me[1]
   roc.train[i] <- roc.stats$roc.med[2]
   roc.train.me[i] <- roc.stats$roc.me[2]
-  Sys.sleep(0.1)
+  Sys.sleep(0.25)
 }
 
-mod.complexity.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, h.n.hx))
-colnames(mod.complexity.df) <- c('train', 'test', 'train.me', 'test.me', 'h.n')
+mod.complexity.psd.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me, h.n.hx))
+colnames(mod.complexity.psd.df) <- c('train', 'test', 'train.me', 'test.me', 'h.n')
 
 pd <- position_dodge(0.2)
-ggplot(mod.complexity.df, aes(x=h.n, y=train, color='train')) +
-  scale_y_continuous(limits = c(0.80,1))+
+ggplot(mod.complexity.psd.df, aes(x=h.n, y=train, color='train')) +
+  scale_y_continuous(limits = c(0.9,1))+
   geom_line(aes(y=train))+
   geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me), width=.4, position=pd)+
   geom_line(aes(y=test, color='test'))+
   geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me), width=0.4, color='red')+
-  labs(title=paste0('Bias-Variance Trade Off - Non Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
+  labs(title=paste0('Bias-Variance Trade Off - Pseudo Labeled'), x =paste0('1 - ', h.n, ' hidden nodes'), y = "ROCA")
 
-which.max(mod.complexity.df$test)
-mod.complexity.df[which.max(mod.complexity.df$test),]
+which.max(mod.complexity.psd.df$test)
+mod.complexity.psd.df[which.max(mod.complexity.psd.df$test),]
 
-mod.complexity.df %>%
+mod.complexity.psd.df %>%
   dplyr::arrange(desc(test))%>%
   head(10)
 
-opt.h.n <- which.max(mod.complexity.df$test)
+opt.h.n.psd <- which.max(mod.complexity.psd.df$test)
+print(paste0('optimal hidden nodes Pseudo Model: ', opt.h.n.psd))
+
+
 
 ###### RANDOM FORREST OPTIMIZATION ########
 model <- randomForest(bct ~ . , data = train.fac, nodesize = 1, maxnodes = NULL)
