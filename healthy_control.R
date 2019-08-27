@@ -1120,18 +1120,20 @@ for(i in 1:nrow(hyper_grid)) {
   Sys.sleep(2)
 }
 
-hyper_grid$roc.train <- roc.train
-hyper_grid$roc.train.me <- roc.train.me
 
-hyper_grid$roc.test <- roc.test
-hyper_grid$roc.test.me <- roc.test.me
+# hyper_grid$roc.train <- roc.train
+# hyper_grid$roc.train.me <- roc.train.me
+# 
+# hyper_grid$roc.test <- roc.test
+# hyper_grid$roc.test.me <- roc.test.me
+# 
+# 
+# hyper_grid$funcs <- ifelse(hyper_grid$activation == 'tanh', 'tanh_sse',
+#                            ifelse(hyper_grid$error == 'ce',
+#                                   'logistic_ce', 'logistic_sse'))
+# 
+# hyper_grid
 
-
-hyper_grid$funcs <- ifelse(hyper_grid$activation == 'tanh', 'tanh_sse',
-                           ifelse(hyper_grid$error == 'ce',
-                                  'logistic_ce', 'logistic_sse'))
-
-hyper_grid
 ### saving the line search outputs to rds objects
 # logistic_sse_lineSearch
 # tanh_sse_lineSearch
@@ -1140,32 +1142,38 @@ hyper_grid
 # setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
 # saveRDS(logistic_ce_lineSearch, "logistic_ce_lineSearch.rds")
 
+
 ### load previously saved values
-# setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
+setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
 logistic_sse_lineSearch <- readRDS("logistic_sse_lineSearch.rds")
 tanh_sse_lineSearch <- readRDS("tanh_sse_lineSearch.rds")
 logistic_ce_lineSearch <- readRDS("logistic_ce_lineSearch.rds")
+
 
 # reconstruct the grid from the line searches
 grid_search<-as.data.frame(rbind(logistic_sse_lineSearch, tanh_sse_lineSearch, logistic_ce_lineSearch))
 rownames(grid_search) <- seq(1:dim(grid_search)[1])
 
-grid_search
-grid_search[order(grid_search$AUC.test, decreasing = TRUE),][1:10,]
-
-opt.h.n <- grid_search[order(grid_search$roc.test, decreasing = TRUE),][1,][[1]]
-opt.error <- as.character(grid_search[order(grid_search$roc.test, decreasing = TRUE),][1,][[3]])
-
 # rename the columns for plotting
+colnames(grid_search)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
 colnames(logistic_sse_lineSearch)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
 colnames(tanh_sse_lineSearch)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
 colnames(logistic_ce_lineSearch)[4:7] <- c('AUC.train', 'AUC.train.me', 'AUC.test', 'AUC.test.me')
 
+grid_search
+grid_search[order(grid_search$AUC.test, decreasing = TRUE),][1:10,]
+
+opt.h.n <- grid_search[order(grid_search$AUC.test, decreasing = TRUE),][1,][[1]]
+opt.error <- as.character(grid_search[order(grid_search$AUC.test, decreasing = TRUE),][1,][[3]])
+opt.h.n
+opt.error
+
+train.test.cols <- c('#5F0BEF', '#77B22F')
 # complexity plots
 ggplot(logistic_sse_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
   geom_line(aes(y=AUC.train))+
   scale_y_continuous(limits = c(.65,1))+
-  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4, position=pd)+
+  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4)+
   geom_line(aes(y=AUC.test, color='AUC.test'))+
   geom_errorbar(aes(ymin=AUC.test-AUC.test.me, ymax=AUC.test+AUC.test.me, color='AUC.test'), width=0.4)+
   scale_colour_manual(values = train.test.cols)+
@@ -1181,7 +1189,7 @@ ggplot(logistic_sse_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
 ggplot(tanh_sse_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
   geom_line(aes(y=AUC.train))+
   scale_y_continuous(limits = c(.65,1))+
-  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4, position=pd)+
+  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4)+
   geom_line(aes(y=AUC.test, color='AUC.test'))+
   geom_errorbar(aes(ymin=AUC.test-AUC.test.me, ymax=AUC.test+AUC.test.me, color='AUC.test'), width=0.4)+
   scale_colour_manual(values = train.test.cols)+
@@ -1197,7 +1205,7 @@ ggplot(tanh_sse_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
 ggplot(logistic_ce_lineSearch, aes(x=h.n, y=AUC.train, color='AUC.train')) +
   geom_line(aes(y=AUC.train))+
   scale_y_continuous(limits = c(.65,1))+
-  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4, position=pd)+
+  geom_errorbar(aes(ymin=AUC.train-AUC.train.me, ymax=AUC.train+AUC.train.me), width=.4)+
   geom_line(aes(y=AUC.test, color='AUC.test'))+
   geom_errorbar(aes(ymin=AUC.test-AUC.test.me, ymax=AUC.test+AUC.test.me, color='AUC.test'), width=0.4)+
   scale_colour_manual(values = train.test.cols)+
