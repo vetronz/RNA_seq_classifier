@@ -110,8 +110,19 @@ bv.cols <- c('#B43C22', '#283EA9') # red, blue
 
 bv.cols.drawio <- c('#F8A9A4', '#7E9ABF')
 
-# sex.cols <- c('#fc1676', '#16acfc')
-# clus.cols <- c('#FFDD38' , '#56DD5F', '#6763CF', '#FF5338')
+db.col <- '#B43C22'
+pb.col.1 <- '#F5C3B8'
+pb.col.2 <- '#FF4C24'
+u.col <- '#B75AD3'
+pv.col <- '#7599FA'
+dv.col <- '#283EA9'
+
+network_std <- '#F8FFC7'
+network_pl <- '#AFCCB0'
+
+network.cols <- c('#E4F132', '#559E54')
+
+dx.cols <- c(db.col, pb.col.2, u.col, pv.col, dv.col)
 
 
 ###### Merge ######
@@ -1059,67 +1070,67 @@ roc.train.me <- NULL
 roc.test <- NULL
 roc.test.me <- NULL
 
-for(i in 1:nrow(hyper_grid)) {
-  # for (k in 1:n_folds) {
-  for (k in 1:boot) {
-    print(paste0('hyper: ', i, ', fold/boot: ', k))
-    
-    # boot
-    index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
-    train.cv <- X.s[index,]
-    test.cv <- X.s[-index,]
-    
-    # CV
-    # test.i <- which(folds.i == k)
-    # train.cv <- X.s[-test.i, ]
-    # test.cv <- X.s[test.i, ]
-    
-    # dim(train.cv)
-    
-    # train model
-    nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE,
-                     act.fct = hyper_grid$activation[i],
-                     err.fct = hyper_grid$error[i],
-                     hidden = hyper_grid$h.n[i],
-                     rep = 3, stepmax = 1e+06, startweights = NULL)
-    
-    pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
-    pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
-  
-    # extract error
-    j.train[k] <- prediction(pred.train[,1], train.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    j.test[k] <- prediction(pred.test[,1], test.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    Sys.sleep(0.5)
-  }
-  
-  full.list <- c(j.train, j.test)
-  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-  colnames(full.df) <- 'roc.A'
-  
-  full.df$class <- as.factor(sort(rep(seq(1:(length(full.list)/k)), k)))
-  full.df$class <- ifelse(full.df$class == 1, 'j.train', 'j.test')
-  
-  roc.stats <- full.df %>%
-    group_by(class) %>%
-    summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
-  
-  roc.stats <- roc.stats %>% mutate(
-    roc.se = roc.sd/sqrt(k),
-    z.stat = qnorm(0.975),
-    roc.me = z.stat * roc.se
-  )
-  h.n.hx[i] <- i
-  roc.test[i] <- roc.stats$roc.med[1]
-  roc.test.me[i] <- roc.stats$roc.me[1]
-  roc.train[i] <- roc.stats$roc.med[2]
-  roc.train.me[i] <- roc.stats$roc.me[2]
-  Sys.sleep(2)
-}
+# for(i in 1:nrow(hyper_grid)) {
+#   # for (k in 1:n_folds) {
+#   for (k in 1:boot) {
+#     print(paste0('hyper: ', i, ', fold/boot: ', k))
+#     
+#     # boot
+#     index <- sample(nrow(X.s), round(prop1*nrow(X.s)))
+#     train.cv <- X.s[index,]
+#     test.cv <- X.s[-index,]
+#     
+#     # CV
+#     # test.i <- which(folds.i == k)
+#     # train.cv <- X.s[-test.i, ]
+#     # test.cv <- X.s[test.i, ]
+#     
+#     # dim(train.cv)
+#     
+#     # train model
+#     nn1 <- neuralnet(bct~ ., train.cv, linear.output = FALSE,
+#                      act.fct = hyper_grid$activation[i],
+#                      err.fct = hyper_grid$error[i],
+#                      hidden = hyper_grid$h.n[i],
+#                      rep = 3, stepmax = 1e+06, startweights = NULL)
+#     
+#     pred.train <- predict(nn1, train.cv[-ncol(train.cv)])
+#     pred.test <- predict(nn1, test.cv[-ncol(test.cv)])
+#   
+#     # extract error
+#     j.train[k] <- prediction(pred.train[,1], train.cv$bct) %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     
+#     j.test[k] <- prediction(pred.test[,1], test.cv$bct) %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     Sys.sleep(0.5)
+#   }
+#   
+#   full.list <- c(j.train, j.test)
+#   full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+#   colnames(full.df) <- 'roc.A'
+#   
+#   full.df$class <- as.factor(sort(rep(seq(1:(length(full.list)/k)), k)))
+#   full.df$class <- ifelse(full.df$class == 1, 'j.train', 'j.test')
+#   
+#   roc.stats <- full.df %>%
+#     group_by(class) %>%
+#     summarise(roc.m = mean(roc.A), roc.med = median(roc.A), roc.sd = sd(roc.A))
+#   
+#   roc.stats <- roc.stats %>% mutate(
+#     roc.se = roc.sd/sqrt(k),
+#     z.stat = qnorm(0.975),
+#     roc.me = z.stat * roc.se
+#   )
+#   h.n.hx[i] <- i
+#   roc.test[i] <- roc.stats$roc.med[1]
+#   roc.test.me[i] <- roc.stats$roc.me[1]
+#   roc.train[i] <- roc.stats$roc.med[2]
+#   roc.train.me[i] <- roc.stats$roc.me[2]
+#   Sys.sleep(2)
+# }
 
 
 # hyper_grid$roc.train <- roc.train
@@ -1142,7 +1153,6 @@ for(i in 1:nrow(hyper_grid)) {
 
 # setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
 # saveRDS(logistic_ce_lineSearch, "logistic_ce_lineSearch.rds")
-
 
 ### load previously saved values
 setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
@@ -1442,7 +1452,6 @@ ggplot(ppb.h.df, aes(index, roc.a))+
 
 
 ppb.opt
-psd.opt
 
 
 
@@ -1471,9 +1480,6 @@ table(status.idx.d$most_general)
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 
-
-
-
 # neural opt, val, pseud bct-vrl
 f1.opt.psd <- NULL
 roc.opt.psd <- NULL
@@ -1495,11 +1501,77 @@ for (i in 1:boot){
   Sys.sleep(0.2)
 }
 
-table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
-f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+# compare F1 scores between normal and psed bootstraps
+f1.df <- as.data.frame(cbind(f1.opt, f1.opt.psd))
+colnames(f1.df) <- c('Std_Network', 'PL_Network')
+f1.df
+mean(f1.df$Std_Network)
+median(f1.df$Std_Network)
+mean(f1.df$PL_Network)
+median(f1.df$PL_Network)
 
+f1.g<-gather(f1.df, 'model', 'result')
+
+ggplot(f1.g, aes(model, result, fill=model))+geom_boxplot(alpha=0.7)+
+  scale_y_continuous(limits = c(0.8,1))+
+  scale_fill_manual(values = network.cols)+
+  labs(x='', y='F1 Score')+
+  theme(axis.title=element_text(size=40),
+        legend.title=element_text(size=40),
+        legend.text=element_text(size=40),
+        legend.key.size = unit(5,"line"),
+        axis.text.x = element_text(size = 40),
+        axis.text.y = element_text(size = 40))
+
+# ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)+
+  # labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='F1 Score', y='Density')
+# ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
+  # labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='F1 Score')
+
+
+# compare ROC.A scores between normal and psed bootstraps
+auc.df <- as.data.frame(cbind(unlist(roc.opt), unlist(roc.opt.psd)))
+colnames(auc.df) <- c('Std_Network', 'PL_Network')
+auc.g<-gather(auc.df, 'model', 'result')
+auc.g %>% 
+  group_by(model)%>%
+  summarise(x.mean = mean(result), x.med = median(result))
+
+# ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
+ggplot(auc.g, aes(model, result, fill=model))+geom_boxplot(alpha=0.8)+
+  scale_y_continuous(limits = c(0.8,1))+
+  scale_fill_manual(values = network.cols)+
+  labs(x='', y='AUC')+
+  theme(axis.title=element_text(size=40),
+        legend.title=element_text(size=40),
+        legend.text=element_text(size=40),
+        legend.key.size = unit(5,"line"),
+        axis.text.x = element_text(size = 40),
+        axis.text.y = element_text(size = 40))+
+  guides(fill=FALSE)
+
+
+
+ggplot(b, aes(result, fill=model))+geom_density(alpha=0.8)
+
+  scale_y_continuous(limits = c(0.8,1))+
+  scale_fill_manual(values = network.cols)+
+  labs(x='', y='AUC')+
+  theme(axis.title=element_text(size=40),
+        legend.title=element_text(size=40),
+        legend.text=element_text(size=40),
+        legend.key.size = unit(5,"line"),
+        axis.text.x = element_text(size = 40),
+        axis.text.y = element_text(size = 40))+
+  guides(fill=FALSE)
+
+
+
+
+
+# roc curves
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                        hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+                        hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = opt.error)
 
 prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
 prob.opt.val.b.v.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
@@ -1538,75 +1610,10 @@ ggplot(df.1, aes(x,y))+
   labs(title='ROC Curve for Pseudo-labeled Network', x='1 - TNR', y='TPR')
 
 
-# compare F1 scores between normal and psed bootstraps
-a <- as.data.frame(cbind(f1.opt, f1.opt.psd))
-colnames(a) <- c('Network_one', 'Network_two')
-b<-gather(a, 'model', 'result')
-
-ggplot(b, aes(model, result, fill=model))+geom_boxplot(alpha=0.7)+
-  scale_y_continuous(limits = c(0.8,1))+
-  scale_fill_manual(values = network.cols)+
-  labs(x='', y='F1 Score')+
-  theme(axis.title=element_text(size=40),
-        legend.title=element_text(size=40),
-        legend.text=element_text(size=40),
-        legend.key.size = unit(5,"line"),
-        axis.text.x = element_text(size = 40),
-        axis.text.y = element_text(size = 40))
-
-# ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)+
-  # labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='F1 Score', y='Density')
-# ggplot(b, aes(model, result, colour=model, fill=model))+geom_boxplot(alpha=0.2)+
-  # labs(title = 'F1 Score of Normal and Pseudo-Labeled Models in Iris Validation Cohort', x='Model', y='F1 Score')
-
-# compare ROC.A scores between normal and psed bootstraps
-a <- as.data.frame(cbind(unlist(roc.opt), unlist(roc.opt.psd)))
-colnames(a) <- c('Network_one', 'Network_two')
-b<-gather(a, 'model', 'result')
-b %>% 
-  group_by(model)%>%
-  summarise(x.mean = mean(result), x.med = median(result))
-
-
-network.cols <- c('#EB287D', '#5D27BA')
-# ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
-ggplot(b, aes(model, result, fill=model))+geom_boxplot(alpha=0.8)+
-  scale_y_continuous(limits = c(0.8,1))+
-  scale_fill_manual(values = network.cols)+
-  labs(x='', y='AUC')+
-  theme(axis.title=element_text(size=40),
-        legend.title=element_text(size=40),
-        legend.text=element_text(size=40),
-        legend.key.size = unit(5,"line"),
-        axis.text.x = element_text(size = 40),
-        axis.text.y = element_text(size = 40))+
-  guides(fill=FALSE)
-
-
-# PB and Unknown distributions
-pb.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='probable_bacterial',]),
-                                  predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='probable_bacterial',])))
-colnames(pb.dist.df) <- c('normal', 'pseudo_labeled')
-pb.dist.df <- melt(pb.dist.df)
-colnames(pb.dist.df)[1] <- 'model'
-hist1 <- ggplot(pb.dist.df, aes(value))+geom_histogram(bins = 10)
-# hist1 + facet_grid(model ~ .)
-hist1 + facet_wrap(model ~ .)
-
-unknown.dist.df <- as.data.frame(cbind(predict(nn.opt, X.s.val[status.i.idx.d$most_general=='unknown',]),
-                                       predict(nn.opt.psd, X.s.val[status.i.idx.d$most_general=='unknown',])))
-colnames(unknown.dist.df) <- c('normal', 'pseudo_labeled')
-unknown.dist.df <- melt(unknown.dist.df)
-colnames(unknown.dist.df)[1] <- 'model'
-hist2 <- ggplot(unknown.dist.df, aes(value))+geom_histogram(bins = 10)
-# hist1 + facet_grid(model ~ .)
-hist2 + facet_wrap(model ~ .)
-
-
-# tpr tnr threshold
-nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                        hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-prob.opt.val <- predict(nn.opt.psd, X.s.val.bv)
+### tpr tnr threshold
+# we use the prob values determined in above step
+dim(prob.opt.val.psd)
+dim(prob.opt.val.b.v.psd)
 
 p.scale <- 1:99
 tpr.h <- NULL
@@ -1615,31 +1622,55 @@ f1.h <- NULL
 for(i in p.scale){
   p.thresh <- i/100
   print(p.thresh)
-  pred.opt.val <- ifelse(prob.opt.val > p.thresh, TRUE, FALSE)
+  pred.opt.val <- ifelse(prob.opt.val.b.v.psd > p.thresh, TRUE, FALSE)
   table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
   tpr.h[i] <- tpr(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
   tnr.h[i] <- tnr(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
   f1.h[i] <-  f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
 }
+
 df.0 <- as.data.frame(cbind(tpr.h, tnr.h, (p.scale/100), f1.h))
-opt.thresh <- which.max(df.0$f1.h)
+
+# use f1 stat max to get optimal threshold
+opt.thresh <- which.max(df.0$f1.h) # 83
 df.0[opt.thresh,]
 
 df.1 <- as.data.frame(cbind(tpr.h, tnr.h))
+colnames(df.1) <- c('TPR', 'TNR')
+# add new row to df
+df.1 <- rbind(data.frame(TPR=1, TNR=0), df.1)
+df.1 <- rbind(df.1, data.frame(TPR=0, TNR=1))
+
 df.2 <- gather(df.1, 'metric', 'result')
-df.2$P_threshold <- rep(seq(1:length(p.scale))/100,2)
-ggplot(df.2, aes(x=P_threshold, y=result, group=metric, color=metric))+geom_line()+
-  labs(title = 'TRP (Sensitivity - Blue) and TNR (Specificity - RED) With Varying Classifier Cutoffs',
-       x='Probability Threshold', y='TPR & TNR')+
+df.2$P_threshold <- rep(seq(1:dim(df.1)[1])/100,2)
+
+# subtract 0.01 from p thresh to rescale the P between 0 and 1
+df.2$P_threshold <- df.2$P_threshold-0.01
+
+ggplot(df.2, aes(x=P_threshold, y=result, group=metric, color=metric))+geom_line(size=1)+
+  labs(x='Probability Threshold', y='TPR & TNR')+
   geom_vline(xintercept = opt.thresh/100, linetype="dashed", 
-             color = "black", size=0.2)
+             color = "black", size=0.6)+
+  guides(color = guide_legend(override.aes = list(size=5))) +
+  theme(axis.title=element_text(size=25),
+        legend.title=element_text(size=25),
+        legend.text=element_text(size=25),
+        axis.text.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25))
+
 
 # comparison of confusion matrix with 0.5 and optimal cutoff
-pred.opt.val <- ifelse(prob.opt.val > 0.5, TRUE, FALSE)
-table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+prob.opt.val.b.v.psd > 0.5
+prob.opt.val.b.v.psd > (opt.thresh/100)
 
-pred.opt.val <- ifelse(prob.opt.val > (opt.thresh/100), TRUE, FALSE)
-table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+prob.opt.val.b.v.psd > 0.5
+prob.opt.val.b.v.psd > (opt.thresh/100)
+
+status.i.idx.d$most_general[bv.filt]=='bacterial'
+
+table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > 0.5)
+table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > (opt.thresh/100))
+
 
 
 ### learning curves
@@ -1651,68 +1682,81 @@ roc.train.me <- NULL
 roc.test.me <- NULL
 learning_curve.df <- NULL
 p.h <- NULL
-boot<- 16
+boot<- 8
 props <- seq(from=10, to=90, by=5)/100
+# 
+# for (j in 1:length(props)){
+#   for(i in 1:boot){
+#     prop <- props[j]
+#     print(paste0('proportion: ', prop, ', bootstrap: ', i))
+#     index <- sample(nrow(X.s), round(prop*nrow(X.s)))
+#     train.cv <- X.s[index, ]
+#     test.cv <- X.s[-index, ]
+#     
+#     model <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
+#                        hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+#     
+#     pred_train <- predict(model, train.cv[-ncol(train.cv)])
+#     pred_test <- predict(model, test.cv[-ncol(test.cv)])
+#     
+#     j_train[i] <- prediction(pred_train[,1], train.cv$bct) %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     
+#     j_test[i] <- prediction(pred_test[,1], test.cv$bct) %>%
+#       performance(measure = "auc") %>%
+#       .@y.values
+#     Sys.sleep(0.25)
+#   }
+#   # class.calls <- c(j_test)
+#   class.calls <- c(j_train, j_test)
+#   full.list <- class.calls
+#   full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
+#   colnames(full.df) <- 'roc.A'
+#   
+#   full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/boot)), boot)))
+#   
+#   roc.stats <- full.df %>%
+#     group_by(class) %>%
+#     summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
+#   
+#   roc.stats <- roc.stats %>% mutate(
+#     roc.se = roc.sd/sqrt(boot),
+#     z.stat = qnorm(0.975),
+#     roc.me = z.stat * roc.se
+#   )
+#   roc.train[j] <- roc.stats$roc.m[1]
+#   roc.train.me[j] <- roc.stats$roc.me[1]
+#   roc.test[j] <- roc.stats$roc.m[2]
+#   roc.test.me[j] <- roc.stats$roc.me[2]
+#   Sys.sleep(0.25)
+# }
 
-for (j in 1:length(props)){
-  for(i in 1:boot){
-    prop <- props[j]
-    print(paste0('proportion: ', prop, ', bootstrap: ', i))
-    index <- sample(nrow(X.s), round(prop*nrow(X.s)))
-    train.cv <- X.s[index, ]
-    test.cv <- X.s[-index, ]
-    
-    model <- neuralnet(bct ~ . , train.cv, linear.output = FALSE, act.fct = "logistic",
-                       hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-    
-    pred_train <- predict(model, train.cv[-ncol(train.cv)])
-    pred_test <- predict(model, test.cv[-ncol(test.cv)])
-    
-    j_train[i] <- prediction(pred_train[,1], train.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values
-    
-    j_test[i] <- prediction(pred_test[,1], test.cv$bct) %>%
-      performance(measure = "auc") %>%
-      .@y.values  
-  }
-  # class.calls <- c(j_test)
-  class.calls <- c(j_train, j_test)
-  full.list <- class.calls
-  full.df <- data.frame(matrix(unlist(full.list), nrow=length(full.list), byrow=T))
-  colnames(full.df) <- 'roc.A'
-  
-  full.df$class <- as.factor(sort(rep(seq(1:(length(class.calls)/boot)), boot)))
-  
-  roc.stats <- full.df %>%
-    group_by(class) %>%
-    summarise(roc.m = mean(roc.A), roc.v = var(roc.A), roc.sd = sd(roc.A))
-  
-  roc.stats <- roc.stats %>% mutate(
-    roc.se = roc.sd/sqrt(k),
-    z.stat = qnorm(0.975),
-    roc.me = z.stat * roc.se
-  )
-  roc.train[j] <- roc.stats$roc.m[1]
-  roc.train.me[j] <- roc.stats$roc.me[1]
-  roc.test[j] <- roc.stats$roc.m[2]
-  roc.test.me[j] <- roc.stats$roc.me[2]
-}
 
-learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me))
-learning_curve.df$prop <- props
-colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'prop')
+# learning_curve.df <- as.data.frame(cbind(roc.train, roc.test, roc.train.me, roc.test.me))
+# learning_curve.df$prop <- props
+# colnames(learning_curve.df) <- c('train', 'test', 'train.me', 'test.me', 'prop')
 
+
+# saveRDS(learning_curve.df, "learning_curve.df.rds")
+learning_curve.df <- readRDS("learning_curve.df.rds")
+
+
+# graphing lookup
 ggplot(learning_curve.df, aes(x=prop, y=train)) +
-  # scale_y_continuous(limits = c(0.5,1))+
-  geom_point(aes(y=train, color='train'))+
-  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me, color='train'), width=.02, alpha=0.75)+
-  geom_point(aes(y=test, color='test'))+
-  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me, color='test'), width=0.02, alpha=0.75)+
-  labs(title=paste0('Learning Curve with ', opt.h.n, ' hidden nodes'), x ="training Data Percentage", y = "ROCA")
-
-
-
+  scale_y_continuous(limits = c(0.8,1))+
+  geom_point(aes(y=train, color='train'), size=2)+
+  geom_errorbar(aes(ymin=train-train.me, ymax=train+train.me, color='train'), width=.02, size=1)+
+  geom_point(aes(y=test, color='test'), size=2)+
+  geom_errorbar(aes(ymin=test-test.me, ymax=test+test.me, color='test'), width=0.02, size=1)+
+  labs(x ="Training Data Percentage", y = "AUC")+
+  guides(color = guide_legend(override.aes = list(size=5), title="Data Set"))+
+  theme(axis.title=element_text(size=25),
+        legend.title=element_text(size=25),
+        legend.text=element_text(size=25),
+        axis.text.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25))+
+  scale_colour_manual(values=train.test.cols)
 
 
 ###### 2 TRANSCRIPT COMPARISON ######
@@ -1733,6 +1777,8 @@ drs.val$most_general <- ifelse(drs.val$most_general==1, 'viral',
                                       ifelse(drs.val$most_general==3, 'unknown',
                                              ifelse(drs.val$most_general==4, 'probable_bacterial', 'bacterial'))))
 
+# convert most gen to factor with correct levels
+drs.val$most_general <- factor(drs.val$most_general, levels = dx)
 rownames(drs.val)
 
 dim(drs.val)
@@ -1745,7 +1791,7 @@ drs.val$bct <- drs.val$most_general == 'bacterial'
 
 
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                        hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
+                        hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = opt.error)
 
 prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
 pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
@@ -1767,19 +1813,38 @@ nn.psd.val$most_general <- status.i.idx.d$most_general
 
 ggplot(nn.psd.val, aes(most_general, prob, color=most_general)) +
   geom_violin(alpha=0.2)+
-  geom_jitter(width = 0.25, height = 0.002)+
+  geom_jitter(width = 0.25, height = 0.002, size=4, alpha=0.7)+
   stat_summary(fun.y = "mean", geom = "point", 
-               shape = 8, size = 3, color = "black" ) +
+               shape = 8, size = 5, color = "black", aes(shape='mean')) +
   stat_summary(fun.y = "median", geom = "point", 
-               shape = 2, size = 3, color = "black" )
+               shape = 2, size = 5, color = "black" )+
+  scale_colour_manual(values=dx.cols)+
+  labs(x ="", y = "Predicted Bacterial Probability")+
+  guides(color = guide_legend(title="Diagnostic Groups"))+
+  theme(axis.title=element_text(size=25),
+        legend.title=element_text(size=25),
+        legend.text=element_text(size=25),
+        legend.key.size = unit(2, 'lines'),
+        axis.text.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25))
+
 
 ggplot(drs.val, aes(most_general, DRS, color=most_general)) +
   geom_violin(alpha=0.2)+
-  geom_jitter(width = 0.2, height = 0.002)+
+  geom_jitter(width = 0.25, height = 0.002, size=4, alpha=0.7)+
   stat_summary(fun.y = "mean", geom = "point", 
-               shape = 8, size = 3, color = "black" ) +
+               shape = 8, size = 5, color = "black", aes(shape='mean')) +
   stat_summary(fun.y = "median", geom = "point", 
-               shape = 2, size = 3, color = "black" )
+               shape = 2, size = 5, color = "black" )+
+  scale_colour_manual(values=dx.cols)+
+  labs(x ="", y = "Disease Risk Score")+
+  guides(color = guide_legend(title="Diagnostic Groups"))+
+  theme(axis.title=element_text(size=25),
+        legend.title=element_text(size=25),
+        legend.text=element_text(size=25),
+        legend.key.size = unit(2, 'lines'),
+        axis.text.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25))
 
 a <- cbind(nn.psd.val, drs.val)
 
@@ -1804,42 +1869,8 @@ ggplot(c, aes(result, fill=model))+geom_density(alpha=0.2)
 
 
 
-# create pb and unknown filter
-pb.filt <- status.i.idx.d$most_general=='probable_bacterial'
-u.filt <- status.i.idx.d$most_general=='unknown'
-
-# extract pos and neg nn predictions from these
-pb.pos <- rownames(nn.psd.val[pb.filt,][nn.psd.val[pb.filt,]$prob > 0.5,])
-pb.neg <- rownames(nn.psd.val[pb.filt,][nn.psd.val[pb.filt,]$prob < 0.5,])
-
-u.pos <- rownames(nn.psd.val[u.filt,][nn.psd.val[u.filt,]$prob > 0.5,])
-u.neg <- rownames(nn.psd.val[u.filt,][nn.psd.val[u.filt,]$prob < 0.5,])
-
-# index to pass to View
-match(u.pos, status.i.idx.d$My_code)
-
-# PB partitions
-View(status.i.idx.d[match(pb.pos, status.i.idx.d$My_code),])
-View(status.i.idx.d[match(pb.neg, status.i.idx.d$My_code),])
-
-# Unknown Partitions
-View(status.i.idx.d[match(u.pos, status.i.idx.d$My_code),])
-View(status.i.idx.d[match(u.neg, status.i.idx.d$My_code),])
-
-# lots of unknows in neg group could well have had abx therapy
-# perhaps not required?
 
 
-
-# cannot see any easy partition of these cases
-# all PBs look sick from the limited clinical information in the iris dataset
-
-
-# roc 2 transcript signature
-a <- roc(drs.val, bct, DRS, ci=TRUE, conf.level=0.95, boot.n=100)
-attributes(a)
-a
-plot(a)
 
 
 
