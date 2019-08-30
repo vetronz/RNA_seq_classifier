@@ -91,6 +91,11 @@ tnr <- function(x){
   return(tnr)
 }
 
+npv <- function(x){
+  npv <- x[1]/(x[1]+x[2])
+  return(npv)
+}
+
 euclidean_distance <- function(p,q){
   sqrt(sum((p - q)^2))
 }
@@ -435,18 +440,30 @@ dim(a)
 label.col <- rep(c(rep('bacterial', dim(split.df[[1]])[1]), rep('viral', dim(split.df[[2]])[1])), length(sig.cells))
 length(label.col)
 a$label <- label.col
-a$key[a$key == 'T.cells.CD4.memory.activated'] <- 'T.cells.CD4.activated' # rename for space
+unique(a$key)
+
+# renaming for space
+a$key[a$key == 'B.cells.naive'] <- 'B.cell.n'
+a$key[a$key == 'B.cells.memory'] <- 'B.cell.m'
+a$key[a$key == 'Plasma.cells'] <- 'Plasma'
+a$key[a$key == 'T.cells.CD4.naive'] <- 'T.CD4.n'
+a$key[a$key == 'T.cells.CD4.memory.activated'] <- 'T.CD4.a'
+a$key[a$key == 'NK.cells.resting'] <- 'NK'
+a$key[a$key == 'Macrophages.M0'] <- 'Macroph'
+a$key[a$key == 'Monocytes'] <- 'Mono'
+
+
 # cibersort boxplot
 ggplot(a, aes(key, value, fill=label.col))+geom_boxplot()+
   scale_fill_manual(values=bv.cols)+
   labs(x='Cell Subset', y='Proportion')+
   guides(fill=guide_legend(title="Diagnosis"),
-         color = guide_legend(override.aes = list(size=4))) + # legend title
-  theme(axis.title=element_text(size=21),
-        legend.title=element_text(size=21),
-        legend.text=element_text(size=20),
-        axis.text.x = element_text(size = 15),
-        axis.text.y = element_text(size = 18))+
+         color = guide_legend(override.aes = list(size=4.5))) + # legend title
+  theme(axis.title=element_text(size=24),
+        legend.title=element_text(size=24),
+        legend.text=element_text(size=24),
+        axis.text.x = element_text(size = 24),
+        axis.text.y = element_text(size = 24))
 
 
 # remove the renamed CD4 cells
@@ -1488,11 +1505,10 @@ for (i in 1:boot){
   nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                           hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = opt.error)
   
-  pred.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
-  pred.opt.val <- ifelse(pred.opt.val.psd > 0.5, TRUE, FALSE)
+  prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
+  pred.opt.val <- ifelse(prob.opt.val.psd > 0.5, TRUE, FALSE)
   f1.opt.psd[i] <- f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
   
-  prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
   pr <- prediction(prob.opt.val.psd, status.i.idx.d[bv.filt,]$most_general=='bacterial')
   roc.opt.psd[i] <- pr %>%
     performance(measure = "auc") %>%
@@ -1551,28 +1567,7 @@ ggplot(auc.g, aes(model, result, fill=model))+geom_boxplot(alpha=0.8)+
   guides(fill=FALSE)
 
 
-
-ggplot(b, aes(result, fill=model))+geom_density(alpha=0.8)
-
-  scale_y_continuous(limits = c(0.8,1))+
-  scale_fill_manual(values = network.cols)+
-  labs(x='', y='AUC')+
-  theme(axis.title=element_text(size=40),
-        legend.title=element_text(size=40),
-        legend.text=element_text(size=40),
-        legend.key.size = unit(5,"line"),
-        axis.text.x = element_text(size = 40),
-        axis.text.y = element_text(size = 40))+
-  guides(fill=FALSE)
-
-
-
-
-
 # roc curves
-nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                        hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = opt.error)
-
 prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
 prob.opt.val.b.v.psd <- predict(nn.opt.psd, X.s.e.val[bv.filt,][-ncol(X.s.e.val)])
 
@@ -1619,36 +1614,50 @@ p.scale <- 1:99
 tpr.h <- NULL
 tnr.h <- NULL
 f1.h <- NULL
+npv.h <- NULL
 for(i in p.scale){
   p.thresh <- i/100
   print(p.thresh)
   pred.opt.val <- ifelse(prob.opt.val.b.v.psd > p.thresh, TRUE, FALSE)
-  table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
-  tpr.h[i] <- tpr(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
-  tnr.h[i] <- tnr(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
-  f1.h[i] <-  f1.score(table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val))
+  iter.table <- table(status.i.idx.d[bv.filt,]$most_general == 'bacterial', pred.opt.val)
+  tpr.h[i] <- tpr(iter.table)
+  tnr.h[i] <- tnr(iter.table)
+  f1.h[i] <-  f1.score(iter.table)
+  npv.h[i] <- npv(iter.table)
 }
 
-df.0 <- as.data.frame(cbind(tpr.h, tnr.h, (p.scale/100), f1.h))
+
+df.0 <- as.data.frame(cbind(tpr.h, tnr.h, (p.scale/100), f1.h, npv.h))
 
 # use f1 stat max to get optimal threshold
 opt.thresh <- which.max(df.0$f1.h) # 83
 df.0[opt.thresh,]
 
-df.1 <- as.data.frame(cbind(tpr.h, tnr.h))
-colnames(df.1) <- c('TPR', 'TNR')
+df.1 <- as.data.frame(cbind(tpr.h, tnr.h, npv.h))
+colnames(df.1) <- c('TPR', 'TNR', 'NPV')
+
 # add new row to df
-df.1 <- rbind(data.frame(TPR=1, TNR=0), df.1)
-df.1 <- rbind(df.1, data.frame(TPR=0, TNR=1))
+# i am labeling the NPV at P threshold of 0 to be 0 for convenience
+# however realize that the NPV is undefine as there are no negatives
+# no negatives means the numerator AND crucially the denominator of NPV equation are zero
+# as there are no TN and no FN
+df.1 <- rbind(data.frame(TPR=1, TNR=0, NPV=0), df.1)
+
+# at a P threshold of 1 everything is predicted negative:
+table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > 1)
+
+# this means the NPV is TN / total pop since all pop has been predicted -ve
+# NPV in this case is equivalent to 1-the prevalence (prev = 23/51)
+df.1 <- rbind(df.1, data.frame(TPR=0, TNR=1, NPV=1-(23/51)))
 
 df.2 <- gather(df.1, 'metric', 'result')
-df.2$P_threshold <- rep(seq(1:dim(df.1)[1])/100,2)
+df.2$P_threshold <- rep(seq(1:dim(df.1)[1])/100,3)
 
 # subtract 0.01 from p thresh to rescale the P between 0 and 1
 df.2$P_threshold <- df.2$P_threshold-0.01
 
 ggplot(df.2, aes(x=P_threshold, y=result, group=metric, color=metric))+geom_line(size=1)+
-  labs(x='Probability Threshold', y='TPR & TNR')+
+  labs(x='Probability Threshold', y='Metric Proportion')+
   geom_vline(xintercept = opt.thresh/100, linetype="dashed", 
              color = "black", size=0.6)+
   guides(color = guide_legend(override.aes = list(size=5))) +
@@ -1656,8 +1665,11 @@ ggplot(df.2, aes(x=P_threshold, y=result, group=metric, color=metric))+geom_line
         legend.title=element_text(size=25),
         legend.text=element_text(size=25),
         axis.text.x = element_text(size = 25),
-        axis.text.y = element_text(size = 25))
+        axis.text.y = element_text(size = 25))+
+  scale_color_manual(values = cols[c(2,1,3)])
 
+n = 3
+cols = gg_color_hue(n)
 
 # comparison of confusion matrix with 0.5 and optimal cutoff
 prob.opt.val.b.v.psd > 0.5
@@ -1671,6 +1683,9 @@ status.i.idx.d$most_general[bv.filt]=='bacterial'
 table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > 0.5)
 table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > (opt.thresh/100))
 
+df.1
+table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > 0.5)
+table(status.i.idx.d$most_general[bv.filt]=='bacterial', prob.opt.val.b.v.psd > 1)
 
 
 ### learning curves
