@@ -14,7 +14,6 @@ library(caret)
 library(class)
 library(plyr)
 library(dplyr)
-
 library(tidyverse)
 library(neuralnet)
 library(ROCR)
@@ -1497,6 +1496,12 @@ table(status.idx.d$most_general)
 print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 
+
+nn <- neuralnet(bct ~ . , X.s, hidden = 20)
+nn
+plot(nn, show.weights = FALSE, intercept=FALSE,
+     col.entry='green', col.hidden='blue', col.out='red', col.out.synaps=FALSE)
+
 # neural opt, val, pseud bct-vrl
 f1.opt.psd <- NULL
 roc.opt.psd <- NULL
@@ -1861,26 +1866,6 @@ ggplot(drs.val, aes(most_general, DRS, color=most_general)) +
         axis.text.x = element_text(size = 25),
         axis.text.y = element_text(size = 25))
 
-a <- cbind(nn.psd.val, drs.val)
-
-dim(a)
-
-a <- cbind(nn.psd.val, drs.val)
-
-a[,c(2,4,5)] <- NULL
-
-range01(a$DRS)
-logistic.func(a$DRS)
-a$scale.drs <- scale01(a$DRS)
-
-a
-b <- a[status.i.idx.d$most_general=='probable_viral',]
-
-b$DRS <- NULL
-c<-gather(b, 'model', 'result')
-ggplot(c, aes(result, fill=model))+geom_density(alpha=0.2)
-
-
 
 
 
@@ -1901,138 +1886,52 @@ illumina <- read.table('ill_probe.csv', sep = ',', stringsAsFactors = FALSE, fil
 head(illumina)
 dim(illumina)
 
-
-coefs.probe <- illumina$Probe_Id[match(colnames(X.diff), illumina$Array_Address_Id)]
-# coefs.probe <- illumina$Probe_Id[match(coefs.array, illumina$Array_Address_Id)]
-coefs.probe
-
+# match the illumina array address ids to the probe ids
+coefs.probe <- illumina[match(coefs.array, illumina$Array_Address_Id),]
+coefs.probe$count <- seq(1:nrow(coefs.probe))
 
 library('biomaRt')
+listMarts()
 
-ensembl = useDataset("hsapiens_gene_ensembl",mart=ensembl)
+ensembl=useMart("ensembl")
+datasets <- listDatasets(ensembl)
+head(datasets)
+
+# selects from ensembl using human dataset in single step
+ensembl = useDataset("hsapiens_gene_ensembl", mart=ensembl)
+
+
 df.1 <- getBM(attributes=c('illumina_humanht_12_v4', 'hgnc_symbol', 'ensembl_gene_id'), 
               filters = 'illumina_humanht_12_v4', 
-              values = coefs.probe, 
+              values = coefs.probe$Probe_Id, 
               mart = ensembl)
 
-df.1
+unique(df.1$illumina_humanht_12_v4)
 
-myrsini.sig <- c('ENSG00000182118', 'ENSG00000137959') # ifi and fama looked up on gene cards
-match(myrsini.sig, df.1$ensembl_gene_id)
+library("illuminaHumanv4.db") #Get this library if you don't have
 
-df.1[match(myrsini.sig, df.1$ensembl_gene_id),]
+# illuminaHumanv4ENSEMBL
+# illuminaHumanv4SYMBOL
 
+df.2 <- data.frame(Gene=unlist(mget(x = coefs.probe$Probe_Id, envir = illuminaHumanv4SYMBOL)))
+dim(df.2)
+df.2
+df.2$probe.id <- rownames(df.2)
 
+df.3 <- data.frame(Gene=unlist(mget(x = coefs.probe$Probe_Id, envir = illuminaHumanv4ENSEMBL)))
+df.3
+df.3$probe.id <- rownames(df.3)
 
-###### CLUSTERING ######
-dim(e.set.i)
-dim(X.s.e.val)
+df.4 <- join(df.2, df.3, by='probe.id')
+colnames(df.4) <- c('Gene', 'Illumina', 'Ensembl')
+df.5 <- df.4[,c(2,1,3)]
 
-e.set.i.d <- t(e.set.i)[status.i$most_general != 'HC',]
-dim(e.set.i.d)
+df.5
 
-k.test <- cmeans(e.set.i.d, centers = 2, iter.max=10, verbose=FALSE, dist="euclidean",
-       method="cmeans", rate.par = NULL)
-
-wss <- function(d, cluster){
-  # d <- dist(d, method='euclidean', diag=TRUE)
-  dmat <- as.matrix(d)
-  
-  cn <- max(cluster)
-  clusterf <- as.factor(cluster)
-  clusterl <- levels(clusterf)
-  cnn <- length(clusterl)
-  
-  within.cluster.ss <- 0
-  for (i in 1:cn) {
-    cluster.size <- sum(cluster == i)
-    di <- as.dist(dmat[cluster == i, cluster == i])
-    within.cluster.ss <- within.cluster.ss + sum(di^2)/cluster.size
-  }
-  within.cluster.ss
-}
-
-
-k.max <- 8
-v <- rep(0, k.max)
-# x <- iris[-ncol(iris)]
-# x <- e.set.i.d
-x <- X.s.e.val
-dim(x)
-x <- dist(x, method='euclidean', diag=TRUE)
-
-
-for (i in 2:k.max) {
-  print(paste0('iter: ', i))
-  clust <- cmeans(x, centers = i, iter.max=300, verbose=FALSE, dist="euclidean",
-                  method="cmeans", rate.par = NULL)
-  v[i] <- wss(x, clust$cluster)
-}
-plot(v[-1])
-v
-
-clust <- cmeans(x, centers = 2, iter.max=300, verbose=FALSE, dist="euclidean",
-                method="cmeans", m = 1.2, rate.par = NULL)
-
-clust$membership
-df.1 <- clust$centers
-
-df.1 <- as.data.frame(clust$membership)
-df.1$cluster <- clust$cluster
-
-ggplot(df.1, aes(cluster, fill=status.i.idx.d$most_general)) + 
-  geom_bar()
-
-# compare the fuzzy cluster results with the nn results
-# create PB filter
-pb.filt <- status.i.idx.d$most_general=='probable_bacterial'
-
-
-nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
-                        hidden = opt.h.n.psd, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = "sse")
-prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
-pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')
-pr %>%
-  performance(measure = "auc") %>%
-  .@y.values
-
-
-dim(prob.opt.val.psd)
-
-# nn pb probabilities
-prob.opt.val.psd[pb.filt,]
-
-# fuzzy pb probabilities
-clust$membership[pb.filt,][,2]
-
-
-full.pca <- prcomp(x[pb.filt,])
-
-pair1 <- as.data.frame(full.pca$x[,1:2])
-pair2 <- as.data.frame(full.pca$x[,3:4])
-pair3D <- as.data.frame(full.pca$x[,1:3])
-
-# fviz_eig(full.pca)
-
-ve <- full.pca$sdev^2
-pve <- ve/sum(ve)*100
-pve[1:5]
-
-
-dim(pair1)
-# separation based on batch effect
-ggplot(data = pair1, aes(PC1, PC2, color = clust$membership[pb.filt,][,1]>0.5))+geom_point() + 
-  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color=cohort))+geom_point()+
-  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[3]), ' %'), y = paste0('variance: ', round(pve[4]), ' %'))
-ggplot(data = pair1, aes(PC1, PC2, color = bct.vec))+geom_point()+
-  scale_color_manual(values=cols[c(3,5)])+
-  labs(title="PCA 1 - 2 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-ggplot(data = pair2, aes(PC3, PC4, color = bct.vec))+geom_point()+
-  scale_color_manual(values=cols[c(3,5)])+
-  labs(title="PCA 3 - 4 Discovery & Iris Dataset", x =paste0('variance: ', round(pve[1]), ' %'), y = paste0('variance: ', round(pve[2]), ' %'))
-
-
+# note to self for later.
+# would really be interesting to plot in this table the network weights
+# could compare psd to unspd
+# see whats up and down relative to both
 
 
 
