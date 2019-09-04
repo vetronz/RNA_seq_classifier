@@ -1497,11 +1497,6 @@ print(paste0('bacterial cases: ', sum(X.s$bct==TRUE)))
 
 
 
-nn <- neuralnet(bct ~ . , X.s, hidden = 20)
-nn
-plot(nn, show.weights = FALSE, intercept=FALSE,
-     col.entry='green', col.hidden='blue', col.out='red', col.out.synaps=FALSE)
-
 # neural opt, val, pseud bct-vrl
 f1.opt.psd <- NULL
 roc.opt.psd <- NULL
@@ -1535,7 +1530,7 @@ f1.g<-gather(f1.df, 'model', 'result')
 
 ggplot(f1.g, aes(model, result, fill=model))+geom_boxplot(alpha=0.7)+
   scale_y_continuous(limits = c(0.8,1))+
-  scale_fill_manual(values = network.cols)+
+  scale_fill_manual(values = network.cols[c(2,1)])+
   labs(x='', y='F1 Score')+
   theme(axis.title=element_text(size=40),
         legend.title=element_text(size=40),
@@ -1561,7 +1556,7 @@ auc.g %>%
 # ggplot(b, aes(result, colour=model, fill=model))+geom_density(alpha=0.2)
 ggplot(auc.g, aes(model, result, fill=model))+geom_boxplot(alpha=0.8)+
   scale_y_continuous(limits = c(0.8,1))+
-  scale_fill_manual(values = network.cols)+
+  scale_fill_manual(values = network.cols[c(2,1)])+
   labs(x='', y='AUC')+
   theme(axis.title=element_text(size=40),
         legend.title=element_text(size=40),
@@ -1928,15 +1923,11 @@ df.5 <- df.4[,c(2,1,3)]
 
 df.5
 
-# note to self for later.
-# would really be interesting to plot in this table the network weights
-# could compare psd to unspd
-# see whats up and down relative to both
+# setwd('/home/patrick/Documents/Masters/RNA_seq_classifier/Data/')
+write.csv(df.5, file='coefs.probe.csv', quote = FALSE, sep=',', row.names = TRUE,
+          col.names = TRUE)
 
-
-
-
-
+?write.csv
 
 
 
