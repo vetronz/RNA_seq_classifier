@@ -1804,9 +1804,21 @@ sum(rownames(drs.val) == rownames(X.s.e.val))
 # add bct vector
 drs.val$bct <- drs.val$most_general == 'bacterial'
 
+dim(X.s)
 
 nn.opt.psd <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
                         hidden = opt.h.n, rep = 3, stepmax = 1e+06, startweights = NULL, err.fct = opt.error)
+
+# plotting test networks
+# nn.plot.test <- neuralnet(bct ~ . , X.s, linear.output = FALSE, act.fct = "logistic",
+#                         hidden = 1, rep = 1, stepmax = 1e+05, startweights = NULL, err.fct = opt.error)
+# dim(nn.plot.test)
+# nn.plot.test
+# plot(nn.plot.test, intercept=FALSE, col.entry='green', col.hidden='blue', col.out='red',
+#      col.out.synapse=FALSE, fontsize=10, radius=0.1)
+
+
+
 
 prob.opt.val.psd <- predict(nn.opt.psd, X.s.e.val[-ncol(X.s.e.val)])
 pr <- prediction(prob.opt.val.psd, status.i.idx.d$most_general=='bacterial')

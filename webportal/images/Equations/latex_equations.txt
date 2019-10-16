@@ -18,6 +18,12 @@ SSE + \lambda_{1}\sum_{j=1}^p\beta^{2}_{j} +
 \lambda_{2}\sum_{j=1}^p|\beta_{j}|
 \right\}
 
+# neural net vec implementation
+Zm = \sigma(\alpha_{0m} + \alpha^T_mX), m=1...,M\\ 
+Yk = \sigma(\beta_{0k} + \beta^T_kZ), k=1...,K\\
+Output =  g_k(Y), k=1...,K\\
+
+
 https://csdn.codecogs.com/eqneditor/editor.php
 
 
